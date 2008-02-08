@@ -52,9 +52,12 @@ void ChatWindow::receiveMessage()
 void ChatWindow::sendMessage()
 {
 	std::cout << "message will be sent" << std::endl;
-	QByteArray message;
-	message.append(messageEdit->text());
-	message.append("\n");
-	clientSocket->write(message);
+	if (clientSocket)
+	{
+		QByteArray message;
+		message.append(messageEdit->text());
+		message.append("\n");
+		clientSocket->write(message);
+	}
 	messageEdit->clear();
 }

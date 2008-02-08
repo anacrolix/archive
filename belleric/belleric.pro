@@ -9,5 +9,5 @@ INCLUDEPATH += .
 QT += network
 
 # Input
-HEADERS += server.h view.h
-SOURCES += main.cpp server.cpp view.cpp
+HEADERS += view.h
+SOURCES += main.cpp view.cpp
