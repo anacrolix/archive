@@ -1,9 +1,28 @@
+#ifndef server_h
+#define server_h
+
 #include <QList>
 #include <QObject>
-#include <QTcpSocket>
 
 class QTcpServer;
-class ClientSocket;
+class QTcpSocket;
+
+class SocketNotifier : public QObject
+{
+  Q_OBJECT
+
+  public:
+    SocketNotifier(QTcpSocket* socket);
+  
+  signals:
+    void newMessage(QTcpSocket*);
+
+  private slots:
+    void readyRead();
+
+  private:
+    QTcpSocket* m_socket;
+};
 
 class ChatServer : QObject
 {
@@ -12,19 +31,10 @@ public:
 	ChatServer();
 private slots:
 	void newConnection();
-	void newMessage(ClientSocket *cs);
+	void newMessage(QTcpSocket* socket);
 private:
-	QTcpServer *server;
-	QList<ClientSocket *> clientSockets;
+	QTcpServer*        server;
+	QList<QTcpSocket*> clientSockets;
 };
 
-class ClientSocket : public QTcpSocket
-{
-	Q_OBJECT
-public:
-	ClientSocket();
-signals:
-	void newMessage(ClientSocket *cs);
-private:
-	void readyRead2();
-};
+#endif

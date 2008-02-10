@@ -1,39 +1,43 @@
-#include <iostream>
-
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QList>
-
 #include "server.h"
 
-ChatServer::ChatServer() : QObject()
+#include <QtNetwork>
+
+SocketNotifier::SocketNotifier(QTcpSocket* socket)
+    :
+    QObject(socket),
+    m_socket(socket)
 {
-	server = new QTcpServer();
+    connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
+}
+
+void
+SocketNotifier::readyRead()
+{
+    emit newMessage(m_socket);
+}
+
+ChatServer::ChatServer() 
+    :
+    server(new QTcpServer(this))    
+{
 	server->listen(QHostAddress::Any, 1337);
 	connect(server, SIGNAL(newConnection()), this, SLOT(newConnection()));
 }
 
 void ChatServer::newConnection()
 {
-	ClientSocket *newSocket = static_cast<ClientSocket *>(server->nextPendingConnection());
-	newSocket->write("Welcome");
-	connect(newSocket, SIGNAL(newMessage(ClientSocket *cs)), this, SLOT(newMessage(cs)));
-	clientSockets.append(newSocket);
+    QTcpSocket *soc = server->nextPendingConnection();
+    soc->write("Welcome");
+
+    SocketNotifier *notifier = new SocketNotifier(soc);
+    connect(notifier, SIGNAL(newMessage(QTcpSocket*)), 
+            this,     SLOT(newMessage(QTcpSocket*)));
 }
 
-void ChatServer::newMessage(ClientSocket *cs)
+void ChatServer::newMessage(QTcpSocket* socket)
 {
-	std::cout << cs << std::endl;
-	QByteArray message = cs->readAll();
-	cs->write("Thank you for your message");
+	QByteArray message = socket->readAll();
+	socket->write("Thank you for your message");
 }
 
-ClientSocket::ClientSocket() : QTcpSocket()
-{
-	connect(this, SIGNAL(readyRead()), SLOT(readyRead2()));
-}
 
-void ClientSocket::readyRead2()
-{
-	emit newMessage(this);
-}
