@@ -1,7 +1,9 @@
+#include <QList>
 #include <QObject>
+#include <QTcpSocket>
 
 class QTcpServer;
-class QTcpSocket;
+class ClientSocket;
 
 class ChatServer : QObject
 {
@@ -10,8 +12,19 @@ public:
 	ChatServer();
 private slots:
 	void newConnection();
-	void newMessage();
+	void newMessage(ClientSocket *cs);
 private:
 	QTcpServer *server;
-	QTcpSocket *client;
+	QList<ClientSocket *> clientSockets;
+};
+
+class ClientSocket : public QTcpSocket
+{
+	Q_OBJECT
+public:
+	ClientSocket();
+signals:
+	void newMessage(ClientSocket *cs);
+private:
+	void readyRead2();
 };
