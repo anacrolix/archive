@@ -1,0 +1,5 @@
+class ChatServer
+{
+public:
+	ChatServer();
+};
