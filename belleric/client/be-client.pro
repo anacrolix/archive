@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET =
+TARGET = be-client
 DEPENDPATH += .
 INCLUDEPATH += .
 QT += network

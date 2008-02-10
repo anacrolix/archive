@@ -1,14 +1,15 @@
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QTextEdit>
-#include <QTcpServer>
 #include <QTcpSocket>
 #include <QByteArray>
 #include <QString>
 #include <QSpinBox>
 #include <QGroupBox>
 #include <QPushButton>
+
 #include <iostream>
+
 #include "view.h"
 
 ChatWindow::ChatWindow(QWidget *parent)
@@ -47,26 +48,8 @@ ChatWindow::ChatWindow(QWidget *parent)
 	layout->addWidget(chatText);
 	layout->addWidget(messageEdit);
 	setLayout(layout);
-	// set up server
-	chatServer = new QTcpServer(this);
-	chatServer->listen(QHostAddress::Any, 1337);
-	connect(
-		chatServer, SIGNAL(newConnection()),
-		this, SLOT(receiveConnection()));
-	clientSocket = 0;
-}
 
-void ChatWindow::receiveConnection()
-{
-	std::cout << "something connected" << std::endl;
-	clientSocket = chatServer->nextPendingConnection();
-	connect(
-		clientSocket, SIGNAL(disconnected()),
-		clientSocket, SLOT(deleteLater()));
-	clientSocket->write("hello\n");
-	connect(
-		clientSocket, SIGNAL(readyRead()),
-		this, SLOT(receiveMessage()));
+	clientSocket = 0;
 }
 
 void ChatWindow::attemptConnection()

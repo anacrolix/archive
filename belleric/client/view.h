@@ -18,13 +18,11 @@ public:
 	ChatWindow(QWidget *parent = 0);
 
 private slots:
-	void receiveConnection();
 	void attemptConnection();
 	void receiveMessage();
 	void sendMessage();
 
 private:
-	QTcpServer *chatServer;
 	QTcpSocket *clientSocket;
 	QTextEdit *chatText;
 	QLineEdit *messageEdit;
