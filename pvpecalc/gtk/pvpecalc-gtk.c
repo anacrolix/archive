@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <gtk/gtk.h>
-#include "tibia-xp.h"
+#include <tibia-xp.h>
 
 #define MAX_LEVEL 1000
 #define MIN_LEVEL 6
