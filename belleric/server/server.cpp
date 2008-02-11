@@ -7,7 +7,6 @@ SocketNotifier::SocketNotifier(QTcpSocket* socket)
 		QObject(socket),
 		m_socket(socket)
 {
-	qDebug() << "SocketNotifier(" << socket << ")";
 	connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
 }
 
@@ -18,30 +17,29 @@ void SocketNotifier::readyRead()
 
 ChatServer::ChatServer()
 		:
-		server(new QTcpServer(this))
+		m_serverSocket(new QTcpServer(this))
 {
-	qDebug() << "ChatServer()";
-	server->listen(QHostAddress::Any, 1337);
-	connect(server, SIGNAL(newConnection()), this, SLOT(newConnection()));
+	m_serverSocket->listen(QHostAddress::Any, 1337);
+	connect(m_serverSocket, SIGNAL(newConnection()), this, SLOT(newConnection()));
+	qDebug() << "Chat server started";
 }
 
 void ChatServer::newConnection()
 {
-	QTcpSocket *newsock = server->nextPendingConnection();
-	//qDebug() << "Accepted new connection from:" << newsock->peerAddress();
-	qDebug() << "New connection from" << newsock->peerAddress();
-	qDebug("New connection from (C++ sux ;D)");
-	newsock->write("Welcome");
-
+	QTcpSocket *newsock = m_serverSocket->nextPendingConnection();
+	qDebug() << "Accepted connection from" << newsock->peerAddress();
+	newsock->write("Welcome to Belleric chat!");
 	SocketNotifier *notifier = new SocketNotifier(newsock);
 	connect(notifier, SIGNAL(newMessage(QTcpSocket*)),
 			this,     SLOT(newMessage(QTcpSocket*)));
+	m_clientSockets.append(newsock);
+	qDebug() << "Now there are" << m_clientSockets.size() << "clients";
 }
 
 void ChatServer::newMessage(QTcpSocket* socket)
 {
 	QByteArray message = socket->readAll();
-	socket->write("Thank you for your message");
+	socket->write("Roger.");
 }
 
 

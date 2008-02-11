@@ -29,8 +29,8 @@ class ChatServer : QObject
 		void newConnection();
 		void newMessage(QTcpSocket* socket);
 	private:
-		QTcpServer*        server;
-		QList<QTcpSocket*> clientSockets;
+		QTcpServer*        m_serverSocket;
+		QList<QTcpSocket*> m_clientSockets;
 };
 
 #endif
