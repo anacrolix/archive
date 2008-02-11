@@ -3,35 +3,39 @@
 #include <QtNetwork>
 
 SocketNotifier::SocketNotifier(QTcpSocket* socket)
-    :
-    QObject(socket),
-    m_socket(socket)
+		:
+		QObject(socket),
+		m_socket(socket)
 {
-    connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
+	qDebug() << "SocketNotifier(" << socket << ")";
+	connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
 }
 
-void
-SocketNotifier::readyRead()
+void SocketNotifier::readyRead()
 {
-    emit newMessage(m_socket);
+	emit newMessage(m_socket);
 }
 
-ChatServer::ChatServer() 
-    :
-    server(new QTcpServer(this))    
+ChatServer::ChatServer()
+		:
+		server(new QTcpServer(this))
 {
+	qDebug() << "ChatServer()";
 	server->listen(QHostAddress::Any, 1337);
 	connect(server, SIGNAL(newConnection()), this, SLOT(newConnection()));
 }
 
 void ChatServer::newConnection()
 {
-    QTcpSocket *soc = server->nextPendingConnection();
-    soc->write("Welcome");
+	QTcpSocket *newsock = server->nextPendingConnection();
+	//qDebug() << "Accepted new connection from:" << newsock->peerAddress();
+	qDebug() << "New connection from" << newsock->peerAddress();
+	qDebug("New connection from (C++ sux ;D)");
+	newsock->write("Welcome");
 
-    SocketNotifier *notifier = new SocketNotifier(soc);
-    connect(notifier, SIGNAL(newMessage(QTcpSocket*)), 
-            this,     SLOT(newMessage(QTcpSocket*)));
+	SocketNotifier *notifier = new SocketNotifier(newsock);
+	connect(notifier, SIGNAL(newMessage(QTcpSocket*)),
+			this,     SLOT(newMessage(QTcpSocket*)));
 }
 
 void ChatServer::newMessage(QTcpSocket* socket)

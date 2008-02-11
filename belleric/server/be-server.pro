@@ -7,6 +7,7 @@ TARGET = be-server
 DEPENDPATH += .
 INCLUDEPATH += .
 QT += network
+CONFIG += debug
 
 # Input
 HEADERS += server.h
