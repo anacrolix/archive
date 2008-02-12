@@ -7,10 +7,7 @@ ChatWindow::ChatWindow(QWidget *parent) :
 	// set up ui
 	hostLine = new QLineEdit("stupidape.dyndns.org", this);
 
-	portSpin = new QSpinBox(this);
-	portSpin->setRange(1, 65000); //tune me
-	//portSpin->setPrefix("port ");
-	portSpin->setValue(1337);
+	portLine = new QLineEdit("1337", this);
 
 	messageEdit = new QLineEdit(QString("talk here"), this);
 	connect(
@@ -18,7 +15,11 @@ ChatWindow::ChatWindow(QWidget *parent) :
 		this, SLOT(sendMessage()));
 
 	chatText = new QTextEdit(this);
+	chatText->setFontFamily("monospace");
 	chatText->setReadOnly(true);
+	chatText->setText(
+		"Welcome to Belleric! "
+		"Please enter server details above and click 'Connect'");
 
 	connectButton = new QPushButton("Connect", this);
 	QObject::connect(
@@ -28,7 +29,7 @@ ChatWindow::ChatWindow(QWidget *parent) :
 	QGroupBox *connectGroup = new QGroupBox("Connection details");
 	QHBoxLayout *connectHBox = new QHBoxLayout(connectGroup);
 	connectHBox->addWidget(hostLine);
-	connectHBox->addWidget(portSpin);
+	connectHBox->addWidget(portLine);
 	connectHBox->addWidget(connectButton);
 	connectGroup->setLayout(connectHBox);
 
@@ -43,29 +44,48 @@ void ChatWindow::attemptConnection()
 {
 	if (clientSocket)
 	{
+		clientSocket->abort();
 		clientSocket->deleteLater();
 	}
 	clientSocket = new QTcpSocket(this);
-	clientSocket->connectToHost(hostLine->text(), portSpin->value());
+	clientSocket->connectToHost(hostLine->text(), portLine->text().toUShort());
 	connect(clientSocket, SIGNAL(readyRead()),
 			this, SLOT(receiveMessage()));
 	connect(clientSocket, SIGNAL(disconnected()),
 			this, SLOT(closedConnection()));
+	connect(clientSocket, SIGNAL(connected()),
+			this, SLOT(connectedToServer()));
+	connect(clientSocket, SIGNAL(error(QAbstractSocket::SocketError)),
+			this, SLOT(socketError(QAbstractSocket::SocketError)));
+}
+
+void ChatWindow::connectedToServer()
+{
+	QString msg("II Connection successful");
+	logMessage(msg);
+}
+
+void ChatWindow::socketError(QAbstractSocket::SocketError)
+{
+	qDebug() << "oh noes lol a socket error";
+	qDebug() << clientSocket->errorString();
 }
 
 void ChatWindow::receiveMessage()
 {
-	QString message(">> " + clientSocket->readAll());
+	QString message("<< " + clientSocket->readAll());
 	logMessage(message);
 }
 
 void ChatWindow::logMessage(QString &msg)
 {
+	chatText->moveCursor(QTextCursor::End);
 	if (!chatText->toPlainText().isEmpty())
 	{
 		chatText->insertPlainText("\n");
 	}
 	chatText->insertPlainText(msg);
+	chatText->verticalScrollBar()->triggerAction(QAbstractSlider::SliderToMaximum);
 }
 
 void ChatWindow::logMessage(QByteArray &msg)
@@ -81,7 +101,8 @@ void ChatWindow::sendMessage()
 		QByteArray message;
 		message.append(messageEdit->text());
 		clientSocket->write(message);
-		logMessage(message);
+		QString log(">> " + message);
+		logMessage(log);
 		messageEdit->clear();
 	}
 	else

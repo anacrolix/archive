@@ -11,6 +11,7 @@
 #include <QSpinBox>
 #include <QGroupBox>
 #include <QPushButton>
+#include <QScrollBar>
 
 class ChatWindow : public QWidget
 {
@@ -19,6 +20,8 @@ class ChatWindow : public QWidget
 		ChatWindow(QWidget *parent = 0);
 	private slots:
 		void attemptConnection();
+		void connectedToServer();
+		void socketError(QAbstractSocket::SocketError);
 		void receiveMessage();
 		void sendMessage();
 		void closedConnection();
@@ -27,7 +30,7 @@ class ChatWindow : public QWidget
 		QTextEdit *chatText;
 		QLineEdit *messageEdit;
 		QLineEdit *hostLine;
-		QSpinBox *portSpin;
+		QLineEdit *portLine;
 		QPushButton *connectButton;
 		void logMessage(QString &);
 		void logMessage(QByteArray &);
