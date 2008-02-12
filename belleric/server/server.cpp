@@ -1,18 +1,22 @@
 #include "server.h"
 
-#include <QtNetwork>
-
 SocketNotifier::SocketNotifier(QTcpSocket* socket)
 		:
 		QObject(socket),
 		m_socket(socket)
 {
 	connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
+	connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
 }
 
 void SocketNotifier::readyRead()
 {
 	emit newMessage(m_socket);
+}
+
+void SocketNotifier::disconnected()
+{
+	emit endConnection(m_socket);
 }
 
 ChatServer::ChatServer()
@@ -30,16 +34,38 @@ void ChatServer::newConnection()
 	qDebug() << "Accepted connection from" << newsock->peerAddress();
 	newsock->write("Welcome to Belleric chat!");
 	SocketNotifier *notifier = new SocketNotifier(newsock);
-	connect(notifier, SIGNAL(newMessage(QTcpSocket*)),
-			this,     SLOT(newMessage(QTcpSocket*)));
-	m_clientSockets.append(newsock);
+	connect(notifier, SIGNAL(newMessage(QTcpSocket *)),
+			this,     SLOT(newMessage(QTcpSocket *)));
+	connect(notifier, SIGNAL(endConnection(QTcpSocket *)),
+			this, SLOT(endConnection(QTcpSocket *)));
+	m_clientSockets << newsock;
 	qDebug() << "Now there are" << m_clientSockets.size() << "clients";
 }
 
-void ChatServer::newMessage(QTcpSocket* socket)
+void ChatServer::newMessage(QTcpSocket *socket)
 {
 	QByteArray message = socket->readAll();
-	socket->write("Roger.");
+	qDebug() << "Received message from" << socket->peerName() << ":";
+	qDebug() << message;
+	QSetIterator<QTcpSocket *> it(m_clientSockets);
+	while (it.hasNext())
+	{
+		QTcpSocket *client = it.next();
+		if (client != socket)
+		{
+			client->write(message);
+		}
+	}		
 }
 
-
+void ChatServer::endConnection(QTcpSocket *socket)
+{
+	if (m_clientSockets.remove(socket))
+	{
+		qDebug() << "Disconnected" << socket->peerName();
+		qDebug() << "There are now" << m_clientSockets.size() << "clients";
+	} else {
+		qFatal("Socket %u is not listed!", socket);
+	}
+	delete socket;
+}
