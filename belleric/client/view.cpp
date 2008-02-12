@@ -1,22 +1,11 @@
-#include <QVBoxLayout>
-#include <QLineEdit>
-#include <QTextEdit>
-#include <QTcpSocket>
-#include <QByteArray>
-#include <QString>
-#include <QSpinBox>
-#include <QGroupBox>
-#include <QPushButton>
-
-#include <iostream>
-
 #include "view.h"
 
-ChatWindow::ChatWindow(QWidget *parent)
-	: QWidget(parent)
+ChatWindow::ChatWindow(QWidget *parent) :
+		QWidget(parent),
+		clientSocket(0)
 {
 	// set up ui
-	hostLine = new QLineEdit("localhost", this);
+	hostLine = new QLineEdit("stupidape.dyndns.org", this);
 
 	portSpin = new QSpinBox(this);
 	portSpin->setRange(1, 65000); //tune me
@@ -36,7 +25,7 @@ ChatWindow::ChatWindow(QWidget *parent)
 		connectButton, SIGNAL(clicked()),
 		this, SLOT(attemptConnection()));
 
-	QGroupBox *connectGroup = new QGroupBox("Connect as client");
+	QGroupBox *connectGroup = new QGroupBox("Connection details");
 	QHBoxLayout *connectHBox = new QHBoxLayout(connectGroup);
 	connectHBox->addWidget(hostLine);
 	connectHBox->addWidget(portSpin);
@@ -48,42 +37,64 @@ ChatWindow::ChatWindow(QWidget *parent)
 	layout->addWidget(chatText);
 	layout->addWidget(messageEdit);
 	setLayout(layout);
-
-	clientSocket = 0;
 }
 
 void ChatWindow::attemptConnection()
 {
-	std::cout << "attempting to connect" << std::endl;
-	//close server if open
-	//try to open socket to given host/port
+	if (clientSocket)
+	{
+		clientSocket->deleteLater();
+	}
 	clientSocket = new QTcpSocket(this);
 	clientSocket->connectToHost(hostLine->text(), portSpin->value());
-	connect(
-		clientSocket, SIGNAL(readyRead()),
-		this, SLOT(receiveMessage()));
+	connect(clientSocket, SIGNAL(readyRead()),
+			this, SLOT(receiveMessage()));
+	connect(clientSocket, SIGNAL(disconnected()),
+			this, SLOT(closedConnection()));
 }
 
 void ChatWindow::receiveMessage()
 {
-	std::cout << "there are bytes to be read" << std::endl;
-	QByteArray message = clientSocket->readAll();
-	if (chatText->toPlainText().isEmpty() == false)
+	QString message(">> " + clientSocket->readAll());
+	logMessage(message);
+}
+
+void ChatWindow::logMessage(QString &msg)
+{
+	if (!chatText->toPlainText().isEmpty())
 	{
 		chatText->insertPlainText("\n");
 	}
-	chatText->insertPlainText(message);
+	chatText->insertPlainText(msg);
+}
+
+void ChatWindow::logMessage(QByteArray &msg)
+{
+	QString msg2(msg);
+	logMessage(msg2);
 }
 
 void ChatWindow::sendMessage()
 {
-	std::cout << "message will be sent" << std::endl;
-	std::cout << "clientSocket has value " << clientSocket << std::endl;
-	if (clientSocket != NULL)
+	if (clientSocket && clientSocket->isValid())
 	{
 		QByteArray message;
 		message.append(messageEdit->text());
 		clientSocket->write(message);
+		logMessage(message);
+		messageEdit->clear();
 	}
-	messageEdit->clear();
+	else
+	{
+		QString errMsg("!! Failed to send message");
+		logMessage(errMsg);
+	}
+}
+
+void ChatWindow::closedConnection()
+{
+	QString msg("!! Connection was closed");
+	logMessage(msg);
+	clientSocket->deleteLater();
+	clientSocket = 0;
 }
