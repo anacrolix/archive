@@ -35,7 +35,7 @@ void ChatServer::newConnection()
 	newsock->write("Welcome to Belleric chat!");
 	SocketNotifier *notifier = new SocketNotifier(newsock);
 	connect(notifier, SIGNAL(newMessage(QTcpSocket *)),
-			this,     SLOT(newMessage(QTcpSocket *)));
+			this, SLOT(newMessage(QTcpSocket *)));
 	connect(notifier, SIGNAL(endConnection(QTcpSocket *)),
 			this, SLOT(endConnection(QTcpSocket *)));
 	m_clientSockets << newsock;
@@ -45,7 +45,7 @@ void ChatServer::newConnection()
 void ChatServer::newMessage(QTcpSocket *socket)
 {
 	QByteArray message = socket->readAll();
-	qDebug() << "Received message from" << socket->peerName() << ":";
+	qDebug() << "Received message from" << socket->peerAddress().toString() << ":";
 	qDebug() << message;
 	QSetIterator<QTcpSocket *> it(m_clientSockets);
 	while (it.hasNext())
@@ -55,17 +55,19 @@ void ChatServer::newMessage(QTcpSocket *socket)
 		{
 			client->write(message);
 		}
-	}		
+	}
 }
 
 void ChatServer::endConnection(QTcpSocket *socket)
 {
 	if (m_clientSockets.remove(socket))
 	{
-		qDebug() << "Disconnected" << socket->peerName();
+		qDebug() << "Disconnected" << socket->peerAddress().toString();
 		qDebug() << "There are now" << m_clientSockets.size() << "clients";
-	} else {
+	}
+	else
+	{
 		qFatal("Socket %u is not listed!", socket);
 	}
-	delete socket;
+	socket->deleteLater();
 }
