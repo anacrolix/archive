@@ -1,7 +1,6 @@
 #include "server.h"
 
-SocketNotifier::SocketNotifier(QTcpSocket* socket)
-		:
+SocketNotifier::SocketNotifier(QTcpSocket* socket) :
 		QObject(socket),
 		m_socket(socket)
 {
@@ -19,8 +18,7 @@ void SocketNotifier::disconnected()
 	emit endConnection(m_socket);
 }
 
-ChatServer::ChatServer()
-		:
+ChatServer::ChatServer() :
 		m_serverSocket(new QTcpServer(this))
 {
 	m_serverSocket->listen(QHostAddress::Any, 1337);
@@ -45,8 +43,7 @@ void ChatServer::newConnection()
 void ChatServer::newMessage(QTcpSocket *socket)
 {
 	QByteArray message = socket->readAll();
-	qDebug() << "Received message from" << socket->peerAddress().toString() << ":";
-	qDebug() << message;
+	qDebug() << socket->peerAddress().toString() << ":" << message;
 	QSetIterator<QTcpSocket *> it(m_clientSockets);
 	while (it.hasNext())
 	{
@@ -67,7 +64,7 @@ void ChatServer::endConnection(QTcpSocket *socket)
 	}
 	else
 	{
-		qFatal("Socket %u is not listed!", socket);
+		qFatal("Socket %u is not listed!", uint(socket));
 	}
 	socket->deleteLater();
 }
