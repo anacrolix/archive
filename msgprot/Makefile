@@ -1,7 +1,13 @@
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -std=c99
 
-all: server
+all: server client
 
-server: server.c
-	$(CC) $(CFLAGS) -o server server.c
+server: server.o network.o error.o
+	$(CC) $(CFLAGS) -o server server.o network.o error.o
+	
+client: client.o network.o error.o
+	$(CC) $(CFLAGS) -o client client.o network.o error.o
+	
+server.o client.o: network.h error.h
+network.o: error.h
