@@ -44,6 +44,7 @@ int main ()
 				received += bytes;
 			}
 		}
+		zomgbuf[received] = '\0';
 		printf("received %d bytes\nmessage reads: %s\n", received, zomgbuf);
 		free(zomgbuf);
 	}
