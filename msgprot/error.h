@@ -1,9 +1,7 @@
 #ifndef error_h
 #define error_h
 
-//#define debug 
-
-void fatal_error(char*);
-void debug(const char *format, ...);
+void err_fatal(char *);
+void err_debug(const char *, ...);
 
 #endif

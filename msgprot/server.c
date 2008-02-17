@@ -9,7 +9,7 @@
 
 int main ()
 {
-	debug("im %d y.o.\n", 22);
+	err_debug("im %d y.o.\n", 22);
 	int server = tcp_listen(1337, 1);
 	int client = tcp_accept(server);
 	printf("accepted connection from %s:%hu\n",
@@ -20,7 +20,7 @@ int main ()
 		while (received != sizeof msg_size) {
 			bytes = recv(client, msg_size + received, sizeof(msg_size) - received, 0);
 			if (bytes < 0)
-				fatal_error("recv");
+				err_fatal("recv");
 			else if (bytes == 0) {
 				puts("socket closed");
 				close(client);
@@ -35,7 +35,7 @@ int main ()
 		while (received != size) {
 			bytes = recv(client, zomgbuf + received, size - received, 0);
 			if (bytes == -1) {
-				fatal_error("recv");
+				err_fatal("recv");
 			} else if (bytes == 0) {
 				puts("socked died in the ass");
 				close(client);

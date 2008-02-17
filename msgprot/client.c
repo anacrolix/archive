@@ -1,11 +1,11 @@
-#include "error.h"
-#include "network.h"
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "error.h"
+#include "network.h"
 
 int main()
 {
@@ -18,11 +18,11 @@ int main()
 		printf("message is length %d\n", msg_len);
 		ssize_t nmsg_len = htonl(msg_len);
 		if (send(s, &nmsg_len, sizeof(nmsg_len), 0) == -1)
-			fatal_error("send");
+			err_fatal("send");
 		for (int i = 0; i < msg_len; i++) {
 			sleep(1);			
 			if (send(s, zomgbuf+i, 1, 0) == -1)
-				fatal_error("send");
+				err_fatal("send");
 			printf("send the \'%c\'\n", *(zomgbuf+i));
 		}
 	}

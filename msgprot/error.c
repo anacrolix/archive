@@ -4,13 +4,13 @@
 
 #include "error.h"
 
-void fatal_error(char *s)
+void err_fatal(char *s)
 {
 	perror(s);
 	exit(EXIT_FAILURE);
 }
 
-void debug(const char *fmt, ...)
+void err_debug(const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
