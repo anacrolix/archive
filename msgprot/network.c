@@ -61,3 +61,15 @@ unsigned short int tcp_peer_port(int socket)
 		err_fatal("getpeername");
 	return ntohs(addr.sin_port);
 }
+
+ssize_t tcp_write(int fd, const void *buf, size_t len)
+{
+	ssize_t bytes = write(fd, buf, len);
+	if (bytes == -1) {
+		err_fatal("write");
+	} else if (bytes != len) {
+		err_fatal("write");
+		err_debug("not all bytes were written!");
+	}
+	return bytes;
+} 

@@ -9,7 +9,7 @@
 
 int main()
 {
-	int s = tcp_connect("localhost", 1337);
+	int sock = tcp_connect("localhost", 1337);
 	char zomgbuf[1024];
 	for (;;) {
 		printf("enter message: ");
@@ -17,12 +17,10 @@ int main()
 		size_t msg_len = strlen(zomgbuf);
 		printf("message is length %d\n", msg_len);
 		ssize_t nmsg_len = htonl(msg_len);
-		if (send(s, &nmsg_len, sizeof(nmsg_len), 0) == -1)
-			err_fatal("send");
+		tcp_write(sock, &nmsg_len, sizeof(nmsg_len));
 		for (int i = 0; i < msg_len; i++) {
 			sleep(1);			
-			if (send(s, zomgbuf+i, 1, 0) == -1)
-				err_fatal("send");
+			tcp_write(sock, zomgbuf + i, 1);
 			printf("send the \'%c\'\n", *(zomgbuf+i));
 		}
 	}
