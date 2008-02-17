@@ -30,7 +30,7 @@ int tcp_listen(unsigned short int port, unsigned int backlog)
 		.sin_port = htons(port)};
 	if (bind(sock, (struct sockaddr *)&addr, sizeof addr) == -1)
 		err_fatal("bind");
-	if (listen(sock, backlog) == -1) err_fatal("listen");		
+	if (listen(sock, backlog) == -1) err_fatal("listen");
 	return sock;
 }
 
@@ -47,7 +47,7 @@ char *socket_peer_name(int socket)
 	socklen_t addrlen = sizeof(addr);
 	if (getpeername(socket, (struct sockaddr *)&addr, &addrlen) == -1)
 		err_fatal("getpeername");
-	return inet_ntoa(addr.sin_addr);	
+	return inet_ntoa(addr.sin_addr);
 }
 
 unsigned short int socket_peer_port(int socket)
@@ -77,8 +77,7 @@ ssize_t tcp_read(int sockfd, void *buf, size_t len)
 	if (ret == -1)
 		err_fatal("recv");
 	else if (ret != len) {
-		err_debug("not all bytes were read!\n");
-		err_fatal("recv");
+		debug("not all bytes were read!\n");
 	}
 	return ret;
 }

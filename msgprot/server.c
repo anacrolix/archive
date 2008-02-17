@@ -12,43 +12,18 @@ int main ()
 {
 	int server = tcp_listen(1337, 1);
 	int client = tcp_accept(server);
+	close(server);
 	printf("accepted connection from %s:%hu\n",
 		socket_peer_name(client), socket_peer_port(client));
 	for (;;) {
-		char msg_size[sizeof(ssize_t)];
-		ssize_t received = 0, bytes;
-		while (received != sizeof msg_size) {
-			bytes = recv(client, msg_size + received, sizeof(msg_size) - received, 0);
-			if (bytes < 0)
-				err_fatal("recv");
-			else if (bytes == 0) {
-				puts("socket closed");
-				close(client);
-				return 0;
-			} else
-				received += bytes;
-		}
-		received = 0;
-		uint32_t size = ntohl(*((uint32_t*)msg_size));
-		printf("next message is %d bytes long\n", size);
-		char *zomgbuf = malloc(size);
-		while (received != size) {
-			bytes = recv(client, zomgbuf + received, size - received, 0);
-			if (bytes == -1) {
-				err_fatal("recv");
-			} else if (bytes == 0) {
-				puts("socked died in the ass");
-				close(client);
-				return 0;
-			} else {
-				received += bytes;
-			}
-		}
-		zomgbuf[received] = '\0';
-		printf("received %d bytes\nmessage reads: %s\n", received, zomgbuf);
-		free(zomgbuf);
+		struct tcp_msg tm = tcp_msg_init(client, 0);
+		tcp_msg_recv(&tm);
+		while (tm.data_done != tm.msg_size)
+			tcp_msg_recv(&tm);
+		printf("received %d bytes\nmessage reads: %s\n", tm.msg_size, (char*)tm.data);
+		tcp_msg_destroy(&tm);
 	}
 	// accept and start message grabbing until a message reads exit
-	return 0;
+	return EXIT_SUCCESS;
 }
 

@@ -2,34 +2,81 @@
 #include "network.h"
 #include "tcpmsg.h"
 
-struct tcp_msg tcp_msg_new(int sockfd, uint32_t size)
+struct tcp_msg tcp_msg_init(int sockfd, tmsize_t size)
 {
 	struct tcp_msg tm = {
 		.sockfd = sockfd,
-		.size = size,
-		.done = 0,
-		.senthdr = 0
+		.iotype = size ? TM_SEND : TM_RECV,
+		.msg_size = size,
+		.data_done = 0,
+		.hdr_done = 0,
+		.hdr = size ? htonl(size) : 0,
+		.data = NULL,
 	};
 	return tm;
 }
 
-void tcp_msg_send_hdr(struct tcp_msg *tm)
+ssize_t tcp_msg_send(struct tcp_msg *tm, void *data, size_t len)
 {
-	err_debug("sending message header size=%u\n", tm->size);
-	uint32_t netsize = htonl(tm->size);
-	tcp_write(tm->sockfd, &netsize, sizeof(netsize));
-	tm->senthdr = 1;
+	ssize_t sent;
+	// check message is send type
+	if (tm->iotype != TM_SEND) {
+		debug("tcp message is not of send type\n");
+		return -1;
+	}
+	// send header if it's not already sent
+	if (tm->hdr_done != sizeof(tmsize_t)) {
+		sent = tcp_write(
+			tm->sockfd,
+			&tm->hdr,
+			sizeof(tmsize_t) - tm->hdr_done);
+		tm->hdr_done += sent;
+		sent = 0;
+	}
+	// send as much data as possible
+	if (tm->hdr_done == sizeof(tm->msg_size)) {
+		if (tm->data_done + len > tm->msg_size) {
+			debug("data will overflow message\n");
+			return -1;
+		} else {
+			sent = tcp_write(tm->sockfd, data, len);
+			tm->data_done += sent;
+		}
+	}
+	return sent;
 }
 
-void tcp_msg_send_data(struct tcp_msg *tm, void *data, size_t len)
+void tcp_msg_recv(struct tcp_msg *tm)
 {
-	if (!tm->senthdr) err_fatal("header not sent yet");
-	if (tm->done + len > tm->size) err_fatal("message will overflow");
-	tcp_write(tm->sockfd, data, len);
-	tm->done += len;
+	ssize_t recvcnt;
+	// check message is recv type
+	if (tm->iotype != TM_RECV)
+		fatal("tcp message is not of recv type\n");
+	// recv header if it's not already set
+	if (tm->hdr_done != sizeof(tmsize_t)) {
+		recvcnt = tcp_read(
+			tm->sockfd,
+			&tm->hdr + tm->hdr_done,
+			sizeof(tmsize_t) - tm->hdr_done);
+		tm->hdr_done += recvcnt;
+		recvcnt = 0;
+		if (tm->hdr_done == sizeof(tmsize_t)) {
+			tm->msg_size = ntohl(tm->hdr);
+			tm->data = malloc(tm->msg_size);
+		}
+	}
+	// receive as much data as possible
+	if (tm->hdr_done == sizeof(tm->msg_size)) {
+		recvcnt = tcp_read(
+			tm->sockfd,
+			tm->data + tm->data_done,
+			tm->msg_size - tm->data_done);
+		tm->data_done += recvcnt;
+	}
 }
 
-int tcp_msg_done(struct tcp_msg *tm)
+void tcp_msg_destroy(struct tcp_msg *tm)
 {
-	return (tm->done == tm->size);
+	if (tm->data) free(tm->data);
+	tm->data = NULL;
 }

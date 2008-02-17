@@ -16,13 +16,13 @@ int main()
 		printf("enter message: ");
 		scanf("%s", zomgbuf);
 		size_t msg_len = strlen(zomgbuf);
-		struct tcp_msg tm = tcp_msg_new(sock, msg_len);
-		tcp_msg_send_hdr(&tm);
+		struct tcp_msg tm = tcp_msg_init(sock, msg_len);
 		for (int i = 0; i < msg_len; i++) {
-			sleep(1);		
-			tcp_msg_send_data(&tm, zomgbuf + i, 1);	
+			sleep(1);
+			tcp_msg_send(&tm, zomgbuf + i, 1);
 			printf("send the \'%c\'\n", *(zomgbuf+i));
 		}
+		tcp_msg_destroy(&tm);
 	}
 	return 0;
 }
