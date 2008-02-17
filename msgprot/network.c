@@ -44,7 +44,7 @@ int tcp_accept(int socket)
 	return newsock;
 }
 
-char *tcp_peer_host(int socket)
+char *socket_peer_name(int socket)
 {
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
@@ -53,7 +53,7 @@ char *tcp_peer_host(int socket)
 	return inet_ntoa(addr.sin_addr);	
 }
 
-unsigned short int tcp_peer_port(int socket)
+unsigned short int socket_peer_port(int socket)
 {
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
@@ -64,7 +64,7 @@ unsigned short int tcp_peer_port(int socket)
 
 ssize_t tcp_write(int fd, const void *buf, size_t len)
 {
-	ssize_t bytes = write(fd, buf, len);
+	ssize_t bytes = send(fd, buf, len, 0);
 	if (bytes == -1) {
 		err_fatal("write");
 	} else if (bytes != len) {

@@ -13,7 +13,7 @@ int main ()
 	int server = tcp_listen(1337, 1);
 	int client = tcp_accept(server);
 	printf("accepted connection from %s:%hu\n",
-		tcp_peer_host(client), tcp_peer_port(client));
+		socket_peer_name(client), socket_peer_port(client));
 	for (;;) {
 		char msg_size[sizeof(ssize_t)];
 		ssize_t received = 0, bytes;
