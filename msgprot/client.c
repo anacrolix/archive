@@ -6,6 +6,7 @@
 
 #include "error.h"
 #include "network.h"
+#include "tcpmsg.h"
 
 int main()
 {
@@ -15,12 +16,11 @@ int main()
 		printf("enter message: ");
 		scanf("%s", zomgbuf);
 		size_t msg_len = strlen(zomgbuf);
-		printf("message is length %d\n", msg_len);
-		ssize_t nmsg_len = htonl(msg_len);
-		tcp_write(sock, &nmsg_len, sizeof(nmsg_len));
+		struct tcp_msg tm = tcp_msg_new(sock, msg_len);
+		tcp_msg_send_hdr(&tm);
 		for (int i = 0; i < msg_len; i++) {
-			sleep(1);			
-			tcp_write(sock, zomgbuf + i, 1);
+			sleep(1);		
+			tcp_msg_send_data(&tm, zomgbuf + i, 1);	
 			printf("send the \'%c\'\n", *(zomgbuf+i));
 		}
 	}

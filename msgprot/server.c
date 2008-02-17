@@ -6,10 +6,10 @@
 
 #include "network.h"
 #include "error.h"
+#include "tcpmsg.h"
 
 int main ()
 {
-	err_debug("im %d y.o.\n", 22);
 	int server = tcp_listen(1337, 1);
 	int client = tcp_accept(server);
 	printf("accepted connection from %s:%hu\n",

@@ -1,8 +1,5 @@
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-
 #include "error.h"
+#include "network.h"
 
 int tcp_connect(char *name, unsigned short int port)
 {
@@ -66,10 +63,22 @@ ssize_t tcp_write(int fd, const void *buf, size_t len)
 {
 	ssize_t bytes = send(fd, buf, len, 0);
 	if (bytes == -1) {
-		err_fatal("write");
+		err_fatal("send");
 	} else if (bytes != len) {
-		err_fatal("write");
-		err_debug("not all bytes were written!");
+		err_debug("not all bytes were written!\n");
+		err_fatal("send");
 	}
 	return bytes;
-} 
+}
+
+ssize_t tcp_read(int sockfd, void *buf, size_t len)
+{
+	ssize_t ret = recv(sockfd, buf, len, 0);
+	if (ret == -1)
+		err_fatal("recv");
+	else if (ret != len) {
+		err_debug("not all bytes were read!\n");
+		err_fatal("recv");
+	}
+	return ret;
+}

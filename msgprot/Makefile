@@ -1,16 +1,18 @@
 CC = gcc
 CFLAGS = -Wall -std=c99
+COMMON_OBJS = network.o error.o tcpmsg.o
 
 all: server client
 
-server: server.o network.o error.o
-	$(CC) $(CFLAGS) -o server server.o network.o error.o
+server: server.o $(COMMON_OBJS)
+	$(CC) $(CFLAGS) -o server server.o $(COMMON_OBJS)
 	
-client: client.o network.o error.o
-	$(CC) $(CFLAGS) -o client client.o network.o error.o
+client: client.o $(COMMON_OBJS)
+	$(CC) $(CFLAGS) -o client client.o $(COMMON_OBJS)
 	
 clean:
 	rm -f *.o server client
 	
-server.o client.o: network.h error.h
-network.o: error.h
+$(COMMON_OBJS): error.h
+tcpmsg.o client.o: tcpmsg.h
+tcpmsg.o client.o server.o network.o: network.h
