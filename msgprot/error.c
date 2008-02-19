@@ -1,7 +1,3 @@
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
-
 #include "error.h"
 
 void fatal_error(const char *s, ...)
@@ -15,7 +11,7 @@ void debug_error(const char *s, ...)
 	perror(s);
 	exit(EXIT_FAILURE);
 }
-
+/*
 void fatal(const char *s, ...)
 {
 	va_list ap;
@@ -31,3 +27,4 @@ void debug(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 }
+*/

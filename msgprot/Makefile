@@ -13,6 +13,6 @@ client: client.o $(COMMON_OBJS)
 clean:
 	rm -f *.o server client
 
-$(COMMON_OBJS): error.h
-tcpmsg.o client.o: tcpmsg.h
-tcpmsg.o client.o server.o network.o: network.h
+$(COMMON_OBJS) client.o server.o: error.h
+client.o server.o: tcpmsg.h
+tcpmsg.o server.o client.o: network.h

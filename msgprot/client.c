@@ -12,6 +12,24 @@ int main()
 {
 	int sock = tcp_connect("localhost", 1337);
 	char zomgbuf[1024];
+	while (1) {
+		//char zomgbuf[1024];
+		printf("enter message: ");
+		if (EOF == scanf("%1023s", zomgbuf)) break;
+		size_t msgsize = strlen(zomgbuf);
+		struct tcp_msg tm = tcp_msg_new();
+		tcp_msg_init(&tm, sock, msgsize);
+		for (int i = 0; i < msgsize; i++) {
+			sleep(1);
+			tcp_msg_send(&tm, zomgbuf + i, 1);
+			printf("send the \'%c\'\n", *(zomgbuf + i));
+		}
+		tcp_msg_clean(&tm);
+	}
+	tcp_close(sock);
+	/*
+	int sock = tcp_connect("localhost", 1337);
+	char zomgbuf[1024];
 	for (;;) {
 		printf("enter message: ");
 		scanf("%s", zomgbuf);
@@ -24,5 +42,6 @@ int main()
 		}
 		tcp_msg_destroy(&tm);
 	}
-	return 0;
+	*/
+	return EXIT_SUCCESS;
 }

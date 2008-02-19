@@ -2,10 +2,12 @@
 #define tcpmsg_h
 
 #include <stdlib.h>
+#include <linux/types.h>
 
-typedef uint32_t tmsize_t;
+typedef unsigned long tmsize_t;
 
 enum tmio_t {
+	TM_NONE = 0,
 	TM_SEND,
 	TM_RECV
 };
@@ -20,9 +22,11 @@ struct tcp_msg {
 	void *data;
 };
 
-struct tcp_msg tcp_msg_init(int sockfd, tmsize_t size);
+struct tcp_msg tcp_msg_new();
+void tcp_msg_init(struct tcp_msg *tm, int sockfd, tmsize_t size);
 ssize_t tcp_msg_send(struct tcp_msg *tm, void *data, size_t len);
-void tcp_msg_recv(struct tcp_msg *tm);
-void tcp_msg_destroy(struct tcp_msg *tm);
+ssize_t tcp_msg_recv(struct tcp_msg *tm);
+void tcp_msg_clean(struct tcp_msg *tm);
+int tcp_msg_is_valid(struct tcp_msg *tm);
 
 #endif

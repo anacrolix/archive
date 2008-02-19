@@ -1,5 +1,5 @@
-#include "error.h"
 #include "network.h"
+#include "error.h"
 
 int tcp_connect(char *name, unsigned short int port)
 {
@@ -41,7 +41,7 @@ int tcp_accept(int socket)
 	return newsock;
 }
 
-char *socket_peer_name(int socket)
+char *tcp_peer_name(int socket)
 {
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
@@ -50,7 +50,7 @@ char *socket_peer_name(int socket)
 	return inet_ntoa(addr.sin_addr);
 }
 
-unsigned short int socket_peer_port(int socket)
+unsigned short int tcp_peer_port(int socket)
 {
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
@@ -75,9 +75,19 @@ ssize_t tcp_read(int sockfd, void *buf, size_t len)
 {
 	ssize_t ret = recv(sockfd, buf, len, 0);
 	if (ret == -1)
-		err_fatal("recv");
-	else if (ret != len) {
+		fatal_error("recv");
+	else if (ret == 0)
+		debug("no bytes returned (socket closed?)\n");
+	else if (ret != len)
 		debug("not all bytes were read!\n");
-	}
 	return ret;
+}
+
+void tcp_close(int sockfd)
+{
+	debug("socket %d (%s:%hu) closed\n",
+		sockfd,
+		tcp_peer_name(sockfd),
+		tcp_peer_port(sockfd));
+	if (shutdown(sockfd, SHUT_RDWR)) fatal_error("close");
 }
