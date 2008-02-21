@@ -28,7 +28,7 @@ int initFdSets(fd_set *readfds)
 int main()
 {
 	int i;
-	debug("FD_SETSIZE=%d\n", FD_SETSIZE);
+	debug("FD_SETSIZE == %d\n", FD_SETSIZE);
 	/* initialize globals */
 	for (i = 0; i < FD_SETSIZE; i++)
 		varsocks[i] = tcp_msg_new();

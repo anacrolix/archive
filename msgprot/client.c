@@ -8,12 +8,16 @@
 #include "network.h"
 #include "tcpmsg.h"
 
-int main()
+int main(int argc, char *argv[])
 {
+	char *peerHost = "localhost";
+	if (argc == 2) peerHost = argv[1];
+	debug("peerHost == \"%s\"\n", peerHost);
 	int sock = tcp_connect("localhost", 1337);
 	char zomgbuf[1024];
 	strcpy(zomgbuf, "msg");
 	while (1) {
+		debug("\n");
 		struct tcp_msg tm = tcp_msg_new();
 		size_t msgsize;
 		printf("enter message: ");
@@ -29,7 +33,7 @@ int main()
 			for (int i = 0; i < msgsize; i++) {
 				//sleep(1);
 				tcp_msg_send(&tm, zomgbuf + i, 1);
-				printf("send the \'%c\'\n", *(zomgbuf + i));
+				debug("send the \'%c\'\n", *(zomgbuf + i));
 			}
 			tcp_msg_clean(&tm);
 		}
