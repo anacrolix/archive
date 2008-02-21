@@ -63,6 +63,7 @@ ssize_t tcp_msg_recv(struct tcp_msg *tm)
 		if (tm->hdr_done == sizeof(tmsize_t)) {
 			tm->msg_size = ntohl(tm->hdr);
 			tm->data = malloc(tm->msg_size);
+			debug("header received, size = %lu\n", tm->msg_size);
 		}
 	}
 	// receive as much data as possible
@@ -72,6 +73,8 @@ ssize_t tcp_msg_recv(struct tcp_msg *tm)
 			tm->data + tm->data_done,
 			tm->msg_size - tm->data_done);
 		tm->data_done += recvcnt;
+		debug("received %d bytes, %lu remaining\n",
+			recvcnt, tm->msg_size - tm->data_done);
 	}
 	return recvcnt;
 }

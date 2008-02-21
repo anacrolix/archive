@@ -7,5 +7,6 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <sys/select.h>
+#include <strings.h>
 
 #endif
