@@ -6,8 +6,8 @@ const int
 	SCREEN_WIDTH = 1200,
 	SCREEN_HEIGHT = 800,
 	SCREEN_BPP = 32,
-	GRID_WIDTH = 2,
-	GRID_HEIGHT = 2;
+	GRID_WIDTH = 10,
+	GRID_HEIGHT = 10;
 
 const char
 	WINDOW_CAPTION[] = "SDL Life";
@@ -18,7 +18,8 @@ SDL_Surface
 int
 	fullscreen = 0,
 	quit = 0,
-	points = 0;
+	points = 0,
+	generation = 0;
 
 char *world = NULL;
 char *newWorld, *oldWorld;
@@ -91,8 +92,8 @@ void update()
 	newWorld = world;
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
-	for (int y = 0; y < height; y++) {
-		for (int x = 0; x < width; x++) {
+	for (int y = -1; y <= height; y++) {
+		for (int x = -1; x <= width; x++) {
 			int adj = 0;
 			for (int j = y - 1; j <= y + 1; j++) {
 				if (j < 0 || j >= height) continue;
@@ -102,25 +103,33 @@ void update()
 					if (oldWorld[j * width + i]) adj++;
 				}
 			}
-			if (adj < 2 || adj > 3)
-				newWorld[y * width + x] = 0;
-			else if (adj == 2)
-				newWorld[y * width + x] = oldWorld[y * width + x];
-			else if (adj == 3)
-				newWorld[y * width + x] = 1;
+			if (x != -1 && x != width && y != -1 && y != height) {
+				if (adj < 2 || adj > 3)
+					newWorld[y * width + x] = 0;
+				else if (adj == 2)
+					newWorld[y * width + x] = oldWorld[y * width + x];
+				else if (adj == 3)
+					newWorld[y * width + x] = 1;
+			} else {
+				if (adj == 3) {
+					points++;
+					//printf("generation %d scored a point! (sum == %d)\n", generation, points);
+				}
+			}
 		}
 	}
 	world = newWorld;
+	generation++;
 }
 
 void loop()
 {
 	while (1) {
+		draw();
+		SDL_Delay(50);
 		events();
 		if (quit) break;
 		update();
-		draw();
-		SDL_Delay(30);
 	}
 }
 
