@@ -6,13 +6,13 @@
 const int
 	SCREEN_WIDTH = 640,
 	SCREEN_HEIGHT = 480,
-	SCREEN_BPP = 32,
-	GRID_WIDTH = 2,
-	GRID_HEIGHT = 2,
+	SCREEN_BPP = 16,
+	GRID_WIDTH = 5,
+	GRID_HEIGHT = 5,
 	FRAME_RATE = 30;
 
 const char
-	WINDOW_CAPTION[] = "SDL Life";
+	WINDOW_CAPTION[] = "Conway SDL";
 
 SDL_Surface
 	*screen = NULL;
@@ -20,7 +20,6 @@ SDL_Surface
 int
 	fullscreen = 0,
 	quit = 0,
-	points = 0,
 	generation = 0;
 
 typedef struct {char state; Uint8 r, g, b;} cell_t;
@@ -42,7 +41,7 @@ void init()
 		exit(EXIT_FAILURE);
 	atexit(cleanup);
 	screen = SDL_SetVideoMode(
-		SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_SWSURFACE);
+		SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_HWSURFACE);
 	if (!screen) exit(EXIT_FAILURE);
 	SDL_WM_SetCaption(WINDOW_CAPTION, NULL);
 	int width = SCREEN_WIDTH / GRID_WIDTH;
@@ -51,6 +50,14 @@ void init()
 	oldWorld = calloc(width * height, sizeof(cell_t));
 	if (!newWorld || !oldWorld) exit(EXIT_FAILURE);
 	world = newWorld;
+	/*
+	cell_t cell = {1, 0xFF, 0, 0};
+	world[0] = cell;
+	world[(height - 1) * width] = cell;
+	world[(height - 1) * width + width - 1] = cell;
+	world[width - 1] = cell;
+	*/
+	// random start
 	srand(time(NULL));
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
@@ -75,6 +82,11 @@ void events()
 	while (SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 			quit = 1;
+		} else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RETURN) {
+			fullscreen = !fullscreen;
+			screen = SDL_SetVideoMode(
+				SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP,
+				SDL_HWSURFACE | (fullscreen ? SDL_FULLSCREEN : 0));
 		}
 	}
 }
@@ -107,16 +119,20 @@ void update()
 	newWorld = world;
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
-	for (int y = -1; y <= height; y++) {
-		for (int x = -1; x <= width; x++) {
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
 			int adj = 0, r = 0, g = 0, b = 0;
 			for (int j = y - 1; j <= y + 1; j++) {
-				if (j < 0 || j >= height) continue;
+				//if (j < 0 || j >= height) continue;
 				for (int i = x - 1; i <= x + 1; i++) {
 					if (i == x && j == y) continue;
-					if (i < 0 || i >= width) continue;
-					cell_t *cell = &oldWorld[j * width + i];
+					int n = j % height; if (n < 0) n += height;
+					int m = i % width; if (m < 0) m += width;
+					//if (i < 0 || i >= width) continue;
+					cell_t *cell = &oldWorld[n * width + m];
 					if (cell->state) {
+						//printf("(%d, %d) has neighbour (%d, %d)\n",
+						//	x, y, m, n);
 						adj++;
 						r += cell->r;
 						g += cell->g;
@@ -124,26 +140,19 @@ void update()
 					}
 				}
 			}
-			if (x != -1 && x != width && y != -1 && y != height) {
-				cell_t cell;
-				if (adj < 2 || adj > 3) {
-					cell.state = 0;
-					cell.g = 0;
-				} else if (adj == 2)
-					cell = oldWorld[y * width + x];
-				else if (adj == 3) {
-					cell.state = 1;
-					cell.r = r / 3;
-					cell.b = b / 3;
-					cell.g = 0xFF - cell.r - cell.b;
-				}
-				newWorld[y * width + x] = cell;
-			} else {
-				if (adj == 3) {
-					points++;
-					//printf("generation %d scored a point! (sum == %d)\n", generation, points);
-				}
+			cell_t cell;
+			if (adj < 2 || adj > 3) {
+				cell.state = 0;
+				cell.g = 0;
+			} else if (adj == 2)
+				cell = oldWorld[y * width + x];
+			else if (adj == 3) {
+				cell.state = 1;
+				cell.r = r / 3;
+				cell.b = b / 3;
+				cell.g = 0xFF - cell.r - cell.b;
 			}
+			newWorld[y * width + x] = cell;
 		}
 	}
 	world = newWorld;
@@ -166,7 +175,7 @@ void loop()
 			printf("%d ticks have passed\n", fpsCurTicks - fpsStartTicks);
 			printf("%d frames have passed\n", generation - fpsStartFrame);
 			char caption[32];
-			sprintf(caption, "%.1f", ((float)(generation - fpsStartFrame)) / (((float)(fpsCurTicks - fpsStartTicks)) / 1000.f));
+			sprintf(caption, "%s - %.1f fps", WINDOW_CAPTION, ((float)(generation - fpsStartFrame)) / (((float)(fpsCurTicks - fpsStartTicks)) / 1000.f));
 			fpsStartFrame = generation;
 			fpsStartTicks = fpsCurTicks;
 			SDL_WM_SetCaption(caption, NULL);
@@ -179,6 +188,7 @@ void loop()
 
 int main(int argc, char *argv[])
 {
+	//printf("mod(640)-1 == %d\n", -1 % 640);
 	init();
 	loop();
 	return EXIT_SUCCESS;
