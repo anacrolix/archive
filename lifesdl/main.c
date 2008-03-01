@@ -1,13 +1,15 @@
 #include <stdlib.h>
 #include <time.h>
+#include <assert.h>
 #include <SDL/SDL.h>
 
 const int
-	SCREEN_WIDTH = 1200,
-	SCREEN_HEIGHT = 800,
+	SCREEN_WIDTH = 640,
+	SCREEN_HEIGHT = 480,
 	SCREEN_BPP = 32,
-	GRID_WIDTH = 10,
-	GRID_HEIGHT = 10;
+	GRID_WIDTH = 2,
+	GRID_HEIGHT = 2,
+	FRAME_RATE = 30;
 
 const char
 	WINDOW_CAPTION[] = "SDL Life";
@@ -21,13 +23,16 @@ int
 	points = 0,
 	generation = 0;
 
-char *world = NULL;
-char *newWorld, *oldWorld;
+typedef struct {char state; Uint8 r, g, b;} cell_t;
+
+cell_t *world = NULL;
+cell_t *newWorld, *oldWorld;
 
 void cleanup()
 {
 	if (screen) SDL_FreeSurface(screen);
-	if (world) free(world);
+	if (newWorld) free(newWorld);
+	if (oldWorld) free(oldWorld);
 	SDL_Quit();
 }
 
@@ -40,18 +45,26 @@ void init()
 		SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_SWSURFACE);
 	if (!screen) exit(EXIT_FAILURE);
 	SDL_WM_SetCaption(WINDOW_CAPTION, NULL);
-	newWorld = calloc(SCREEN_WIDTH / GRID_WIDTH * SCREEN_HEIGHT / GRID_HEIGHT, 1);
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
-	newWorld = calloc(width * height, 1);
-	oldWorld = calloc(width * height, 1);
+	newWorld = calloc(width * height, sizeof(cell_t));
+	oldWorld = calloc(width * height, sizeof(cell_t));
 	if (!newWorld || !oldWorld) exit(EXIT_FAILURE);
 	world = newWorld;
 	srand(time(NULL));
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
-			if (rand() < RAND_MAX / 4)
-				world[y * width + x] = 1;
+			if (rand() < RAND_MAX / 4) {
+				cell_t cell = {
+					.state = 1,
+					//.r = (x * 0xFF) / width,
+					.r = x >= width / 2 ? 0xFF : 0,
+					.g = 0,
+					//.b = (y * 0xFF) / height};
+					.b = x < width / 2 ? 0xFF : 0};
+				world[y * width + x] = cell;
+			}
+
 		}
 	}
 }
@@ -69,16 +82,18 @@ void events()
 void draw()
 {
 	SDL_FillRect(screen, &screen->clip_rect,
-		SDL_MapRGB(screen->format, 0xFF, 0xFF, 0xFF));
+		//SDL_MapRGB(screen->format, 0xFF, 0xFF, 0xFF));
+		SDL_MapRGB(screen->format, 0, 0, 0));
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
-			if (world[y * width + x]) {
+			if (world[y * width + x].state) {
 				SDL_Rect rect =
 					{x * GRID_WIDTH, y * GRID_HEIGHT,
 					GRID_WIDTH, GRID_HEIGHT};
-				SDL_FillRect(screen, &rect, SDL_MapRGB(screen->format, 0xFF, 0, 0));
+				SDL_FillRect(screen, &rect, SDL_MapRGB(
+					screen->format, world[y * width + x].r, world[y * width + x].g, world[y * width + x].b));
 			}
 		}
 	}
@@ -94,22 +109,35 @@ void update()
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
 	for (int y = -1; y <= height; y++) {
 		for (int x = -1; x <= width; x++) {
-			int adj = 0;
+			int adj = 0, r = 0, g = 0, b = 0;
 			for (int j = y - 1; j <= y + 1; j++) {
 				if (j < 0 || j >= height) continue;
 				for (int i = x - 1; i <= x + 1; i++) {
 					if (i == x && j == y) continue;
 					if (i < 0 || i >= width) continue;
-					if (oldWorld[j * width + i]) adj++;
+					cell_t *cell = &oldWorld[j * width + i];
+					if (cell->state) {
+						adj++;
+						r += cell->r;
+						g += cell->g;
+						b += cell->b;
+					}
 				}
 			}
 			if (x != -1 && x != width && y != -1 && y != height) {
-				if (adj < 2 || adj > 3)
-					newWorld[y * width + x] = 0;
-				else if (adj == 2)
-					newWorld[y * width + x] = oldWorld[y * width + x];
-				else if (adj == 3)
-					newWorld[y * width + x] = 1;
+				cell_t cell;
+				if (adj < 2 || adj > 3) {
+					cell.state = 0;
+					cell.g = 0;
+				} else if (adj == 2)
+					cell = oldWorld[y * width + x];
+				else if (adj == 3) {
+					cell.state = 1;
+					cell.r = r / 3;
+					cell.b = b / 3;
+					cell.g = 0xFF - cell.r - cell.b;
+				}
+				newWorld[y * width + x] = cell;
 			} else {
 				if (adj == 3) {
 					points++;
@@ -124,9 +152,25 @@ void update()
 
 void loop()
 {
+	int fpsStartFrame = generation;
+	Uint32 fpsStartTicks = SDL_GetTicks();
 	while (1) {
 		draw();
-		SDL_Delay(50);
+		Uint32 fpsCurTicks = SDL_GetTicks();
+		Uint32 waitDelay = 1000 / FRAME_RATE * (generation - fpsStartFrame + 1) - fpsCurTicks + fpsStartTicks;
+		if (waitDelay > 1000 / FRAME_RATE)
+			printf("%d\n", waitDelay);
+		if (waitDelay > 1000 / FRAME_RATE) waitDelay = 1000 / FRAME_RATE;
+		if (waitDelay > 0) SDL_Delay(waitDelay);
+		if (fpsCurTicks - fpsStartTicks >= 1000) {
+			printf("%d ticks have passed\n", fpsCurTicks - fpsStartTicks);
+			printf("%d frames have passed\n", generation - fpsStartFrame);
+			char caption[32];
+			sprintf(caption, "%.1f", ((float)(generation - fpsStartFrame)) / (((float)(fpsCurTicks - fpsStartTicks)) / 1000.f));
+			fpsStartFrame = generation;
+			fpsStartTicks = fpsCurTicks;
+			SDL_WM_SetCaption(caption, NULL);
+		}
 		events();
 		if (quit) break;
 		update();
