@@ -1,0 +1,2 @@
+void initView();
+void draw();
