@@ -41,7 +41,7 @@ void init()
 		exit(EXIT_FAILURE);
 	atexit(cleanup);
 	screen = SDL_SetVideoMode(
-		SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_HWSURFACE);
+		SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (!screen) exit(EXIT_FAILURE);
 	SDL_WM_SetCaption(WINDOW_CAPTION, NULL);
 	int width = SCREEN_WIDTH / GRID_WIDTH;
