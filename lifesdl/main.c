@@ -1,31 +1,33 @@
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <SDL/SDL.h>
 
-const int
-	SCREEN_WIDTH = 640,
-	SCREEN_HEIGHT = 480,
-	SCREEN_BPP = 16,
-	GRID_WIDTH = 5,
-	GRID_HEIGHT = 5,
-	FRAME_RATE = 30;
+const int SCREEN_WIDTH = 1200,
+	SCREEN_HEIGHT = 800,
+	SCREEN_BPP = 32,
+	GRID_WIDTH = 2,
+	GRID_HEIGHT = 2,
+	UPDATES_PER_FRAME = 10,
+	NUM_THREADS = 8,
+	FRAME_RATE = 50;
 
-const char
-	WINDOW_CAPTION[] = "Conway SDL";
+const char WINDOW_CAPTION[] = "Conway SDL";
 
-SDL_Surface
-	*screen = NULL;
+SDL_Surface *screen = NULL;
 
-int
-	fullscreen = 0,
+int fullscreen = 0,
 	quit = 0,
 	generation = 0;
 
 typedef struct {char state; Uint8 r, g, b;} cell_t;
 
 cell_t *world = NULL;
-cell_t *newWorld, *oldWorld;
+cell_t *newWorld, *oldWorld, *tmpWorld;
+
+pthread_t drawThread = 0;
 
 void cleanup()
 {
@@ -41,21 +43,22 @@ void init()
 		exit(EXIT_FAILURE);
 	atexit(cleanup);
 	screen = SDL_SetVideoMode(
-		SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_HWSURFACE | SDL_DOUBLEBUF);
+							  SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP, SDL_HWSURFACE | SDL_DOUBLEBUF);
 	if (!screen) exit(EXIT_FAILURE);
 	SDL_WM_SetCaption(WINDOW_CAPTION, NULL);
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
 	newWorld = calloc(width * height, sizeof(cell_t));
 	oldWorld = calloc(width * height, sizeof(cell_t));
+	tmpWorld = calloc(width * height, sizeof(cell_t));
 	if (!newWorld || !oldWorld) exit(EXIT_FAILURE);
 	world = newWorld;
 	/*
-	cell_t cell = {1, 0xFF, 0, 0};
-	world[0] = cell;
-	world[(height - 1) * width] = cell;
-	world[(height - 1) * width + width - 1] = cell;
-	world[width - 1] = cell;
+	  cell_t cell = {1, 0xFF, 0, 0};
+	  world[0] = cell;
+	  world[(height - 1) * width] = cell;
+	  world[(height - 1) * width + width - 1] = cell;
+	  world[width - 1] = cell;
 	*/
 	// random start
 	srand(time(NULL));
@@ -85,17 +88,18 @@ void events()
 		} else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RETURN) {
 			fullscreen = !fullscreen;
 			screen = SDL_SetVideoMode(
-				SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP,
-				SDL_HWSURFACE | (fullscreen ? SDL_FULLSCREEN : 0));
+									  SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BPP,
+									  SDL_HWSURFACE | (fullscreen ? SDL_FULLSCREEN : 0));
 		}
 	}
 }
 
-void draw()
+void *drawWorld(void *arg)
 {
+	cell_t *world = (cell_t *)arg;
 	SDL_FillRect(screen, &screen->clip_rect,
-		//SDL_MapRGB(screen->format, 0xFF, 0xFF, 0xFF));
-		SDL_MapRGB(screen->format, 0, 0, 0));
+				 //SDL_MapRGB(screen->format, 0xFF, 0xFF, 0xFF));
+				 SDL_MapRGB(screen->format, 0, 0, 0));
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
 	for (int y = 0; y < height; y++) {
@@ -103,23 +107,31 @@ void draw()
 			if (world[y * width + x].state) {
 				SDL_Rect rect =
 					{x * GRID_WIDTH, y * GRID_HEIGHT,
-					GRID_WIDTH, GRID_HEIGHT};
+					 GRID_WIDTH, GRID_HEIGHT};
 				SDL_FillRect(screen, &rect, SDL_MapRGB(
-					screen->format, world[y * width + x].r, world[y * width + x].g, world[y * width + x].b));
+													   screen->format, world[y * width + x].r, world[y * width + x].g, world[y * width + x].b));
 			}
 		}
 	}
 	if (SDL_Flip(screen)) exit(EXIT_FAILURE);
 }
 
-void update()
+void draw()
 {
-	world = oldWorld;
-	oldWorld = newWorld;
-	newWorld = world;
+	if (drawThread) pthread_join(drawThread, NULL);
+	//int width = SCREEN_WIDTH / GRID_WIDTH;
+	//int height = SCREEN_HEIGHT / GRID_HEIGHT;
+	//memcpy(tmpWorld, world, width * height * sizeof(cell_t));
+	pthread_create(&drawThread, NULL, drawWorld, (void *)world);
+}
+
+void *updateWorld(void *arg)
+{ //cell_t *oldWorld, cell_t *newWorld, int firstRow, int lastRow
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
-	for (int y = 0; y < height; y++) {
+	int firstRow = (int)arg;
+	int lastRow = firstRow + height / NUM_THREADS;
+	for (int y = firstRow; y < lastRow; y++) {
 		for (int x = 0; x < width; x++) {
 			int adj = 0, r = 0, g = 0, b = 0;
 			for (int j = y - 1; j <= y + 1; j++) {
@@ -155,6 +167,29 @@ void update()
 			newWorld[y * width + x] = cell;
 		}
 	}
+}
+
+void update()
+{
+	world = oldWorld;
+	oldWorld = newWorld;
+	newWorld = world;
+	pthread_t *threads = calloc(NUM_THREADS, sizeof(pthread_t));
+	if (!threads) exit(EXIT_FAILURE);
+	for (int t = 0; t < NUM_THREADS; t++) {
+		if (pthread_create(&threads[t], NULL, updateWorld, (void *)(t * (SCREEN_HEIGHT / GRID_HEIGHT) / NUM_THREADS))) {
+			perror("pthread_create");
+			exit(EXIT_FAILURE);
+		}
+	}
+	for (int t = 0; t < NUM_THREADS; t++) {
+		void *ret;
+		if (pthread_join(threads[t], &ret)) {
+			perror("pthread_join");
+			exit(EXIT_FAILURE);
+		}
+	}
+	free(threads);
 	world = newWorld;
 	generation++;
 }
@@ -182,13 +217,18 @@ void loop()
 		}
 		events();
 		if (quit) break;
-		update();
+		for (int f = 0; f < UPDATES_PER_FRAME; f++)
+			update();
 	}
 }
 
 int main(int argc, char *argv[])
 {
-	//printf("mod(640)-1 == %d\n", -1 % 640);
+	printf("mod(640)-1 == %d\n", -1 % 640);
+	printf("ticks per second == %ld\n", sysconf(_SC_CLK_TCK));
+	assert(SCREEN_HEIGHT % GRID_HEIGHT == 0);
+	assert(SCREEN_WIDTH % GRID_WIDTH == 0);
+	assert((SCREEN_HEIGHT / GRID_HEIGHT) % NUM_THREADS == 0);
 	init();
 	loop();
 	return EXIT_SUCCESS;
