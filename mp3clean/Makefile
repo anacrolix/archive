@@ -1,5 +1,5 @@
-CFLAGS = -Wall -std=c99 -g
-LDFLAGS = -lssl -lmusicbrainz
+CFLAGS = -Wall -std=c99
+LDFLAGS = -lssl
 
 target: mp3clean
 
