@@ -1,5 +1,6 @@
 //#define _SVID_SOURCE
 #define _BSD_SOURCE
+#define _FILE_OFFSET_BITS 64
 
 #include <dirent.h>
 #include <stdlib.h>
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
 	chomp(argv[1], '/');
 	off_t sumsize = 0;
 	parsedir(argv[1], 0, &sumsize);
-	assert(sizeof(off_t) == sizeof(int));
-	printf("%d\t%s\n", sumsize, argv[1]);
+	assert(sizeof(off_t) == sizeof(long long int));
+	printf("%lld\t%s\n", sumsize, argv[1]);
 	return EXIT_SUCCESS;
 }
