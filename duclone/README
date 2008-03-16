@@ -1,0 +1,3 @@
+This program has similar functionality as the GNU command 'du -sb', and takes a single directory path as a parameter.
+
+It outputs the size of the contents of the given directory in bytes, '\t', and then the given directory name.
