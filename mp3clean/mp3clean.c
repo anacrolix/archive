@@ -10,14 +10,19 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <ftw.h>
 
 typedef enum {no = 0, yes} has_t;
 
 #define fatal(errval, fmt, ...) \
 	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
 
+#ifdef NDEBUG
+#define warn(errval, fmt, ...)
+#else
 #define warn(errval, fmt, ...) \
 	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
+#endif
 
 #ifdef NDEBUG
 #define debug(fmt, ...)
@@ -31,6 +36,35 @@ typedef enum {no = 0, yes} has_t;
 
 #define MIN(a, b) ((a < b) ? a : b)
 #define MAX(a, b) ((a > b) ? a : b)
+
+typedef struct {
+	unsigned char md[20];
+	off_t size;
+	char name[0x100];
+} datahash_t;
+
+size_t g_hashcnt = 0;
+size_t g_hashmax = 0;
+datahash_t *g_hashes = NULL;
+
+char *strrcasestr(const char *hay, const char *ndl)
+{
+	char *ret = NULL;
+	size_t haylen = strlen(hay);
+	size_t ndllen = strlen(ndl);
+	if (ndllen > haylen) goto done;
+	assert(haylen >= ndllen);
+	ssize_t i;
+	for (i = haylen - ndllen; i >= 0; i--) {
+		if (!strncasecmp(&hay[i], ndl, ndllen)) {
+			break;
+		}
+	}
+	if (i == -1) goto done;
+	ret = (char *)&hay[i];
+done:
+	return ret;
+}
 
 int sha1_file_ex(
 	FILE *fstream,
@@ -178,66 +212,158 @@ has_t get_id3v1(FILE *fs)
 	return ret;
 }
 
-int sha1_mp3_data(const char *filename)
+int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 {
 	int ret = 1;
-	FILE *fs = NULL;
+	// get start of mp3 data
+	*start = 0;
+	if (get_id3v2(fs, start)) {
+		*start += 10;
+		assert(sizeof(*start) == sizeof(long long int));
+		debugln("id3v2 header found with length %lld", *start);
+	}
 
-	do {
-		fs = fopen(filename, "r");
-		if (!fs) {
-			warn(errno, "fopen()");
-			break;
-		}
+	// get end of mp3 data
+	if (fseek(fs, 0, SEEK_END)) {
+		warn(errno, "fseek()");
+		goto done;
+	}
+	*end = ftell(fs);
+	if (get_id3v1(fs)) {
+		debugln("id3v1 header found");
+		*end -= 128;
+	}
 
-		off_t start = 0;
-		if (get_id3v2(fs, &start)) {
-			start += 10;
-			assert(sizeof(start) == sizeof(long long int));
-			debugln("id3v2 header with length %lld", start);
-		}
+	ret = 0;
+done:
+	return ret;
+}
 
-		if (fseek(fs, 0, SEEK_END)) {
-			warn(errno, "fseek()");
-			break;
-		}
-		off_t end = ftell(fs);
-		if (get_id3v1(fs)) {
-			debugln("id3v1 header found");
-			end -= 128;
-		}
+int sha1_mp3_data(FILE *fs, unsigned char md[])
+{
+	int ret = 1;
 
-		unsigned char md[20];
-		if (sha1_file_ex(fs, md, start, end)) {
-			warn(0, "sha1_file_ex() failed");
-			break;
-		}
+	off_t start, end;
+	if (mp3_data_bounds(fs, &start, &end)) {
+		debugln("mp3_data_bounds() failed");
+		goto done;
+	}
 
-		for (int i = 0; i < 20; i++) debug("%02x", md[i]);
-		fputc('\n', stderr);
-		ret = 0;
-	} while (0);
+	// hash mp3 data
+	if (sha1_file_ex(fs, md, start, end)) {
+		warn(0, "sha1_file_ex() failed");
+		goto done;
+	}
 
-	if (fs) {
-		int n = fclose(fs);
-		if (n) {
-			assert(n == EOF);
-			fatal(errno, "fclose()");
+	for (int i = 0; i < 20; i++) debug("%02x", md[i]);
+	fputc('\n', stderr);
+
+	ret = 0;
+
+done:
+	return ret;
+}
+
+int has_mp3_ext(const char *name)
+{
+	static const char MP3_EXT[] = ".mp3";
+	return (strrcasestr(name, ".mp3") == name + strlen(name) - strlen(MP3_EXT));
+}
+
+void add_datahash(
+	FILE *fs,
+	const char *name,
+	const struct stat *stat)
+{
+	off_t start, end;
+	if (mp3_data_bounds(fs, &start, &end)) goto done;
+	assert(sizeof(off_t) == sizeof(long long));
+	assert(sizeof(stat->st_size) == sizeof(long long));
+	assert(end >= start);
+	debugln("data len == %llu, file len == %llu", end - start, stat->st_size);
+	datahash_t dh;
+	dh.size = end - start;
+	assert(strlen(name) < sizeof(dh.name));
+	strncpy(dh.name, name, sizeof(dh.name));
+	for (int i = 0; i < g_hashcnt; i++) {
+		assert(strcmp(g_hashes[i].name, dh.name));
+		if (dh.size == g_hashes[i].size) {
+			printf("SIZE MATCH:\n\t%s\n\t%s\n",
+				g_hashes[i].name, dh.name);
+			FILE *fs2 = fopen(g_hashes[i].name, "r");
+			if (!fs2) {
+				warn(errno, "fopen()");
+				continue;
+			}
+			sha1_mp3_data(fs2, g_hashes[i].md);
+			sha1_mp3_data(fs, dh.md);
+			if (!memcmp(g_hashes[i].md, dh.md, sizeof(dh.md))) {
+				printf("HASH MATCH:\n\t%s\n\t%s\n", g_hashes[i].name, dh.name);
+			}
 		}
 	}
-	return ret;
+	g_hashes[g_hashcnt++] = dh;
+done:
+	return;
+}
+
+int mp3_parse_callback(
+	const char *name,
+	const struct stat *stat,
+	int info)
+{
+	debugln(name);
+	FILE *fs = NULL;
+
+	if (info != FTW_F) goto done;
+	if (!has_mp3_ext(name)) goto done;
+
+	fs = fopen(name, "r");
+	if (!fs) goto done;
+
+	add_datahash(fs, name, stat);
+
+done:
+	if (fs) fclose(fs);
+	return 0;
+}
+
+int mp3_count_callback(
+	const char *name,
+	const struct stat *stat,
+	int info)
+{
+	if (info != FTW_F || !has_mp3_ext(name)) goto done;
+	g_hashmax++;
+done:
+	return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	//debug(0, "system page size is %ld\n", sysconf(_SC_PAGESIZE));
-	debugln(argv[1]);
 	int ret = EXIT_FAILURE;
+	debugln("system page size is %ld", sysconf(_SC_PAGESIZE));
+	debugln("argv[1] == %s", argv[1]);
 
-	if (!sha1_mp3_data(argv[1]))
-	{
-		ret = EXIT_SUCCESS;
+	if (ftw(argv[1], mp3_count_callback, 10)) {
+		debugln("ftw() failed");
+		goto done;
 	}
 
+	printf("mp3's found == %u\n", g_hashmax);
+	g_hashes = calloc(g_hashmax, sizeof(*g_hashes));
+	if (!g_hashes) {
+		warn(errno, "calloc()");
+		goto done;
+	}
+
+	if (ftw(argv[1], mp3_parse_callback, 10)) {
+		debugln("ftw() failed");
+		goto done;
+	}
+
+	ret = EXIT_SUCCESS;
+done:
+	if (g_hashes) free(g_hashes);
 	return ret;
 }
