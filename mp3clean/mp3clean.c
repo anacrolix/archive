@@ -20,10 +20,13 @@ typedef enum {no = 0, yes} has_t;
 	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
 
 #ifdef NDEBUG
-#define debug(errval, fmt, ...)
+#define debug(fmt, ...)
+#define debugln(fmt, ...)
 #else
-#define debug(errval, fmt, ...) \
-	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
+#define debug(fmt, ...) \
+	(fprintf(stderr, fmt, ##__VA_ARGS__))
+#define debugln(fmt, ...) \
+	({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
 #endif
 
 #define MIN(a, b) ((a < b) ? a : b)
@@ -175,15 +178,13 @@ has_t get_id3v1(FILE *fs)
 	return ret;
 }
 
-int main(int argc, char *argv[])
+int sha1_mp3_data(const char *filename)
 {
-	//debug(0, "system page size is %ld\n", sysconf(_SC_PAGESIZE));
-	debug(0, argv[1]);
-	int ret = EXIT_FAILURE;
+	int ret = 1;
 	FILE *fs = NULL;
 
 	do {
-		fs = fopen(argv[1], "r");
+		fs = fopen(filename, "r");
 		if (!fs) {
 			warn(errno, "fopen()");
 			break;
@@ -193,16 +194,16 @@ int main(int argc, char *argv[])
 		if (get_id3v2(fs, &start)) {
 			start += 10;
 			assert(sizeof(start) == sizeof(long long int));
-			debug(0, "id3v2 header with length %lld", start);
+			debugln("id3v2 header with length %lld", start);
 		}
 
 		if (fseek(fs, 0, SEEK_END)) {
-			warn(errno, "fseeko()");
+			warn(errno, "fseek()");
 			break;
 		}
 		off_t end = ftell(fs);
 		if (get_id3v1(fs)) {
-			debug(0, "id3v1 header found");
+			debugln("id3v1 header found");
 			end -= 128;
 		}
 
@@ -212,9 +213,9 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		for (int i = 0; i < 20; i++) printf("%02x", md[i]);
-		putchar('\n');
-		ret = EXIT_SUCCESS;
+		for (int i = 0; i < 20; i++) debug("%02x", md[i]);
+		fputc('\n', stderr);
+		ret = 0;
 	} while (0);
 
 	if (fs) {
@@ -223,6 +224,19 @@ int main(int argc, char *argv[])
 			assert(n == EOF);
 			fatal(errno, "fclose()");
 		}
+	}
+	return ret;
+}
+
+int main(int argc, char *argv[])
+{
+	//debug(0, "system page size is %ld\n", sysconf(_SC_PAGESIZE));
+	debugln(argv[1]);
+	int ret = EXIT_FAILURE;
+
+	if (!sha1_mp3_data(argv[1]))
+	{
+		ret = EXIT_SUCCESS;
 	}
 
 	return ret;
