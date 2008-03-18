@@ -101,109 +101,93 @@ int sha1_file_ex(
 
 has_t get_id3v2(FILE *fs, off_t *size)
 {
-	assert(fs != NULL);
+	assert(fs);
 	has_t ret = no;
+	*size = 0;
 	unsigned char v2hdr[10];
-
-	do {
-		if (fseek(fs, 0, SEEK_SET)) {
-			warn(errno, "fseek()");
-			break;
-		}
-		size_t read = fread(v2hdr, 1, sizeof(v2hdr), fs);
-		if (read < sizeof(v2hdr)) {
-			if (feof(fs) || ferror(fs)) warn(errno, "fread()");
-			else assert(0);
-			break;
-		}
-		// file ident
-		if (strncmp((char *)&v2hdr[0], "ID3", 3))
-			break;
-		// version
-		if (v2hdr[3] == 0xff || v2hdr[4] == 0xff)
-			break;
-		// flags
-		assert(v2hdr[5] == 0);
-		if (v2hdr[5] != 0) {
-			warn(0, "ID3v2 flag processing is not implemented");
-			break;
-		}
-		// 7 bit, bigendian size
-		{
-			int i;
-			for (i = 6; i < 10; i++) {
-				if (v2hdr[i] >> 7 || v2hdr[i] & 0x80) {
-					assert(v2hdr[i] >> 7 && v2hdr[i] & 0x80);
-					break;
-				}
+	if (fseek(fs, 0, SEEK_SET)) {
+		warn(errno, "fseek()");
+		goto done;
+	}
+	size_t read = fread(v2hdr, 1, sizeof(v2hdr), fs);
+	if (read < sizeof(v2hdr)) {
+		if (feof(fs) || ferror(fs)) warn(errno, "fread()");
+		else assert(0);
+		goto done;
+	}
+	// file ident
+	if (strncmp((char *)&v2hdr[0], "ID3", 3)) goto done;
+	// version
+	if (v2hdr[3] == 0xff || v2hdr[4] == 0xff) goto done;
+	// flags
+	if (v2hdr[5] != 0) {
+		warn(0, "%s contains unimplemented ID3v2 flags");
+		assert(0);
+		goto done;
+	}
+	// 7 bit, bigendian size
+	{
+		int i;
+		for (i = 6; i < 10; i++) {
+			if (v2hdr[i] >> 7 || v2hdr[i] & 0x80) {
+				assert(v2hdr[i] >> 7 && v2hdr[i] & 0x80);
+				break;
 			}
-			assert(i == 10);
-			if (i != 10) break;
 		}
-		// get 28 bit size
-		if (size != NULL) {
-			*size = 0;
-			assert(sizeof(off_t) >= sizeof(long));
-			long flagval = 0;
-			for (int i = 0; i < 4; i++) {
-				long incval = v2hdr[9 - i];
-				incval = incval << (i * 7);
-				flagval |= incval;
-			}
-			*size = flagval;
+		assert(i == 10);
+		if (i != 10) goto done;
+	}
+	// get 28 bit size
+	if (size != NULL) {
+		*size = 10;
+		assert(sizeof(off_t) >= sizeof(long));
+		long flagval = 0;
+		for (int i = 0; i < 4; i++) {
+			long incval = v2hdr[9 - i];
+			incval = incval << (i * 7);
+			flagval |= incval;
 		}
-		ret = yes;
-	} while (0);
-
+		*size += flagval;
+	}
+	ret = yes;
+done:
 	return ret;
 }
 
 has_t get_id3v1(FILE *fs)
 {
-	assert(fs != NULL);
+	assert(fs);
 	const static size_t TAG_SIZE = 128;
 	has_t ret = no;
 	char *v1tag = NULL;
-
-	do {
-		if (fseek(fs, -TAG_SIZE, SEEK_END)) {
-			warn(errno, "fseek()");
-			break;
-		}
-		v1tag = malloc(TAG_SIZE);
-		if (v1tag == NULL) {
-			warn(errno, "malloc()");
-			break;
-		}
-		size_t read = fread(v1tag, 1, TAG_SIZE, fs);
-		if (read < TAG_SIZE) {
-			if (feof(fs) || ferror(fs))
-				warn(errno, "fread()");
-			else
-				assert(0);
-			break;
-		}
-		if (strncmp(&v1tag[0], "TAG", 3))
-			break;
-		ret = yes;
-	} while (0);
-
-	if (v1tag != NULL)
-		free(v1tag);
-
+	if (fseek(fs, -TAG_SIZE, SEEK_END)) {
+		warn(errno, "fseek()");
+		goto done;
+	}
+	v1tag = malloc(TAG_SIZE);
+	if (v1tag == NULL) {
+		warn(errno, "malloc()");
+		goto done;
+	}
+	size_t read = fread(v1tag, 1, TAG_SIZE, fs);
+	if (read < TAG_SIZE) {
+		if (feof(fs) || ferror(fs)) warn(errno, "fread()");
+		else assert(0);
+		goto done;
+	}
+	if (strncmp(&v1tag[0], "TAG", 3)) goto done;
+	ret = yes;
+done:
+	if (v1tag != NULL) free(v1tag);
 	return ret;
 }
 
 int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 {
 	int ret = 1;
+	
 	// get start of mp3 data
-	*start = 0;
-	if (get_id3v2(fs, start)) {
-		*start += 10;
-		assert(sizeof(*start) == sizeof(long long int));
-		debugln("id3v2 header found with length %lld", *start);
-	}
+	get_id3v2(fs, start);
 
 	// get end of mp3 data
 	if (fseek(fs, 0, SEEK_END)) {
@@ -211,10 +195,10 @@ int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 		goto done;
 	}
 	*end = ftell(fs);
-	if (get_id3v1(fs)) {
-		debugln("id3v1 header found");
-		*end -= 128;
-	}
+	if (get_id3v1(fs)) *end -= 128;
+	
+	assert(sizeof(off_t) == sizeof(long long));
+	debugln("mp3 data has bounds [%llu, %llu]", *start, *end);
 
 	ret = 0;
 done:
@@ -252,58 +236,46 @@ int has_mp3_ext(const char *name)
 	return (strrcasestr(name, ".mp3") == name + strlen(name) - strlen(MP3_EXT));
 }
 
-void add_datahash(
-	FILE *fs,
-	const char *name,
-	const struct stat *stat)
-{
-	off_t start, end;
-	if (mp3_data_bounds(fs, &start, &end)) goto done;
-	assert(sizeof(off_t) == sizeof(long long));
-	assert(sizeof(stat->st_size) == sizeof(long long));
-	assert(end >= start);
-	debugln("data len == %llu, file len == %llu", end - start, stat->st_size);
-	datahash_t dh;
-	dh.size = end - start;
-	assert(strlen(name) < sizeof(dh.name));
-	strncpy(dh.name, name, sizeof(dh.name));
-	for (int i = 0; i < g_hashcnt; i++) {
-		assert(strcmp(g_hashes[i].name, dh.name));
-		if (dh.size == g_hashes[i].size) {
-			printf("SIZE MATCH:\n\t%s\n\t%s\n",
-				g_hashes[i].name, dh.name);
-			FILE *fs2 = fopen(g_hashes[i].name, "r");
-			if (!fs2) {
-				warn(errno, "fopen()");
-				continue;
-			}
-			sha1_mp3_data(fs2, g_hashes[i].md);
-			sha1_mp3_data(fs, dh.md);
-			if (!memcmp(g_hashes[i].md, dh.md, sizeof(dh.md))) {
-				printf("HASH MATCH:\n\t%s\n\t%s\n", g_hashes[i].name, dh.name);
-			}
-		}
-	}
-	g_hashes[g_hashcnt++] = dh;
-done:
-	return;
-}
-
-int mp3_parse_callback(
+int parse_mp3_size_callback(
 	const char *name,
 	const struct stat *stat,
 	int info)
 {
 	debugln(name);
 	FILE *fs = NULL;
+	
+	// check there is room
+	if (g_hashcnt >= g_hashmax) goto done;
 
+	// check mp3 file
 	if (info != FTW_F) goto done;
 	if (!has_mp3_ext(name)) goto done;
 
+	// get file handle
 	fs = fopen(name, "r");
-	if (!fs) goto done;
-
-	add_datahash(fs, name, stat);
+	if (!fs) {
+		warn(errno, "fopen()");
+		goto done;
+	}
+	
+	// get data bounds
+	off_t start, end;
+	if (mp3_data_bounds(fs, &start, &end)) {
+		warn(0, "mp3_data_bounds() failed");
+		goto done;
+	}
+	
+	// create datahash object
+	datahash_t dh;
+	assert(sizeof(dh.name) == 0x100);
+	assert(strlen(name) < sizeof(dh.name));
+	strncpy(dh.name, name, sizeof(dh.name));
+	assert(end >= start);
+	dh.size = end - start;
+	
+	// add datahash object
+	g_hashes[g_hashcnt++] = dh;
+	assert(g_hashcnt <= g_hashmax);
 
 done:
 	if (fs) fclose(fs);
@@ -327,20 +299,10 @@ void usage()
 	puts("Correct usage: <program> <path>");
 }
 
-int main(int argc, char *argv[])
+void find_mp3_dupes(const char *dirname)
 {
-	int ret = EXIT_FAILURE;
-	
-	// do some checks
-	debugln("system page size = %ld", sysconf(_SC_PAGESIZE));
-	if (argc != 2) {
-		usage();
-		goto done;
-	}
-	debugln("argv[1] = %s", argv[1]);
-
 	// count mp3 files
-	if (ftw(argv[1], mp3_count_callback, 10)) {
+	if (ftw(dirname, mp3_count_callback, 10)) {
 		warn(0, "ftw() failed");
 		goto done;
 	}
@@ -354,13 +316,35 @@ int main(int argc, char *argv[])
 	}
 
 	// parse mp3 files
-	if (ftw(argv[1], mp3_parse_callback, 10)) {
+	if (ftw(dirname, parse_mp3_size_callback, 10)) {
 		warn(0, "ftw() failed");
 		goto done;
 	}
+	
+	assert(g_hashcnt == g_hashmax);
+
+	if (g_hashes) free(g_hashes);
+	return;
+done:
+	exit(EXIT_FAILURE);
+}
+
+int main(int argc, char *argv[])
+{
+	int ret = EXIT_FAILURE;
+	
+	// do some checks
+	debugln("system page size = %ld", sysconf(_SC_PAGESIZE));
+	if (argc != 2) {
+		usage();
+		goto done;
+	}
+	debugln("argv[1] = %s", argv[1]);
+	
+	// parse mp3 files
+	find_mp3_dupes(argv[1]);
 
 	ret = EXIT_SUCCESS;
 done:
-	if (g_hashes) free(g_hashes);
 	return ret;
 }
