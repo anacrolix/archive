@@ -20,3 +20,12 @@
 #define debugln(fmt, ...) \
 	({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
 #endif
+
+/*
+#ifdef NDEBUG
+#define dump(var, fmt)
+#else
+#define dump(var, fmt) \
+	(fprintf(stderr, "%s:%u: %s = " fmt, __FILE__, __LINE__, #var, var))
+#endif
+*/
