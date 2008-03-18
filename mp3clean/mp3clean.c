@@ -6,11 +6,11 @@
 #include <error.h>
 #include <errno.h>
 #include <assert.h>
-#include <strings.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <ftw.h>
+#include "../eruutil/strrchr.h"
 
 typedef enum {no = 0, yes} has_t;
 
@@ -18,7 +18,8 @@ typedef enum {no = 0, yes} has_t;
 	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
 
 #ifdef NDEBUG
-#define warn(errval, fmt, ...)
+#define warn(errval, fmt, ...) \
+	(fprintf(stderr, fmt, ##__VA_ARGS__))
 #else
 #define warn(errval, fmt, ...) \
 	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
@@ -46,25 +47,6 @@ typedef struct {
 size_t g_hashcnt = 0;
 size_t g_hashmax = 0;
 datahash_t *g_hashes = NULL;
-
-char *strrcasestr(const char *hay, const char *ndl)
-{
-	char *ret = NULL;
-	size_t haylen = strlen(hay);
-	size_t ndllen = strlen(ndl);
-	if (ndllen > haylen) goto done;
-	assert(haylen >= ndllen);
-	ssize_t i;
-	for (i = haylen - ndllen; i >= 0; i--) {
-		if (!strncasecmp(&hay[i], ndl, ndllen)) {
-			break;
-		}
-	}
-	if (i == -1) goto done;
-	ret = (char *)&hay[i];
-done:
-	return ret;
-}
 
 int sha1_file_ex(
 	FILE *fstream,
@@ -333,32 +315,47 @@ int mp3_count_callback(
 	const struct stat *stat,
 	int info)
 {
-	if (info != FTW_F || !has_mp3_ext(name)) goto done;
-	g_hashmax++;
-done:
+	if (info == FTW_F && has_mp3_ext(name)) {
+		g_hashmax++;
+	}
 	return 0;
+}
+
+void usage()
+{
+	puts("Invalid parameters specified.");
+	puts("Correct usage: <program> <path>");
 }
 
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
-	debugln("system page size is %ld", sysconf(_SC_PAGESIZE));
-	debugln("argv[1] == %s", argv[1]);
-
-	if (ftw(argv[1], mp3_count_callback, 10)) {
-		debugln("ftw() failed");
+	
+	// do some checks
+	debugln("system page size = %ld", sysconf(_SC_PAGESIZE));
+	if (argc != 2) {
+		usage();
 		goto done;
 	}
+	debugln("argv[1] = %s", argv[1]);
 
-	printf("mp3's found == %u\n", g_hashmax);
+	// count mp3 files
+	if (ftw(argv[1], mp3_count_callback, 10)) {
+		warn(0, "ftw() failed");
+		goto done;
+	}
+	printf("Found %u MP3 files\n", g_hashmax);
+	
+	// allocate room for mp3 info
 	g_hashes = calloc(g_hashmax, sizeof(*g_hashes));
 	if (!g_hashes) {
 		warn(errno, "calloc()");
 		goto done;
 	}
 
+	// parse mp3 files
 	if (ftw(argv[1], mp3_parse_callback, 10)) {
-		debugln("ftw() failed");
+		warn(0, "ftw() failed");
 		goto done;
 	}
 
