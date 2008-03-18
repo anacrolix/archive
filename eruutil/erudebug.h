@@ -1,0 +1,22 @@
+#include <error.h>
+
+#define fatal(errval, fmt, ...) \
+	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
+
+#ifdef NDEBUG
+#define warn(errval, fmt, ...) \
+	(fprintf(stderr, fmt, ##__VA_ARGS__))
+#else
+#define warn(errval, fmt, ...) \
+	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
+#endif
+
+#ifdef NDEBUG
+#define debug(fmt, ...)
+#define debugln(fmt, ...)
+#else
+#define debug(fmt, ...) \
+	(fprintf(stderr, fmt, ##__VA_ARGS__))
+#define debugln(fmt, ...) \
+	({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
+#endif
