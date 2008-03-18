@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <ftw.h>
 #include "../eruutil/strrchr.h"
+#include "../eruutil/memnotchr.h"
 
 typedef enum {no = 0, yes} has_t;
 
@@ -54,7 +55,6 @@ int sha1_file_ex(
 	off_t start,
 	off_t end)
 {
-	assert(sizeof(size_t) >= sizeof(long));
 	assert(end >= start && end >= 0 && start >= 0);
 	int ret = 1;
 	void *filedata = NULL;
@@ -66,6 +66,7 @@ int sha1_file_ex(
 			break;
 		}
 
+		assert(sizeof(size_t) >= sizeof(long));
 		filedata = malloc(bufsize);
 		if (!filedata) {
 			warn(errno, "malloc()");
@@ -222,7 +223,7 @@ int sha1_mp3_data(FILE *fs, unsigned char md[])
 	}
 
 	for (int i = 0; i < 20; i++) debug("%02x", md[i]);
-	fputc('\n', stderr);
+	debugln();
 
 	ret = 0;
 
@@ -271,6 +272,7 @@ int parse_mp3_size_callback(
 	strncpy(dh.name, name, sizeof(dh.name));
 	assert(end >= start);
 	dh.size = end - start;
+	memset(dh.md, '\0', sizeof(dh.md));
 	
 	// add datahash object
 	g_hashes[g_hashcnt++] = dh;
@@ -359,32 +361,126 @@ void report_size_matches()
 	if (matches != NULL) free(matches);
 }
 
+void add_size_match_hashes()
+{
+	off_t *matches;
+	int matchcnt;
+	get_size_matches(&matches, &matchcnt);
+	assert(matches != NULL && matchcnt >= 0);
+	// hash all size matches
+	for (int match = 0; match < matchcnt; match++) {
+		// find objects that match size
+		for (int i = 0; i < g_hashcnt; i++) {
+			if (g_hashes[i].size != matches[match]) continue;
+			assert(sizeof(g_hashes[i].md) == SHA_DIGEST_LENGTH);
+			// check a hash isn't already created
+			int j;
+			for (j = 0; j < SHA_DIGEST_LENGTH; j++) {
+				if (g_hashes[i].md[j] != '\0') {
+					debugln("already hashed: %s", g_hashes[i].name);
+					break;
+				}
+			}
+			if (j != SHA_DIGEST_LENGTH) continue;
+			// open file and add hash
+			FILE *fsp = fopen(g_hashes[i].name, "r");
+			if (fsp == NULL) {
+				warn(errno, "fopen()");
+				continue;
+			}
+			if (sha1_mp3_data(fsp, g_hashes[i].md)) {
+				warn(0, "sha1_mp3_data() failed");
+			}
+			fclose(fsp);
+		}
+	}
+}
+
+#ifndef NDEBUG
+int hashmds_zeroed()
+{
+	for (int i = 0; i < g_hashmax; i++) {
+		for (int j = 0; j < sizeof(g_hashes[i].md); j++) {
+			if (g_hashes[i].md[j] != '\0') return 0;
+		}
+	}
+	return 1;
+}
+#endif
+
+void report_hash_matches()
+{	
+	for (int i = 0; i < g_hashmax; i++) {
+		// check file has a hash
+		if (memnotchr(g_hashes[i].md, '\0', sizeof(g_hashes[i].md)) == NULL) {
+			continue;
+		}
+#ifndef NDEBUG
+		{
+			int j;
+			for (j = 0; j < sizeof(g_hashes[i].md); j++) {
+				if (g_hashes[i].md[j] != '\0') break;
+			}
+			assert(j != sizeof(g_hashes[i].md));
+		}
+#endif
+		for (int j = 0; j < g_hashmax; j++) {
+			if (i == j) continue;
+			if (memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md)) != 0) {
+				continue;
+			}
+			if (j < i) break;
+			assert(j != i);
+			printf("Matches for hash = ");
+			for (int b = 0; b < sizeof(g_hashes[i].md); b++) {
+				printf("%02x", g_hashes[i].md[b]);
+			}
+			puts(":");
+			for (j = i; j < g_hashmax; j++) {
+				if (!memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md))) {
+					printf("\t%s\n", g_hashes[j].name);
+				}
+			}
+			break;
+		}
+	}
+}
 
 void find_mp3_dupes(const char *dirname)
 {
 	// count mp3 files
-	if (ftw(dirname, mp3_count_callback, 10)) {
+	if (ftw(dirname, mp3_count_callback, 20)) {
 		warn(0, "ftw() failed");
 		goto done;
 	}
-	printf("Found %u MP3 files\n", g_hashmax);
+	printf("Found %u MP3 files\n\n", g_hashmax);
 	
 	// allocate room for mp3 info
-	g_hashes = calloc(g_hashmax, sizeof(*g_hashes));
+	g_hashes = malloc(g_hashmax * sizeof(*g_hashes));
+	/*
+	for (int i = 0; i < g_hashmax * sizeof(*g_hashes); i++) {
+		assert(((char *)g_hashes)[i] == '\0');
+	}
+	*/
 	if (!g_hashes) {
 		warn(errno, "calloc()");
 		goto done;
 	}
 
 	// parse mp3 files
-	if (ftw(dirname, parse_mp3_size_callback, 10)) {
+	if (ftw(dirname, parse_mp3_size_callback, 20)) {
 		warn(0, "ftw() failed");
 		goto done;
 	}
+	assert(hashmds_zeroed());
 	
 	assert(g_hashcnt == g_hashmax);
 	
 	report_size_matches();
+	assert(hashmds_zeroed());
+	add_size_match_hashes();
+	putchar('\n');
+	report_hash_matches();	
 
 	if (g_hashes) free(g_hashes);
 	return;
