@@ -12,48 +12,8 @@
 #include <unistd.h>
 #include <assert.h>
 #include <error.h>
-
-#define	fatal(errval, fmt, ...) (error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
-
-#define debug(fmt, ...) (fprintf(stderr, fmt, ##__VA_ARGS__))
-
-void chomp(char *str, char c)
-{
-	int len = strlen(str);
-	if (str[len - 1] == c)
-		str[len - 1] = '\0';
-}
-
-char *join(const char *delimit, int count, ...)
-{
-	// retrieve all the argument strings
-	char *args[count];
-	assert(sizeof(args) == count * sizeof(char *));
-	va_list argp;
-	va_start(argp, count);
-	for (int i = 0; i < count; i++)
-		args[i] = va_arg(argp, char *);	
-	va_end(argp);
-	
-	// allocate space for output string
-	size_t size = 0;
-	for (int i = 0; i < count; i++)
-		size += strlen(args[i]);
-	size += strlen(delimit) * (count - 1);
-	size += 1; // term char
-	char *out = malloc(size);
-	if (out == NULL) fatal(errno, "malloc()");
-	out[0] = '\0';
-	
-	// create output string
-	for (int i = 0; i < count - 1; i++) {
-		strcat(out, args[i]);
-		strcat(out, delimit);
-	}
-	strcat(out, args[count - 1]);
-	assert(strlen(out) + 1 == size);
-	return out;
-}
+#include "../eruutil/perlfunc.h"
+#include "../eruutil/erudebug.h"
 
 void usage(const char *progname)
 {
@@ -92,7 +52,7 @@ void parsedir(const char *dirname, int depth, off_t *size)
 	}
 	if (closedir(dir))
 		fatal(errno, "closedir()");
-} 
+}
 
 int main(int argc, char *argv[])
 {
