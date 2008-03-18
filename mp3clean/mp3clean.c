@@ -28,6 +28,12 @@ size_t g_hashcnt = 0;
 size_t g_hashmax = 0;
 datahash_t *g_hashes = NULL;
 
+//static_assert(sizeof(char) > sizeof(long));
+static_assert(sizeof(size_t) >= sizeof(long));
+static_assert(sizeof(off_t) >= sizeof(long));
+static_assert(sizeof(off_t) == sizeof(long long));
+static_assert(sizeof(g_hashes->md) == SHA_DIGEST_LENGTH);
+
 int sha1_file_ex(
 	FILE *fstream,
 	unsigned char msgdgst[],
@@ -45,7 +51,6 @@ int sha1_file_ex(
 			break;
 		}
 
-		assert(sizeof(size_t) >= sizeof(long));
 		filedata = malloc(bufsize);
 		if (!filedata) {
 			warn(errno, "malloc()");
@@ -120,7 +125,6 @@ has_t get_id3v2(FILE *fs, off_t *size)
 	// get 28 bit size
 	if (size != NULL) {
 		*size = 10;
-		assert(sizeof(off_t) >= sizeof(long));
 		long flagval = 0;
 		for (int i = 0; i < 4; i++) {
 			long incval = v2hdr[9 - i];
@@ -177,7 +181,6 @@ int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 	*end = ftell(fs);
 	if (get_id3v1(fs)) *end -= 128;
 	
-	assert(sizeof(off_t) == sizeof(long long));
 	debugln("mp3 data has bounds [%llu, %llu]", *start, *end);
 
 	ret = 0;
@@ -202,7 +205,7 @@ int sha1_mp3_data(FILE *fs, unsigned char md[])
 	}
 
 	for (int i = 0; i < 20; i++) debug("%02x", md[i]);
-	debugln();
+	debug("\n");
 
 	ret = 0;
 
@@ -351,7 +354,6 @@ void add_size_match_hashes()
 		// find objects that match size
 		for (int i = 0; i < g_hashcnt; i++) {
 			if (g_hashes[i].size != matches[match]) continue;
-			assert(sizeof(g_hashes[i].md) == SHA_DIGEST_LENGTH);
 			// check a hash isn't already created
 			int j;
 			for (j = 0; j < SHA_DIGEST_LENGTH; j++) {
