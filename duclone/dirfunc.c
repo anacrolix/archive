@@ -15,6 +15,8 @@
 #include "../eruutil/perlfunc.h"
 #include "../eruutil/erudebug.h"
 
+static_assert(sizeof(off_t) == sizeof(long long int));
+
 void usage(const char *progname)
 {
 	printf("Usage: %s <dirpath>\n", progname);
@@ -61,7 +63,6 @@ int main(int argc, char *argv[])
 	chomp(argv[1], '/');
 	off_t sumsize = 0;
 	parsedir(argv[1], 0, &sumsize);
-	assert(sizeof(off_t) == sizeof(long long int));
 	printf("%lld\t%s\n", sumsize, argv[1]);
 	return EXIT_SUCCESS;
 }
