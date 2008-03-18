@@ -121,7 +121,7 @@ has_t get_id3v2(FILE *fs, off_t *size)
 	if (v2hdr[3] == 0xff || v2hdr[4] == 0xff) goto done;
 	// flags
 	if (v2hdr[5] != 0) {
-		warn(0, "%s contains unimplemented ID3v2 flags");
+		warn(0, "TODO: contains unimplemented ID3v2 flags");
 		assert(0);
 		goto done;
 	}
@@ -241,7 +241,6 @@ int parse_mp3_size_callback(
 	const struct stat *stat,
 	int info)
 {
-	debugln(name);
 	FILE *fs = NULL;
 	
 	// check there is room
@@ -288,6 +287,7 @@ int mp3_count_callback(
 	int info)
 {
 	if (info == FTW_F && has_mp3_ext(name)) {
+		debugln(name);
 		g_hashmax++;
 	}
 	return 0;
@@ -298,6 +298,67 @@ void usage()
 	puts("Invalid parameters specified.");
 	puts("Correct usage: <program> <path>");
 }
+
+void get_size_matches(off_t *matches[], int *matchcnt)
+{
+	size_t matchmax = 100;
+	*matchcnt = 0;
+	*matches = malloc(matchmax * sizeof(**matches));
+	if (*matches == NULL) goto done;
+	for (int i = 0; i < g_hashcnt; i++) {
+		off_t size = g_hashes[i].size;
+		// skip this size if it's already recorded
+		int match;
+		for (match = 0; match < *matchcnt; match++) {
+			if (size == (*matches)[match]) {
+				break;
+			}
+		}
+		assert(match >= 0 && match <= *matchcnt);
+		if (match < *matchcnt) continue;
+		// skip if no duplicates of this size found
+		for (match = i + 1; match < g_hashcnt; match++) {
+			if (size == g_hashes[match].size) {
+				break;
+			}
+		}
+		assert(match >= i + 1 && match <= g_hashcnt);
+		if (match == g_hashcnt) continue;
+		// add match
+		assert(*matchcnt <= matchmax);
+		if (*matchcnt == matchmax) {
+			matchmax *= 2;
+			assert(matchmax > *matchcnt);
+			*matches = realloc(*matches, matchmax * sizeof(**matches));
+			if (matches == NULL) fatal(errno, "realloc()");
+		}
+		(*matches)[(*matchcnt)++] = size;
+	}
+done:
+	debugln("setting buffer size to %d bytes (%d items)", *matchcnt * sizeof(**matches), *matchcnt);
+	off_t *resized = realloc(*matches, *matchcnt * sizeof(**matches));
+	if (resized != NULL) *matches = resized;
+}
+
+void report_size_matches()
+{
+	off_t *matches;
+	int matchcnt;
+	get_size_matches(&matches, &matchcnt);
+	assert(matches != NULL && matchcnt >= 0);
+	for (int match = 0; match < matchcnt; match++) {
+		off_t size = matches[match];
+		printf("Matches for data size = %llu:\n", size);
+		for (int i = 0; i < g_hashcnt; i++) {
+			if (size == g_hashes[i].size) {
+				printf("\t%s\n", g_hashes[i].name);
+			}
+		}
+	}
+//done:
+	if (matches != NULL) free(matches);
+}
+
 
 void find_mp3_dupes(const char *dirname)
 {
@@ -322,6 +383,8 @@ void find_mp3_dupes(const char *dirname)
 	}
 	
 	assert(g_hashcnt == g_hashmax);
+	
+	report_size_matches();
 
 	if (g_hashes) free(g_hashes);
 	return;
