@@ -21,6 +21,9 @@
 	({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
 #endif
 
+#define static_assert(cond) \
+extern char dummy_assert_array[(cond)?1:-1]
+
 /*
 #ifdef NDEBUG
 #define dump(var, fmt)
