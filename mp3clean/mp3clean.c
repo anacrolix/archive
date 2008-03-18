@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <openssl/sha.h>
 #include <string.h>
-#include <error.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
@@ -12,29 +11,9 @@
 #include <ftw.h>
 #include "../eruutil/strrchr.h"
 #include "../eruutil/memnotchr.h"
+#include "../eruutil/erudebug.h"
 
 typedef enum {no = 0, yes} has_t;
-
-#define fatal(errval, fmt, ...) \
-	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
-
-#ifdef NDEBUG
-#define warn(errval, fmt, ...) \
-	(fprintf(stderr, fmt, ##__VA_ARGS__))
-#else
-#define warn(errval, fmt, ...) \
-	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
-#endif
-
-#ifdef NDEBUG
-#define debug(fmt, ...)
-#define debugln(fmt, ...)
-#else
-#define debug(fmt, ...) \
-	(fprintf(stderr, fmt, ##__VA_ARGS__))
-#define debugln(fmt, ...) \
-	({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
-#endif
 
 #define MIN(a, b) ((a < b) ? a : b)
 #define MAX(a, b) ((a > b) ? a : b)
