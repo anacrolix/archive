@@ -1,18 +1,20 @@
 #define _FILE_OFFSET_BITS 64
 #define _XOPEN_SOURCE 500
 
-#include <stdlib.h>
-#include <openssl/sha.h>
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <ftw.h>
-#include "../eruutil/strrchr.h"
-#include "../eruutil/memnotchr.h"
-#include "../eruutil/erudebug.h"
+extern "C" {
+	#include <stdlib.h>
+	#include <string.h>
+	#include <errno.h>
+	#include <assert.h>
+	#include <stdio.h>
+	#include <sys/types.h>
+	#include <unistd.h>
+	#include <ftw.h>
+	#include <openssl/sha.h>
+	#include "../eruutil/strrcasestr.h"
+	#include "../eruutil/memnotchr.h"
+	#include "../eruutil/erudebug.h"
+}
 
 typedef enum {no = 0, yes} has_t;
 
@@ -95,11 +97,13 @@ has_t get_id3v2(FILE *fs, off_t *size)
 		warn(errno, "fseek()");
 		goto done;
 	}
-	size_t read = fread(v2hdr, 1, sizeof(v2hdr), fs);
-	if (read < sizeof(v2hdr)) {
-		if (feof(fs) || ferror(fs)) warn(errno, "fread()");
-		else assert(0);
-		goto done;
+	{
+		size_t read = fread(v2hdr, 1, sizeof(v2hdr), fs);
+		if (read < sizeof(v2hdr)) {
+			if (feof(fs) || ferror(fs)) warn(errno, "fread()");
+			else assert(0);
+			goto done;
+		}
 	}
 	// file ident
 	if (strncmp((char *)&v2hdr[0], "ID3", 3)) goto done;
@@ -149,16 +153,18 @@ has_t get_id3v1(FILE *fs)
 		warn(errno, "fseek()");
 		goto done;
 	}
-	v1tag = malloc(TAG_SIZE);
+	v1tag = (char *)malloc(TAG_SIZE);
 	if (v1tag == NULL) {
 		warn(errno, "malloc()");
 		goto done;
 	}
-	size_t read = fread(v1tag, 1, TAG_SIZE, fs);
-	if (read < TAG_SIZE) {
-		if (feof(fs) || ferror(fs)) warn(errno, "fread()");
-		else assert(0);
-		goto done;
+	{
+		size_t read = fread(v1tag, 1, TAG_SIZE, fs);
+		if (read < TAG_SIZE) {
+			if (feof(fs) || ferror(fs)) warn(errno, "fread()");
+			else assert(0);
+			goto done;
+		}
 	}
 	if (strncmp(&v1tag[0], "TAG", 3)) goto done;
 	ret = yes;
@@ -325,16 +331,16 @@ void usage()
 	puts("Correct usage: <program> <path>");
 }
 
-void get_size_matches(off_t *matches[], int *matchcnt)
+void get_size_matches(off_t *matches[], uint *matchcnt)
 {
 	size_t matchmax = 100;
 	*matchcnt = 0;
-	*matches = calloc(matchmax, sizeof(**matches));
+	*matches = (off_t *)calloc(matchmax, sizeof(**matches));
 	if (*matches == NULL) goto done;
-	for (int i = 0; i < g_hashcnt; i++) {
+	for (uint i = 0; i < g_hashcnt; i++) {
 		off_t size = g_hashes[i].size;
 		// skip this size if it's already recorded
-		int match;
+		uint match;
 		for (match = 0; match < *matchcnt; match++) {
 			if (size == (*matches)[match]) {
 				break;
@@ -355,14 +361,14 @@ void get_size_matches(off_t *matches[], int *matchcnt)
 		if (*matchcnt == matchmax) {
 			matchmax *= 2;
 			assert(matchmax > *matchcnt);
-			*matches = realloc(*matches, matchmax * sizeof(**matches));
+			*matches = (off_t *)realloc(*matches, matchmax * sizeof(**matches));
 			if (matches == NULL) fatal(errno, "realloc()");
 		}
 		(*matches)[(*matchcnt)++] = size;
 	}
 done:
 	debugln("setting buffer size to %d bytes (%d items)", *matchcnt * sizeof(**matches), *matchcnt);
-	off_t *resized = realloc(*matches, *matchcnt * sizeof(**matches));
+	off_t *resized = (off_t *)realloc(*matches, *matchcnt * sizeof(**matches));
 	if (resized != NULL || *matchcnt * sizeof(**matches) == 0) *matches = resized;
 	assert((!*matches && !*matchcnt) || (*matches && *matchcnt > 0));
 }
@@ -370,13 +376,13 @@ done:
 int report_size_matches()
 {
 	off_t *matches;
-	int matchcnt;
+	uint matchcnt;
 	get_size_matches(&matches, &matchcnt);
 	int filecnt = 0;
-	for (int match = 0; match < matchcnt; match++) {
+	for (uint match = 0; match < matchcnt; match++) {
 		off_t size = matches[match];
 		printf("\tMatches for data size = %llu:\n", size);
-		for (int i = 0; i < g_hashcnt; i++) {
+		for (uint i = 0; i < g_hashcnt; i++) {
 			if (size == g_hashes[i].size) {
 				printf("%s\n", g_hashes[i].name);
 				filecnt++;
@@ -391,12 +397,12 @@ int report_size_matches()
 void add_size_match_hashes()
 {
 	off_t *matches;
-	int matchcnt;
+	uint matchcnt;
 	get_size_matches(&matches, &matchcnt);
 	// hash all size matches
-	for (int match = 0; match < matchcnt; match++) {
+	for (uint match = 0; match < matchcnt; match++) {
 		// find objects that match size
-		for (int i = 0; i < g_hashcnt; i++) {
+		for (uint i = 0; i < g_hashcnt; i++) {
 			if (g_hashes[i].size != matches[match]) continue;
 			// check a hash isn't already created
 			int j;
@@ -424,8 +430,8 @@ void add_size_match_hashes()
 #ifndef NDEBUG
 int hashmds_zeroed()
 {
-	for (int i = 0; i < g_hashcnt; i++) {
-		for (int j = 0; j < sizeof(g_hashes[i].md); j++) {
+	for (uint i = 0; i < g_hashcnt; i++) {
+		for (uint j = 0; j < sizeof(g_hashes[i].md); j++) {
 			if (g_hashes[i].md[j] != '\0') return 0;
 		}
 	}
@@ -436,21 +442,21 @@ int hashmds_zeroed()
 int report_hash_matches()
 {
 	int filecnt = 0;
-	for (int i = 0; i < g_hashcnt; i++) {
+	for (uint i = 0; i < g_hashcnt; i++) {
 		// check file has a hash
 		if (memnotchr(g_hashes[i].md, '\0', sizeof(g_hashes[i].md)) == NULL) {
 			continue;
 		}
 #ifndef NDEBUG
 		{
-			int j;
+			uint j;
 			for (j = 0; j < sizeof(g_hashes[i].md); j++) {
 				if (g_hashes[i].md[j] != '\0') break;
 			}
 			assert(j != sizeof(g_hashes[i].md));
 		}
 #endif
-		for (int j = 0; j < g_hashmax; j++) {
+		for (uint j = 0; j < g_hashmax; j++) {
 			if (i == j) continue;
 			if (memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md)) != 0) {
 				continue;
@@ -458,7 +464,7 @@ int report_hash_matches()
 			if (j < i) break;
 			assert(j != i);
 			printf("\tMatches for hash = ");
-			for (int b = 0; b < sizeof(g_hashes[i].md); b++) {
+			for (uint b = 0; b < sizeof(g_hashes[i].md); b++) {
 				printf("%02x", g_hashes[i].md[b]);
 			}
 			puts(":");
@@ -487,7 +493,7 @@ void find_mp3_dupes(const char *dirname)
 		goto done;
 	}
 	// allocate room for mp3 info
-	g_hashes = malloc(g_hashmax * sizeof(*g_hashes));
+	g_hashes = (datahash_t *)malloc(g_hashmax * sizeof(*g_hashes));
 	if (!g_hashes) {
 		warn(errno, "calloc()");
 		goto done;
@@ -505,15 +511,17 @@ void find_mp3_dupes(const char *dirname)
 	assert(hashmds_zeroed());
 	assert(g_hashcnt == g_hashmax);
 
-	int sizeMatchCount = report_size_matches();
-	assert(hashmds_zeroed());
-	add_size_match_hashes();
-	if (sizeMatchCount > 0) putchar('\n');
-	int hashMatchCount = report_hash_matches();
-	if (hashMatchCount > 0) putchar('\n');
-	printf("Found %u MP3 files\n", g_hashcnt);
-	printf("Found %d size matches\n", sizeMatchCount);
-	printf("Found %d hash matches\n", hashMatchCount);
+	{
+		int sizeMatchCount = report_size_matches();
+		assert(hashmds_zeroed());
+		add_size_match_hashes();
+		if (sizeMatchCount > 0) putchar('\n');
+		int hashMatchCount = report_hash_matches();
+		if (hashMatchCount > 0) putchar('\n');
+		printf("Found %u MP3 files\n", g_hashcnt);
+		printf("Found %d size matches\n", sizeMatchCount);
+		printf("Found %d hash matches\n", hashMatchCount);
+	}
 
 	if (g_hashes) free(g_hashes);
 	return;
