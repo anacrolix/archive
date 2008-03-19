@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -std=c99 -DNDEBUG -O2
+CFLAGS = -Wall -std=c99 -O2 -DNDEBUG #-DNO_FRAME_SYNC
 LDFLAGS = -lssl
 
 target: mp3clean

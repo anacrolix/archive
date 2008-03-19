@@ -88,7 +88,7 @@ has_t get_id3v2(FILE *fs, off_t *size)
 {
 	assert(fs);
 	has_t ret = no;
-	*size = 0;
+	if (size != NULL) *size = 0;
 	unsigned char v2hdr[10];
 	if (fseek(fs, 0, SEEK_SET)) {
 		warn(errno, "fseek()");
@@ -166,13 +166,49 @@ done:
 	return ret;
 }
 
+off_t get_next_frame_sync(FILE *fs, off_t start)
+{
+	off_t ret = -1;
+	if (fseeko(fs, start, SEEK_SET)) {
+		warn(errno, "fseek()");
+		goto done;
+	}
+	for (;;) {
+		int c = fgetc(fs);
+		if (c == 0xff) {
+			c = fgetc(fs);
+			if ((c & 0xe0) == 0xe0) break;
+		}
+		if (c == EOF) break;
+	}
+	if (feof(fs) || ferror(fs)) {
+		warn(errno, "fgetc()");
+		goto done;
+	}
+	ret = ftello(fs) - 2;	
+done:	
+	return ret;
+}
+
 int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 {
 	int ret = 1;
 	
 	// get start of mp3 data
 	get_id3v2(fs, start);
-
+	// check data starts where id3v2 tag ends
+#ifndef NO_FRAME_SYNC
+	off_t frameoff = get_next_frame_sync(fs, *start);
+	assert(frameoff != -1);
+	if (frameoff != -1) {
+		if (frameoff != *start) {
+			debugln("id3v2 tag end (%llu) does not match frame sync (%llu)",
+				*start, frameoff);
+		}
+		// adjust data start if frame sync after end of id3v2 tag
+		if (frameoff > *start) *start = frameoff;
+	}
+#endif
 	// get end of mp3 data
 	if (fseek(fs, 0, SEEK_END)) {
 		warn(errno, "fseek()");
@@ -181,8 +217,6 @@ int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 	*end = ftell(fs);
 	if (get_id3v1(fs)) *end -= 128;
 	
-	debugln("mp3 data has bounds [%llu, %llu]", *start, *end);
-
 	ret = 0;
 done:
 	return ret;
@@ -256,6 +290,8 @@ int parse_mp3_size_callback(
 	dh.size = end - start;
 	memset(dh.md, '\0', sizeof(dh.md));
 	
+	debugln("%llu ([%llu, %llu]) %s", dh.size, start, end, dh.name);
+	
 	// add datahash object
 	g_hashes[g_hashcnt++] = dh;
 	assert(g_hashcnt <= g_hashmax);
@@ -324,23 +360,26 @@ done:
 	if (resized != NULL) *matches = resized;
 }
 
-void report_size_matches()
+int report_size_matches()
 {
 	off_t *matches;
 	int matchcnt;
 	get_size_matches(&matches, &matchcnt);
 	assert(matches != NULL && matchcnt >= 0);
+	int filecnt = 0;
 	for (int match = 0; match < matchcnt; match++) {
 		off_t size = matches[match];
-		printf("Matches for data size = %llu:\n", size);
+		printf("\tMatches for data size = %llu:\n", size);
 		for (int i = 0; i < g_hashcnt; i++) {
 			if (size == g_hashes[i].size) {
-				printf("\t%s\n", g_hashes[i].name);
+				printf("%s\n", g_hashes[i].name);
+				filecnt++;
 			}
 		}
 	}
 //done:
 	if (matches != NULL) free(matches);
+	return filecnt;
 }
 
 void add_size_match_hashes()
@@ -389,8 +428,9 @@ int hashmds_zeroed()
 }
 #endif
 
-void report_hash_matches()
+int report_hash_matches()
 {	
+	int filecnt = 0;
 	for (int i = 0; i < g_hashmax; i++) {
 		// check file has a hash
 		if (memnotchr(g_hashes[i].md, '\0', sizeof(g_hashes[i].md)) == NULL) {
@@ -412,19 +452,21 @@ void report_hash_matches()
 			}
 			if (j < i) break;
 			assert(j != i);
-			printf("Matches for hash = ");
+			printf("\tMatches for hash = ");
 			for (int b = 0; b < sizeof(g_hashes[i].md); b++) {
 				printf("%02x", g_hashes[i].md[b]);
 			}
 			puts(":");
 			for (j = i; j < g_hashmax; j++) {
 				if (!memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md))) {
-					printf("\t%s\n", g_hashes[j].name);
+					printf("%s\n", g_hashes[j].name);
+					filecnt++;
 				}
 			}
 			break;
 		}
 	}
+	return filecnt;
 }
 
 void find_mp3_dupes(const char *dirname)
@@ -434,15 +476,9 @@ void find_mp3_dupes(const char *dirname)
 		warn(0, "ftw() failed");
 		goto done;
 	}
-	printf("Found %u MP3 files\n\n", g_hashmax);
 	
 	// allocate room for mp3 info
 	g_hashes = malloc(g_hashmax * sizeof(*g_hashes));
-	/*
-	for (int i = 0; i < g_hashmax * sizeof(*g_hashes); i++) {
-		assert(((char *)g_hashes)[i] == '\0');
-	}
-	*/
 	if (!g_hashes) {
 		warn(errno, "calloc()");
 		goto done;
@@ -453,15 +489,18 @@ void find_mp3_dupes(const char *dirname)
 		warn(0, "ftw() failed");
 		goto done;
 	}
-	assert(hashmds_zeroed());
-	
+	assert(hashmds_zeroed());	
 	assert(g_hashcnt == g_hashmax);
 	
-	report_size_matches();
+	int sizeMatchCount = report_size_matches();
 	assert(hashmds_zeroed());
 	add_size_match_hashes();
-	putchar('\n');
-	report_hash_matches();	
+	if (sizeMatchCount > 0) putchar('\n');
+	int hashMatchCount = report_hash_matches();	
+	if (hashMatchCount > 0) putchar('\n');
+	printf("Found %u MP3 files\n", g_hashcnt);
+	printf("Found %d size matches\n", sizeMatchCount);
+	printf("Found %d hash matches\n", hashMatchCount);
 
 	if (g_hashes) free(g_hashes);
 	return;
