@@ -185,15 +185,15 @@ off_t get_next_frame_sync(FILE *fs, off_t start)
 		warn(errno, "fgetc()");
 		goto done;
 	}
-	ret = ftello(fs) - 2;	
-done:	
+	ret = ftello(fs) - 2;
+done:
 	return ret;
 }
 
 int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 {
 	int ret = 1;
-	
+
 	// get start of mp3 data
 	get_id3v2(fs, start);
 	// check data starts where id3v2 tag ends
@@ -216,7 +216,7 @@ int mp3_data_bounds(FILE *fs, off_t *start, off_t *end)
 	}
 	*end = ftell(fs);
 	if (get_id3v1(fs)) *end -= 128;
-	
+
 	ret = 0;
 done:
 	return ret;
@@ -259,7 +259,7 @@ int parse_mp3_size_callback(
 	int info)
 {
 	FILE *fs = NULL;
-	
+
 	// check there is room
 	if (g_hashcnt >= g_hashmax) goto done;
 
@@ -273,14 +273,14 @@ int parse_mp3_size_callback(
 		warn(errno, "fopen()");
 		goto done;
 	}
-	
+
 	// get data bounds
 	off_t start, end;
 	if (mp3_data_bounds(fs, &start, &end)) {
 		warn(0, "mp3_data_bounds() failed");
 		goto done;
 	}
-	
+
 	// create datahash object
 	datahash_t dh;
 	assert(sizeof(dh.name) == 0x100);
@@ -289,9 +289,9 @@ int parse_mp3_size_callback(
 	assert(end >= start);
 	dh.size = end - start;
 	memset(dh.md, '\0', sizeof(dh.md));
-	
+
 	debugln("%llu ([%llu, %llu]) %s", dh.size, start, end, dh.name);
-	
+
 	// add datahash object
 	g_hashes[g_hashcnt++] = dh;
 	assert(g_hashcnt <= g_hashmax);
@@ -419,7 +419,7 @@ void add_size_match_hashes()
 #ifndef NDEBUG
 int hashmds_zeroed()
 {
-	for (int i = 0; i < g_hashmax; i++) {
+	for (int i = 0; i < g_hashcnt; i++) {
 		for (int j = 0; j < sizeof(g_hashes[i].md); j++) {
 			if (g_hashes[i].md[j] != '\0') return 0;
 		}
@@ -429,9 +429,9 @@ int hashmds_zeroed()
 #endif
 
 int report_hash_matches()
-{	
+{
 	int filecnt = 0;
-	for (int i = 0; i < g_hashmax; i++) {
+	for (int i = 0; i < g_hashcnt; i++) {
 		// check file has a hash
 		if (memnotchr(g_hashes[i].md, '\0', sizeof(g_hashes[i].md)) == NULL) {
 			continue;
@@ -472,31 +472,39 @@ int report_hash_matches()
 void find_mp3_dupes(const char *dirname)
 {
 	// count mp3 files
-	if (ftw(dirname, mp3_count_callback, 20)) {
-		warn(0, "ftw() failed");
+	int n = ftw(dirname, mp3_count_callback, 20);
+	if (n) {
+		if (n == -1) {
+			warn(errno, "ftw() failed");
+		} else {
+			warn(errno, "mp3_count_callback() returned %d", n);
+		}
 		goto done;
 	}
-	
 	// allocate room for mp3 info
 	g_hashes = malloc(g_hashmax * sizeof(*g_hashes));
 	if (!g_hashes) {
 		warn(errno, "calloc()");
 		goto done;
 	}
-
 	// parse mp3 files
-	if (ftw(dirname, parse_mp3_size_callback, 20)) {
-		warn(0, "ftw() failed");
+	n = ftw(dirname, parse_mp3_size_callback, 20);
+	if (n) {
+		if (n == -1) {
+			warn(errno, "ftw() failed");
+		} else {
+			warn(errno, "parse_mp3_size_callback() returned %d", n);
+		}
 		goto done;
 	}
-	assert(hashmds_zeroed());	
+	assert(hashmds_zeroed());
 	assert(g_hashcnt == g_hashmax);
-	
+
 	int sizeMatchCount = report_size_matches();
 	assert(hashmds_zeroed());
 	add_size_match_hashes();
 	if (sizeMatchCount > 0) putchar('\n');
-	int hashMatchCount = report_hash_matches();	
+	int hashMatchCount = report_hash_matches();
 	if (hashMatchCount > 0) putchar('\n');
 	printf("Found %u MP3 files\n", g_hashcnt);
 	printf("Found %d size matches\n", sizeMatchCount);
@@ -511,15 +519,15 @@ done:
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
-	
 	// do some checks
 	debugln("system page size = %ld", sysconf(_SC_PAGESIZE));
+	debugln("nopenfd = %d", nopenfd);
 	if (argc != 2) {
 		usage();
 		goto done;
 	}
 	debugln("argv[1] = %s", argv[1]);
-	
+
 	// parse mp3 files
 	find_mp3_dupes(argv[1]);
 
