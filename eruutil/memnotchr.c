@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <assert.h>
 #include "erudebug.h"
+
 typedef unsigned int uint;
 
 static_assert(sizeof(char) == 1);

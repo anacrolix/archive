@@ -22,7 +22,7 @@
 #endif
 
 #define static_assert(cond) \
-extern char dummy_assert_array[(cond)?1:-1]
+	extern char dummy_assert_array[(cond)?1:-1]
 
 /*
 #ifdef NDEBUG
