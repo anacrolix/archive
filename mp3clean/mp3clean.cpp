@@ -31,7 +31,6 @@ size_t g_hashcnt = 0;
 size_t g_hashmax = 0;
 datahash_t *g_hashes = NULL;
 
-//static_assert(sizeof(char) > sizeof(long));
 static_assert(sizeof(size_t) >= sizeof(long));
 static_assert(sizeof(off_t) >= sizeof(long));
 static_assert(sizeof(off_t) == sizeof(long long));
