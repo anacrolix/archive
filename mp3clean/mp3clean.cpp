@@ -11,13 +11,12 @@ extern "C" {
 	#include <unistd.h>
 	#include <ftw.h>
 	#include <openssl/sha.h>
-	#include "../eruutil/strrcasestr.h"
-	#include "../eruutil/memnotchr.h"
 	#include "../eruutil/erudebug.h"
 }
 
 #include <vector>
 #include <string>
+#include <set>
 
 using namespace std;
 
@@ -258,10 +257,20 @@ done:
 	return ret;
 }
 
-int has_mp3_ext(const char *name)
+bool has_mp3_ext(const string &fname)
 {
-	static const char MP3_EXT[] = ".mp3";
-	return (strrcasestr(name, ".mp3") == name + strlen(name) - strlen(MP3_EXT));
+	static const string MP3_EXT_STR = ".mp3";
+	static const size_t MP3_EXT_SIZE = MP3_EXT_STR.size();
+	if (fname.size() < MP3_EXT_SIZE) return false;
+	if (strcasecmp(
+		&fname.data()[fname.size() - MP3_EXT_SIZE],
+		MP3_EXT_STR.data()))
+	{
+		return false;
+	} else {
+		return true;
+	}
+	return true;
 }
 
 int parse_mp3_size_callback(
@@ -325,56 +334,34 @@ void usage()
 	puts("Correct usage: <program> <path>");
 }
 
-void get_size_matches(off_t *matches[], uint *matchcnt)
+void get_size_matches(set<off_t> &matches)
 {
-	size_t matchmax = 100;
-	*matchcnt = 0;
-	*matches = (off_t *)calloc(matchmax, sizeof(**matches));
-	if (*matches == NULL) goto done;
-	for (uint i = 0; i < g_hashes.size(); i++) {
-		off_t size = g_hashes[i].end - g_hashes[i].start;
-		// skip this size if it's already recorded
-		uint match;
-		for (match = 0; match < *matchcnt; match++) {
-			if (size == (*matches)[match]) {
+	matches.clear();
+	vector<Datahash>::iterator i, j;
+	for (i = g_hashes.begin(); i != g_hashes.end(); ++i) {
+		off_t size = i->end - i->start;
+		// check match not already found
+		if (matches.find(size) != matches.end()) continue;
+		// skip if there are no duplicates to be found
+		for (j = i + 1; j != g_hashes.end(); ++j) {
+			if (j->end - j->start == size) {
 				break;
 			}
 		}
-		assert(match >= 0 && match <= *matchcnt);
-		if (match < *matchcnt) continue;
-		// skip if no duplicates of this size found
-		for (match = i + 1; match < g_hashes.size(); match++) {
-			if (size == g_hashes[match].end - g_hashes[match].start) {
-				break;
-			}
-		}
-		assert(match >= i + 1 && match <= g_hashes.size());
-		if (match == g_hashes.size()) continue;
+		if (j == g_hashes.end()) continue;
 		// add match
-		assert(*matchcnt <= matchmax);
-		if (*matchcnt == matchmax) {
-			matchmax *= 2;
-			assert(matchmax > *matchcnt);
-			*matches = (off_t *)realloc(*matches, matchmax * sizeof(**matches));
-			if (matches == NULL) fatal(errno, "realloc()");
-		}
-		(*matches)[(*matchcnt)++] = size;
+		matches.insert(size);
 	}
-done:
-	debugln("setting buffer size to %d bytes (%d items)", *matchcnt * sizeof(**matches), *matchcnt);
-	off_t *resized = (off_t *)realloc(*matches, *matchcnt * sizeof(**matches));
-	if (resized != NULL || *matchcnt * sizeof(**matches) == 0) *matches = resized;
-	assert((!*matches && !*matchcnt) || (*matches && *matchcnt > 0));
 }
 
 int report_size_matches()
 {
-	off_t *matches;
-	uint matchcnt;
-	get_size_matches(&matches, &matchcnt);
+	set<off_t> matches;
+	get_size_matches(matches);
 	int filecnt = 0;
-	for (uint match = 0; match < matchcnt; match++) {
-		off_t size = matches[match];
+	set<off_t>::iterator j;
+	for (j = matches.begin(); j != matches.end(); ++j) {
+		off_t size = *j;
 		printf("\tMatches for data size = %llu:\n", size);
 		for (uint i = 0; i < g_hashes.size(); i++) {
 			if (size == g_hashes[i].end - g_hashes[i].start) {
@@ -383,39 +370,33 @@ int report_size_matches()
 			}
 		}
 	}
-//done:
-	if (matches != NULL) free(matches);
 	return filecnt;
 }
 
 void add_size_match_hashes()
 {
-	off_t *matches;
-	uint matchcnt;
-	get_size_matches(&matches, &matchcnt);
 	// hash all size matches
-	for (uint match = 0; match < matchcnt; match++) {
+	set<off_t> matches;
+	get_size_matches(matches);
+	set<off_t>::iterator match;
+	for (match = matches.begin(); match != matches.end(); ++match) {
 		// find objects that match size
-		for (uint i = 0; i < g_hashes.size(); i++) {
-			if (g_hashes[i].end - g_hashes[i].start != matches[match]) continue;
+		vector<Datahash>::iterator i;
+		for (i = g_hashes.begin(); i != g_hashes.end(); ++i) {
+			// check size matches
+			if (i->end - i->start != *match) continue;
 			// check a hash isn't already created
-			uint j;
-			for (j = 0; j < sizeof(g_hashes[i].md); j++) {
-				if (g_hashes[i].md[j] != '\0') {
-					debugln("already hashed: %s", g_hashes[i].name.data());
-					break;
-				}
-			}
-			if (j != sizeof(g_hashes[i].md)) continue;
+			if (i->hashed) continue;
 			// open file and add hash
-			FILE *fsp = fopen(g_hashes[i].name.data(), "r");
+			FILE *fsp = fopen(i->name.data(), "r");
 			if (fsp == NULL) {
 				warn(errno, "fopen()");
 				continue;
 			}
-			if (sha1_mp3_data(fsp, g_hashes[i].md)) {
+			if (sha1_mp3_data(fsp, i->md)) {
 				warn(0, "sha1_mp3_data() failed");
 			}
+			i->hashed = true;
 			fclose(fsp);
 		}
 	}
@@ -435,43 +416,31 @@ int hashmds_zeroed()
 
 int report_hash_matches()
 {
-	int filecnt = 0;
-	for (uint i = 0; i < g_hashes.size(); i++) {
-		// check file has a hash
-		if (memnotchr(g_hashes[i].md, '\0', sizeof(g_hashes[i].md)) == NULL) {
-			continue;
-		}
-#ifndef NDEBUG
-		{
-			uint j;
-			for (j = 0; j < sizeof(g_hashes[i].md); j++) {
-				if (g_hashes[i].md[j] != '\0') break;
-			}
-			assert(j != sizeof(g_hashes[i].md));
-		}
-#endif
-		for (uint j = 0; j < g_hashes.size(); j++) {
+	int fileCount = 0;
+	vector<Datahash>::iterator i;
+	for (i = g_hashes.begin(); i != g_hashes.end(); ++i) {
+		if (i->hashed == false) continue;
+		vector<Datahash>::iterator j;
+		for (j = g_hashes.begin(); j != g_hashes.end(); ++j) {
+			if (j->hashed == false) continue;
 			if (i == j) continue;
-			if (memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md)) != 0) {
-				continue;
-			}
+			if (memcmp(i->md, j->md, DATAHASH_DIGEST_LENGTH)) continue;
 			if (j < i) break;
-			assert(j != i);
 			printf("\tMatches for hash = ");
-			for (uint b = 0; b < sizeof(g_hashes[i].md); b++) {
-				printf("%02x", g_hashes[i].md[b]);
+			for (uint k = 0; k < sizeof(i->md); k++) {
+				printf("%02x", i->md[k]);
 			}
 			puts(":");
-			for (j = i; j < g_hashes.size(); j++) {
-				if (!memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md))) {
-					printf("%s\n", g_hashes[j].name.data());
-					filecnt++;
-				}
+			for (j = i; j != g_hashes.end(); ++j) {
+				if (j->hashed == false) continue;
+				if (memcmp(i->md, j->md, DATAHASH_DIGEST_LENGTH)) continue;
+				puts(j->name.data());
+				fileCount++;
 			}
 			break;
 		}
 	}
-	return filecnt;
+	return fileCount;
 }
 
 void find_mp3_dupes(const char *dirname)

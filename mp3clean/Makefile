@@ -1,8 +1,8 @@
 # flags: NDEBUG, NO_FRAME_SYNC
-CFLAGS = -Wall -g
+CFLAGS = -Wall -DNDEBUG -O2
 CXXFLAGS = $(CFLAGS)
 LDFLAGS = -lssl
-OBJECTS = mp3clean.o ../eruutil/strrcasestr.o ../eruutil/memnotchr.o
+OBJECTS = mp3clean.o
 TARGETS = mp3clean
 
 target: $(TARGETS)
