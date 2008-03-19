@@ -17,6 +17,9 @@ extern "C" {
 }
 
 #include <vector>
+#include <string>
+
+using namespace std;
 
 typedef enum {no = 0, yes} has_t;
 
@@ -24,15 +27,15 @@ typedef enum {no = 0, yes} has_t;
 #define MAX(a, b) ((a > b) ? a : b)
 #define DATAHASH_DIGEST_LENGTH SHA_DIGEST_LENGTH
 
-typedef struct {
+struct Datahash {
 	unsigned char md[DATAHASH_DIGEST_LENGTH];
-	off_t size;
-	char name[0x100];
-} datahash_t;
+	bool hashed;
+	off_t start, end;
+	string name;
+	Datahash(): hashed(false), start(-1), end(-1) {}
+};
 
-using namespace std;
-
-vector<datahash_t> g_hashes;
+vector<Datahash> g_hashes;
 
 static_assert(sizeof(size_t) >= sizeof(long));
 static_assert(sizeof(off_t) >= sizeof(long));
@@ -271,44 +274,31 @@ int parse_mp3_size_callback(
 	// check mp3 file
 	if (typeflag != FTW_F) goto done;
 	if (!has_mp3_ext(&fpath[ftwbuf->base])) goto done;
-	/*
-	// check there is room
-	if (g_hashcnt >= g_hashmax) {
-		warn(0, "Number of MP3 files has changed!");
-		goto done;
-	}
-	*/
 	// get file handle
 	fs = fopen(fpath, "r");
 	if (!fs) {
 		warn(errno, "fopen()");
 		goto done;
 	}
-
 	// get data bounds
 	off_t start, end;
 	if (mp3_data_bounds(fs, &start, &end)) {
 		warn(0, "mp3_data_bounds() failed");
 		goto done;
 	}
-
 	// create datahash object
-	datahash_t dh;
-	assert(sizeof(dh.name) == 0x100);
-	assert(strlen(fpath) < sizeof(dh.name));
-	strncpy(dh.name, fpath, sizeof(dh.name));
-	assert(end >= start);
-	dh.size = end - start;
-	memset(dh.md, '\0', sizeof(dh.md));
+	{
+		Datahash dh;
+		dh.name = string(fpath);
+		assert(end >= start);
+		dh.start = start;
+		dh.end = end;
+		memset(dh.md, '\0', DATAHASH_DIGEST_LENGTH);
 
-	debugln("%llu ([%llu, %llu]) %s", dh.size, start, end, dh.name);
-
-	// add datahash object
-	g_hashes.push_back(dh);
-	/*
-	g_hashes[g_hashcnt++] = dh;
-	assert(g_hashcnt <= g_hashmax);
-	*/
+		debugln("%llu ([%llu, %llu]) %s", dh.end - dh.start, start, end, dh.name.data());
+		// add datahash object
+		g_hashes.push_back(Datahash(dh));
+	}
 done:
 	if (fs) fclose(fs);
 	return 0;
@@ -342,7 +332,7 @@ void get_size_matches(off_t *matches[], uint *matchcnt)
 	*matches = (off_t *)calloc(matchmax, sizeof(**matches));
 	if (*matches == NULL) goto done;
 	for (uint i = 0; i < g_hashes.size(); i++) {
-		off_t size = g_hashes[i].size;
+		off_t size = g_hashes[i].end - g_hashes[i].start;
 		// skip this size if it's already recorded
 		uint match;
 		for (match = 0; match < *matchcnt; match++) {
@@ -354,7 +344,7 @@ void get_size_matches(off_t *matches[], uint *matchcnt)
 		if (match < *matchcnt) continue;
 		// skip if no duplicates of this size found
 		for (match = i + 1; match < g_hashes.size(); match++) {
-			if (size == g_hashes[match].size) {
+			if (size == g_hashes[match].end - g_hashes[match].start) {
 				break;
 			}
 		}
@@ -387,8 +377,8 @@ int report_size_matches()
 		off_t size = matches[match];
 		printf("\tMatches for data size = %llu:\n", size);
 		for (uint i = 0; i < g_hashes.size(); i++) {
-			if (size == g_hashes[i].size) {
-				printf("%s\n", g_hashes[i].name);
+			if (size == g_hashes[i].end - g_hashes[i].start) {
+				printf("%s\n", g_hashes[i].name.data());
 				filecnt++;
 			}
 		}
@@ -407,18 +397,18 @@ void add_size_match_hashes()
 	for (uint match = 0; match < matchcnt; match++) {
 		// find objects that match size
 		for (uint i = 0; i < g_hashes.size(); i++) {
-			if (g_hashes[i].size != matches[match]) continue;
+			if (g_hashes[i].end - g_hashes[i].start != matches[match]) continue;
 			// check a hash isn't already created
 			uint j;
 			for (j = 0; j < sizeof(g_hashes[i].md); j++) {
 				if (g_hashes[i].md[j] != '\0') {
-					debugln("already hashed: %s", g_hashes[i].name);
+					debugln("already hashed: %s", g_hashes[i].name.data());
 					break;
 				}
 			}
 			if (j != sizeof(g_hashes[i].md)) continue;
 			// open file and add hash
-			FILE *fsp = fopen(g_hashes[i].name, "r");
+			FILE *fsp = fopen(g_hashes[i].name.data(), "r");
 			if (fsp == NULL) {
 				warn(errno, "fopen()");
 				continue;
@@ -474,7 +464,7 @@ int report_hash_matches()
 			puts(":");
 			for (j = i; j < g_hashes.size(); j++) {
 				if (!memcmp(g_hashes[i].md, g_hashes[j].md, sizeof(g_hashes[i].md))) {
-					printf("%s\n", g_hashes[j].name);
+					printf("%s\n", g_hashes[j].name.data());
 					filecnt++;
 				}
 			}
