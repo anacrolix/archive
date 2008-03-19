@@ -37,7 +37,6 @@ struct Datahash {
 vector<Datahash> g_hashes;
 
 static_assert(sizeof(size_t) >= sizeof(long));
-static_assert(sizeof(off_t) >= sizeof(long));
 static_assert(sizeof(off_t) == sizeof(long long));
 
 int sha1_file_ex(
