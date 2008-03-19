@@ -323,7 +323,7 @@ void get_size_matches(off_t *matches[], int *matchcnt)
 {
 	size_t matchmax = 100;
 	*matchcnt = 0;
-	*matches = malloc(matchmax * sizeof(**matches));
+	*matches = calloc(matchmax, sizeof(**matches));
 	if (*matches == NULL) goto done;
 	for (int i = 0; i < g_hashcnt; i++) {
 		off_t size = g_hashes[i].size;
@@ -357,7 +357,8 @@ void get_size_matches(off_t *matches[], int *matchcnt)
 done:
 	debugln("setting buffer size to %d bytes (%d items)", *matchcnt * sizeof(**matches), *matchcnt);
 	off_t *resized = realloc(*matches, *matchcnt * sizeof(**matches));
-	if (resized != NULL) *matches = resized;
+	if (resized != NULL || *matchcnt * sizeof(**matches) == 0) *matches = resized;
+	assert((!*matches && !*matchcnt) || (*matches && *matchcnt > 0));
 }
 
 int report_size_matches()
@@ -365,7 +366,6 @@ int report_size_matches()
 	off_t *matches;
 	int matchcnt;
 	get_size_matches(&matches, &matchcnt);
-	assert(matches != NULL && matchcnt >= 0);
 	int filecnt = 0;
 	for (int match = 0; match < matchcnt; match++) {
 		off_t size = matches[match];
@@ -387,7 +387,6 @@ void add_size_match_hashes()
 	off_t *matches;
 	int matchcnt;
 	get_size_matches(&matches, &matchcnt);
-	assert(matches != NULL && matchcnt >= 0);
 	// hash all size matches
 	for (int match = 0; match < matchcnt; match++) {
 		// find objects that match size
