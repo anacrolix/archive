@@ -472,7 +472,7 @@ int report_hash_matches()
 void find_mp3_dupes(const char *dirname)
 {
 	// count mp3 files
-	int n = ftw(dirname, mp3_count_callback, 20);
+	int n = ftw(dirname, mp3_count_callback, 10);
 	if (n) {
 		if (n == -1) {
 			warn(errno, "ftw() failed");
@@ -488,7 +488,7 @@ void find_mp3_dupes(const char *dirname)
 		goto done;
 	}
 	// parse mp3 files
-	n = ftw(dirname, parse_mp3_size_callback, 20);
+	n = ftw(dirname, parse_mp3_size_callback, 10);
 	if (n) {
 		if (n == -1) {
 			warn(errno, "ftw() failed");
@@ -521,7 +521,6 @@ int main(int argc, char *argv[])
 	int ret = EXIT_FAILURE;
 	// do some checks
 	debugln("system page size = %ld", sysconf(_SC_PAGESIZE));
-	debugln("nopenfd = %d", nopenfd);
 	if (argc != 2) {
 		usage();
 		goto done;
