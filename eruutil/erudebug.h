@@ -5,7 +5,7 @@
 
 #ifdef NDEBUG
 #define warn(errval, fmt, ...) \
-	(fprintf(stderr, fmt, ##__VA_ARGS__))
+	({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
 #else
 #define warn(errval, fmt, ...) \
 	(error_at_line(0, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
