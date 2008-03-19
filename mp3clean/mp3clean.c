@@ -1,4 +1,5 @@
 #define _FILE_OFFSET_BITS 64
+#define _XOPEN_SOURCE 500
 
 #include <stdlib.h>
 #include <openssl/sha.h>
@@ -254,21 +255,22 @@ int has_mp3_ext(const char *name)
 }
 
 int parse_mp3_size_callback(
-	const char *name,
-	const struct stat *stat,
-	int info)
+	const char *fpath,
+	const struct stat *sb,
+	int typeflag,
+	struct FTW *ftwbuf)
 {
 	FILE *fs = NULL;
-
-	// check there is room
-	if (g_hashcnt >= g_hashmax) goto done;
-
 	// check mp3 file
-	if (info != FTW_F) goto done;
-	if (!has_mp3_ext(name)) goto done;
-
+	if (typeflag != FTW_F) goto done;
+	if (!has_mp3_ext(&fpath[ftwbuf->base])) goto done;
+	// check there is room
+	if (g_hashcnt >= g_hashmax) {
+		warn(0, "Number of MP3 files has changed!");
+		goto done;
+	}
 	// get file handle
-	fs = fopen(name, "r");
+	fs = fopen(fpath, "r");
 	if (!fs) {
 		warn(errno, "fopen()");
 		goto done;
@@ -284,8 +286,8 @@ int parse_mp3_size_callback(
 	// create datahash object
 	datahash_t dh;
 	assert(sizeof(dh.name) == 0x100);
-	assert(strlen(name) < sizeof(dh.name));
-	strncpy(dh.name, name, sizeof(dh.name));
+	assert(strlen(fpath) < sizeof(dh.name));
+	strncpy(dh.name, fpath, sizeof(dh.name));
 	assert(end >= start);
 	dh.size = end - start;
 	memset(dh.md, '\0', sizeof(dh.md));
@@ -302,12 +304,16 @@ done:
 }
 
 int mp3_count_callback(
-	const char *name,
-	const struct stat *stat,
-	int info)
+	const char *fpath,
+	const struct stat *sb,
+	int typeflag,
+	struct FTW *ftwbuf)
 {
-	if (info == FTW_F && has_mp3_ext(name)) {
-		debugln(name);
+	if (typeflag == FTW_SL) {
+		warn(0, "Will not follow link: %s", fpath);
+	}
+	if (typeflag == FTW_F && has_mp3_ext(&fpath[ftwbuf->base])) {
+		debugln(&fpath[ftwbuf->base]);
 		g_hashmax++;
 	}
 	return 0;
@@ -471,7 +477,7 @@ int report_hash_matches()
 void find_mp3_dupes(const char *dirname)
 {
 	// count mp3 files
-	int n = ftw(dirname, mp3_count_callback, 10);
+	int n = nftw(dirname, mp3_count_callback, 10, FTW_PHYS);
 	if (n) {
 		if (n == -1) {
 			warn(errno, "ftw() failed");
@@ -487,7 +493,7 @@ void find_mp3_dupes(const char *dirname)
 		goto done;
 	}
 	// parse mp3 files
-	n = ftw(dirname, parse_mp3_size_callback, 10);
+	n = nftw(dirname, parse_mp3_size_callback, 10, FTW_PHYS);
 	if (n) {
 		if (n == -1) {
 			warn(errno, "ftw() failed");
