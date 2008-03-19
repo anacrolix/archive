@@ -281,8 +281,12 @@ int parse_mp3_size_callback(
 {
 	FILE *fs = NULL;
 	// check mp3 file
+	if (typeflag == FTW_SL) {
+		warn(0, "Will not follow link: %s", fpath);
+	}
 	if (typeflag != FTW_F) goto done;
 	if (!has_mp3_ext(&fpath[ftwbuf->base])) goto done;
+	debugln(&fpath[ftwbuf->base]);
 	// get file handle
 	fs = fopen(fpath, "r");
 	if (!fs) {
@@ -310,21 +314,6 @@ int parse_mp3_size_callback(
 	}
 done:
 	if (fs) fclose(fs);
-	return 0;
-}
-
-int mp3_count_callback(
-	const char *fpath,
-	const struct stat *sb,
-	int typeflag,
-	struct FTW *ftwbuf)
-{
-	if (typeflag == FTW_SL) {
-		warn(0, "Will not follow link: %s", fpath);
-	}
-	if (typeflag == FTW_F && has_mp3_ext(&fpath[ftwbuf->base])) {
-		debugln(&fpath[ftwbuf->base]);
-	}
 	return 0;
 }
 
@@ -445,18 +434,8 @@ int report_hash_matches()
 
 void find_mp3_dupes(const char *dirname)
 {
-	// count mp3 files
-	int n = nftw(dirname, mp3_count_callback, 10, FTW_PHYS);
-	if (n) {
-		if (n == -1) {
-			warn(errno, "ftw() failed");
-		} else {
-			warn(errno, "mp3_count_callback() returned %d", n);
-		}
-		goto done;
-	}
 	// parse mp3 files
-	n = nftw(dirname, parse_mp3_size_callback, 10, FTW_PHYS);
+	int n = nftw(dirname, parse_mp3_size_callback, 10, FTW_PHYS);
 	if (n) {
 		if (n == -1) {
 			warn(errno, "ftw() failed");
