@@ -17,6 +17,7 @@ extern "C" {
 #include <vector>
 #include <string>
 #include <set>
+#include "mpegamm.h"
 
 using namespace std;
 
