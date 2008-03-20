@@ -8,7 +8,10 @@ TARGETS = mp3clean
 target: $(TARGETS)
 
 clean:
-	rm -vf $(TARGETS) $(OBJECTS)
+	rm -vf *.o $(OBJECTS)
 
 mp3clean: $(OBJECTS)
 	g++ -o $@ $(OBJECTS) $(LDFLAGS)
+
+mp3test: mp3test.o mpegamm.o
+	g++ -o $@ mp3test.o mpegamm.o -Wall

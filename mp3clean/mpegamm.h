@@ -14,21 +14,33 @@ private:
 	unsigned char m_header[4];
 };
 
-class MpegID3v1Header
+class MpegHeaderId3v1
 {
 public:
-	MpegID3v1Header(char header[128]);
+	MpegHeaderId3v1(char header[128]);
 	bool isValid();
+	const char *data();
 private:
 	char m_header[128];
 };
+
+class MpegHeaderId3v2
+{};
 
 class MpegAudioFile
 {
 public:
 	MpegAudioFile(const string &filePath);
+	~MpegAudioFile();
+	MpegHeaderId3v1 *getHeaderId3v1(bool closeFile = true);
 private:
+	bool openFile();
+	bool closeFile();
+
 	const string m_filePath;
-	unsigned char m_dataHash[20];
+	unsigned char *m_dataHash;
 	vector<MpegAudioFrame> m_frames;
+	MpegHeaderId3v1 *m_headerId3v1;
+	MpegHeaderId3v2 *m_headerId3v2;
+	FILE *m_fileStream;
 };
