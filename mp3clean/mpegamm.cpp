@@ -1,90 +1,91 @@
 #include "mpegamm.h"
 #include "../eruutil/erudebug.h"
-#include <errno.h>
+#include <cerrno>
+#include <cassert>
 
-MpegAudioFrame::MpegAudioFrame(unsigned char header[4])
-{
-	memcpy(m_header, header, 4);
-}
+//#define GETBITS(a, b, c) ((a >> )
 
-bool MpegAudioFrame::isValid()
+MpegAudioFile::MpegAudioFile(const string &name_):
+	name(name_),
+	id3v1Header(NULL),
+	id3v2Header(NULL)
 {
-	return ((m_header[0] & 0xff) && ((m_header[1] >> 5) & 0x7));
-}
-
-MpegHeaderId3v1::MpegHeaderId3v1(char header[128])
-{
-	memcpy(m_header, header, 128);
-}
-
-bool MpegHeaderId3v1::isValid()
-{
-	if (strncmp(&m_header[0], "TAG", 3) == 0) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
-const char *MpegHeaderId3v1::data()
-{
-	return m_header;
-}
-
-MpegAudioFile::MpegAudioFile(const string &filePath):
-	m_filePath(filePath),
-	m_dataHash(NULL),
-	m_headerId3v1(NULL),
-	m_headerId3v2(NULL),
-	m_fileStream(NULL)
-{
-	if (openFile()) closeFile();
-}
-
-MpegAudioFile::~MpegAudioFile()
-{
-	delete[] m_dataHash;
-	delete m_headerId3v1;
-	delete m_headerId3v2;
-}
-
-MpegHeaderId3v1 *MpegAudioFile::getHeaderId3v1(bool closeFile)
-{
-	if (!m_headerId3v1) {
-		if (openFile()) {
-			if (fseek(m_fileStream, -128, SEEK_END)) {
-				warn(errno, "fseek()");
+	FILE *fs = fopen(name.data(), "rb");
+	if (fs) {
+		// get id3v1 header
+		if (fseek(fs, -128, SEEK_END)) {
+			warn(errno, "fseek()");
+		} else {
+			MpegId3v1Header *v1hdr = new MpegId3v1Header();
+			if (fread(v1hdr->data, 1, sizeof(v1hdr->data), fs) != sizeof(v1hdr->data)) {
+				warn(errno, "fread()");
 			} else {
-				char buf[128];
-				if (fread(buf, 1, 128, m_fileStream) == 128) {
-					m_headerId3v1 = new MpegHeaderId3v1(buf);
+				if (!strncmp(v1hdr->data, "TAG", 3)) {
+					id3v1Header = v1hdr;
+				}
+			}
+			if (!id3v1Header) delete v1hdr;
+		}
+		rewind(fs);
+		// get id3v2 header
+		MpegId3v2Header *v2hdr = new MpegId3v2Header();
+		if (fread(v2hdr->data, 1, sizeof(v2hdr->data), fs) != sizeof(v2hdr->data)) {
+			warn(errno, "fread()");
+		} else {
+			if (!strncasecmp(v2hdr->data, "ID3", 3)) {
+				id3v2Header = v2hdr;
+			}
+		}
+		if (!id3v2Header) delete v2hdr;
+		// get frames
+		rewind(fs);
+		MpegFrameHeader fhdr;
+		for (off_t foff = 0;; foff++) {
+			if (fread(fhdr.data, 1, 4, fs) != 4) {
+				if (ferror(fs)) warn(errno, "fread()");
+				break;
+			} else {
+				long &bits = (long &)*(fhdr.data);
+				if ((bits & 0xfe000000) == 0xfe000000) {
+					fhdr.offset = ftell(fs);
+					frames.push_back(fhdr);
 				}
 			}
 		}
+		// close file
+		fclose(fs);
 	}
-	if (closeFile) this->closeFile();
-	return m_headerId3v1;
 }
 
-bool MpegAudioFile::openFile()
+bool MpegFrameHeader::followFrame(vector<MpegFrameHeader> &vfh, FILE *fs)
 {
-	if (!closeFile()) return false;
-	m_fileStream = fopen(m_filePath.data(), "rb");
-	if (m_fileStream == NULL) {
-		warn(errno, "fopen()");
-		return false;
-	}
-	return true;
-}
-
-bool MpegAudioFile::closeFile()
-{
-	if (m_fileStream) {
-		if (fclose(m_fileStream)) {
-			warn(errno, "fclose()");
+	MpegFrameHeader fhdr;
+	fhdr.offset = ftell(fs);
+	if (fread(fhdr.data, 1, 4, fs) != 4) {
+		if (feof(fs)) {
+			return true;
+		} else if (ferror(fs)) {
+			warn(errno, "fread()");
+			return false;
+		} else {
+			assert(false);
+		}
+	} else {
+		long &bits = (long &)*(fhdr.data);
+		if ((bits & 0xfe000000) == 0xfe000000) {
+			// calculate offset to next frame header
+			debug("%u", uint(fhdr.offset));
+			if (((bits >> 19) & 0x3) == 0x2) {
+				debug("reserved version");
+				goto a;
+			}
+a:
+			debug("\n");
+			return false;
+		} else {
 			return false;
 		}
-		m_fileStream = NULL;
 	}
-	return true;
+	assert(false);
+	return false;
 }

@@ -3,44 +3,29 @@
 
 using namespace std;
 
-class MpegAudioFrame
+struct MpegFrameHeader
 {
-public:
-	MpegAudioFrame(unsigned char header[4]);
-	bool isValid();
-private:
-	off_t m_start;
-	size_t m_length;
-	unsigned char m_header[4];
+	off_t offset;
+	char data[4];
+	bool followFrame(vector<MpegFrameHeader> &vfh, FILE *fs);
 };
 
-class MpegHeaderId3v1
+struct MpegId3v1Header
 {
-public:
-	MpegHeaderId3v1(char header[128]);
-	bool isValid();
-	const char *data();
-private:
-	char m_header[128];
+	char data[128];
 };
 
-class MpegHeaderId3v2
-{};
-
-class MpegAudioFile
+struct MpegId3v2Header
 {
-public:
-	MpegAudioFile(const string &filePath);
-	~MpegAudioFile();
-	MpegHeaderId3v1 *getHeaderId3v1(bool closeFile = true);
-private:
-	bool openFile();
-	bool closeFile();
+	char data[10];
+};
 
-	const string m_filePath;
-	unsigned char *m_dataHash;
-	vector<MpegAudioFrame> m_frames;
-	MpegHeaderId3v1 *m_headerId3v1;
-	MpegHeaderId3v2 *m_headerId3v2;
-	FILE *m_fileStream;
+struct MpegAudioFile
+{
+	MpegAudioFile(const string &name_);
+
+	string name;
+	MpegId3v1Header *id3v1Header;
+	MpegId3v2Header *id3v2Header;
+	vector<MpegFrameHeader> frames;
 };
