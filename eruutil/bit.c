@@ -9,10 +9,7 @@ void bit_init(struct bitptr *bp, const unsigned char *byte)
 }
 
 #if 0
-void bit_finish(struct bitptr *bp)
-{
-
-}
+void bit_finish(struct bitptr *bp) {}
 #endif
 
 void bit_skip(struct bitptr *bp, unsigned len)
