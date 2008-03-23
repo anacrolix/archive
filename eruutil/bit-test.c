@@ -13,6 +13,18 @@
 
 #define usage()
 
+void print_bits(struct bitptr *bp, unsigned len)
+{
+	long buf = bit_read(bp, len);
+	for (int i = 0; i < len; i++) {
+		if ((buf >> i) & 1) {
+			putchar('1');
+		} else {
+			putchar('0');
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int retVal = EXIT_FAILURE;
@@ -29,6 +41,19 @@ int main(int argc, char *argv[])
 
 	fdmap = mmap(NULL, fdstat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (fdmap == MAP_FAILED) {warn(errno, "mmap()"); goto done;}
+
+	// check output
+	struct bitptr bp;
+	bit_init(&bp, fdmap);
+	print_bits(&bp, 3);
+	bit_skip(&bp, 7);
+	print_bits(&bp, 5);
+	putchar(' ');
+	bit_skip(&bp, 24000);
+	print_bits(&bp, 1);
+	print_bits(&bp, 15);
+	bit_finish(&bp);
+	putchar('\n');
 
 	char *endbyte = fdmap + fdstat.st_size;
 	long longbit = sysconf(_SC_LONG_BIT);
