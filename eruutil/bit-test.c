@@ -6,6 +6,8 @@
 #include <sys/mman.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <assert.h>
+#include <stdio.h>
 #include "erudebug.h"
 #include "bit.h"
 
@@ -29,14 +31,19 @@ int main(int argc, char *argv[])
 	if (fdmap == MAP_FAILED) {warn(errno, "mmap()"); goto done;}
 
 	char *endbyte = fdmap + fdstat.st_size;
-	struct bitptr bp;
-	bit_init(&bp, fdmap);
+	long longbit = sysconf(_SC_LONG_BIT);
+	if (longbit == -1) {warn(errno, "sysconf()"); goto done;}
+	assert(longbit == 32);
 	unsigned bits = 0;
-	while (bp.byte < endbyte) {
-		bit_read(&bp, bits % 2 * CHAR_BIT);
-		bits++;
+	for (int i = 0; i < 100; i++) {
+		struct bitptr bp;
+		bit_init(&bp, fdmap);
+		while (bp.byte < endbyte) {
+			bit_read(&bp, bits % longbit);
+			bits++;
+		}
+		bit_finish(&fd);
 	}
-	bit_finish(&fd);
 
 	retVal = EXIT_SUCCESS;
 done:
