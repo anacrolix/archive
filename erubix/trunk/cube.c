@@ -61,3 +61,10 @@ void Cube_Init(Cube *cube)
 		cube->nextMove[i] = NULL;
 	}
 }
+
+void Cube_Finish(Cube *cube)
+{
+	// unlink from parent
+	// destroy children
+	// destroy this cube
+}

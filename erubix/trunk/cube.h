@@ -82,6 +82,7 @@ EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE];
 extern const enum Tile_e
 EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE];
 
-void Cube_Init(Cube *cube);
+void Cube_Init(Cube *);
+void Cube_Remove(Cube *);
 
 #endif
