@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <error.h>
+#include <assert.h>
 #include "eruutil/erudebug.h"
 
 #define MOVE_DEPTH 30
@@ -55,6 +56,8 @@ enum Rotation_e {
 struct Face_t {
 	unsigned char tile[TILES_PER_FACE];
 };
+typedef struct Face_t Face;
+static_assert(sizeof(Face) == 9);
 
 struct Cube_t {
 	struct Cube_t *parent;
@@ -63,6 +66,8 @@ struct Cube_t {
 	struct Face_t face[FACES_PER_CUBE];
 	struct Cube_t *nextMove[UNIQUE_MOVES];
 };
+typedef struct Cube_t Cube;
+static_assert(sizeof(Cube) == 116);
 
 #define EDGES_PER_FACE 4
 const enum Face_e EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE] = {
@@ -109,13 +114,19 @@ EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] =
 	TILE_BR, TILE_R, TILE_TR
 };
 
+char const SOLVED_CUBE_STR[] =
+	"FFFFFFFFF"
+	"UUUUUUUUU"
+	"RRRRRRRRR"
+	"DDDDDDDDD"
+	"BBBBBBBBB"
+	"LLLLLLLLL";
+
+struct Cube_t solvedCube;
+
 const unsigned g_uMaxDepth = 20;
 char startCube[] = "ffbffbffbuuduuduudrrrrrrrrrddudduddufbbfbbfbblllllllll";
- //"045202221144314311053025401442135030534143253502251503";
 struct Cube_t rootCube;
-//const char g_szSolvedCubeFaces[] = "FFFFFFFFFUUUUUUUUURRRRRRRRRDDDDDDDDDBBBBBBBBBLLLLLLLLL";
-char g_szSolvedCubeFaces[] = "FFFFFFFFFUUUUUUUUURRRRRRRRRDDDDDDDDDBBBBBBBBBLLLLLLLLL";
-struct Cube_t solvedCube;
 
 void pause(void)
 {
@@ -495,18 +506,20 @@ justmove:
 	return;
 }
 
-bool GetFacesString(struct Cube_t *c, char *s)
+bool GetFacesString(struct Cube_t *c, const char *s)
 {
-	int f, t;
+	int f, t; // face, tile
 
 	if (strlen(s) != FACES_PER_CUBE * TILES_PER_FACE) {
-		printf("cube string invalid length\n");
+		fatal(0, "Cube string has invalid length: %s", s);
 		return false;
 	}
-	for (t=0;t<strlen(s);t++) s[t]=toupper(s[t]);
-	for (f=0;f<FACES_PER_CUBE;f++) {
-		for (t=0;t<TILES_PER_FACE;t++) {
-			switch (s[f*TILES_PER_FACE+t]) {
+
+	for (f=0; f < FACES_PER_CUBE; f++) {
+		for (t=0; t < TILES_PER_FACE; t++) {
+			int x = toupper(s[f * TILES_PER_FACE + t]);
+			assert(isalnum(x));
+			switch (x) {
 				case 'F':
 				case '0':
 				case 0:
@@ -540,7 +553,7 @@ bool GetFacesString(struct Cube_t *c, char *s)
 					c->face[f].tile[t] = FACE_L;
 					break;
 				default:
-					printf("unrecognized face value\n");
+					fatal(0, "Unrecognized face value: %c", x);
 					return false;
 			}
 		}
@@ -570,13 +583,16 @@ void transformCube(struct Cube_t *cube, enum Move_e move)
 	return;
 }
 
+void cube_init(Cube *cube)
+{
+	cube->parent = NULL;
+	cube->lastMove = -1;
+}
+
 int main(int argc, char *argv[])
 {
-	//initialize rootcube
-	//FILE *fp;
-	//fp = freopen ("rubix.txt", "w", stdout);
-	printf("sizeof(&rootCube->face)=%u\n", sizeof((&rootCube)->face));
-	//ZeroMemory(&rootCube, sizeof(rootCube));
+	debug_size(rootCube.face);
+	debug_size(Cube);
 	memset(&rootCube, '\0', sizeof(rootCube));
 	rootCube.parent = NULL;
 	rootCube.lastMove = -1;
@@ -585,7 +601,7 @@ int main(int argc, char *argv[])
 	printf("starting cube\n");
 	printCube(&rootCube);
 	//initialize solved cube
-	GetFacesString(&solvedCube, g_szSolvedCubeFaces);
+	GetFacesString(&solvedCube, SOLVED_CUBE_STR);
 	printf("target solution\n");
 	printCube(&solvedCube);
 	struct Cube_t test;
