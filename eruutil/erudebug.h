@@ -1,3 +1,6 @@
+#ifndef ERUDEBUG_H
+#define ERUDEBUG_H
+
 #define fatal(errval, fmt, ...) \
 	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
 
@@ -22,6 +25,13 @@
 #define static_assert(cond) \
 	extern char dummy_assert_array[(cond)?1:-1]
 
+#ifdef NDEBUG
+#define debug_size(type)
+#else
+#define debug_size(type) (error_at_line(0, 0, __FILE__, __LINE__, \
+	"sizeof(" #type ") = %d", sizeof(type)))
+#endif
+
 /*
 #ifdef NDEBUG
 #define dump(var, fmt)
@@ -30,3 +40,5 @@
 	(fprintf(stderr, "%s:%u: %s = " fmt, __FILE__, __LINE__, #var, var))
 #endif
 */
+
+#endif
