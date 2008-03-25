@@ -75,15 +75,8 @@ typedef struct Cube_t {
 static_assert(sizeof(Cube) == 116);
 
 #define EDGES_PER_FACE 4
-static const enum Face_e
-EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE] = {
-	{FACE_U, FACE_R, FACE_D, FACE_L}, //F
-	{FACE_B, FACE_R, FACE_F, FACE_L}, //U
-	{FACE_U, FACE_B, FACE_D, FACE_F}, //R
-	{FACE_F, FACE_R, FACE_B, FACE_L}, //D
-	{FACE_U, FACE_L, FACE_D, FACE_R}, //B
-	{FACE_U, FACE_F, FACE_D, FACE_B}  //L
-};
+extern const enum Face_e
+EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE];
 
 #define TILES_PER_EDGE 3
 extern const enum Tile_e
