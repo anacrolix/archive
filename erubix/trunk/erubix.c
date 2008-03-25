@@ -3,19 +3,54 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <error.h>
 #include "eruutil/erudebug.h"
 
-#define TILES_PER_FACE 9
-#define FACES_PER_CUBE 6
-#define EDGES_PER_FACE 4
-#define TILES_PER_EDGE 3
-#define UNIQUE_MOVES 12
 #define MOVE_DEPTH 30
 
-enum Move_e {MOVE_FCW, MOVE_FACW, MOVE_UCW, MOVE_UACW, MOVE_RCW, MOVE_RACW, MOVE_DCW, MOVE_DACW, MOVE_BCW, MOVE_BACW, MOVE_LCW, MOVE_LACW};
-enum Face_e {FACE_F, FACE_U, FACE_R, FACE_D, FACE_B, FACE_L};
-enum Tile_e {TILE_TL, TILE_T, TILE_TR, TILE_L, TILE_C, TILE_R, TILE_BL, TILE_B, TILE_BR};
-enum Rotation_e {ROTATE_ACW, ROTATE_CW};
+#define UNIQUE_MOVES 12
+enum Move_e {
+	MOVE_FCW,
+	MOVE_FACW,
+	MOVE_UCW,
+	MOVE_UACW,
+	MOVE_RCW,
+	MOVE_RACW,
+	MOVE_DCW,
+	MOVE_DACW,
+	MOVE_BCW,
+	MOVE_BACW,
+	MOVE_LCW,
+	MOVE_LACW
+};
+
+#define FACES_PER_CUBE 6
+enum Face_e {
+	FACE_F,
+	FACE_U,
+	FACE_R,
+	FACE_D,
+	FACE_B,
+	FACE_L
+};
+
+#define TILES_PER_FACE 9
+enum Tile_e {
+	TILE_TL,
+	TILE_T,
+	TILE_TR,
+	TILE_L,
+	TILE_C,
+	TILE_R,
+	TILE_BL,
+	TILE_B,
+	TILE_BR
+};
+
+enum Rotation_e {
+	ROTATE_ACW,
+	ROTATE_CW
+};
 
 struct Face_t {
 	unsigned char tile[TILES_PER_FACE];
@@ -29,6 +64,7 @@ struct Cube_t {
 	struct Cube_t *nextMove[UNIQUE_MOVES];
 };
 
+#define EDGES_PER_FACE 4
 const enum Face_e EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE] = {
 	FACE_U, FACE_R, FACE_D, FACE_L, //F
 	FACE_B, FACE_R, FACE_F, FACE_L, //U
@@ -38,13 +74,39 @@ const enum Face_e EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE] = {
 	FACE_U, FACE_F, FACE_D, FACE_B  //L
 };
 
-const enum Tile_e EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] = {
-	TILE_BL, TILE_B, TILE_BR, TILE_TL, TILE_L, TILE_BL, TILE_TR, TILE_T, TILE_TL, TILE_BR, TILE_R, TILE_TR,
-	TILE_TR, TILE_T, TILE_TL, TILE_TR, TILE_T, TILE_TL, TILE_TR, TILE_T, TILE_TL, TILE_TR, TILE_T, TILE_TL,
-	TILE_BR, TILE_R, TILE_TR, TILE_TL, TILE_L, TILE_BL, TILE_BR, TILE_R, TILE_TR, TILE_BR, TILE_R, TILE_TR,
-	TILE_BL, TILE_B, TILE_BR, TILE_BL, TILE_B, TILE_BR, TILE_BL, TILE_B, TILE_BR, TILE_BL, TILE_B, TILE_BR,
-	TILE_TR, TILE_T, TILE_TL, TILE_TL, TILE_L, TILE_BL, TILE_BL, TILE_B, TILE_BR, TILE_BR, TILE_R, TILE_TR,
-	TILE_TL, TILE_L, TILE_BL, TILE_TL, TILE_L, TILE_BL, TILE_TL, TILE_L, TILE_BL, TILE_BR, TILE_R, TILE_TR
+#define TILES_PER_EDGE 3
+const enum Tile_e
+EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] =
+{
+	TILE_BL, TILE_B, TILE_BR,
+	TILE_TL, TILE_L, TILE_BL,
+	TILE_TR, TILE_T, TILE_TL,
+	TILE_BR, TILE_R, TILE_TR,
+
+	TILE_TR, TILE_T, TILE_TL,
+	TILE_TR, TILE_T, TILE_TL,
+	TILE_TR, TILE_T, TILE_TL,
+	TILE_TR, TILE_T, TILE_TL,
+
+	TILE_BR, TILE_R, TILE_TR,
+	TILE_TL, TILE_L, TILE_BL,
+	TILE_BR, TILE_R, TILE_TR,
+	TILE_BR, TILE_R, TILE_TR,
+
+	TILE_BL, TILE_B, TILE_BR,
+	TILE_BL, TILE_B, TILE_BR,
+	TILE_BL, TILE_B, TILE_BR,
+	TILE_BL, TILE_B, TILE_BR,
+
+	TILE_TR, TILE_T, TILE_TL,
+	TILE_TL, TILE_L, TILE_BL,
+	TILE_BL, TILE_B, TILE_BR,
+	TILE_BR, TILE_R, TILE_TR,
+
+	TILE_TL, TILE_L, TILE_BL,
+	TILE_TL, TILE_L, TILE_BL,
+	TILE_TL, TILE_L, TILE_BL,
+	TILE_BR, TILE_R, TILE_TR
 };
 
 const unsigned g_uMaxDepth = 20;
@@ -55,7 +117,8 @@ struct Cube_t rootCube;
 char g_szSolvedCubeFaces[] = "FFFFFFFFFUUUUUUUUURRRRRRRRRDDDDDDDDDBBBBBBBBBLLLLLLLLL";
 struct Cube_t solvedCube;
 
-void pause(void) {
+void pause(void)
+{
 	int c;
 	do {
 		c = getchar();
@@ -63,7 +126,8 @@ void pause(void) {
 	return;
 }
 
-void rotateCW(struct Face_t *oldFace, struct Face_t *newFace) {
+void rotateCW(struct Face_t *oldFace, struct Face_t *newFace)
+{
 	newFace->tile[TILE_TL] = oldFace->tile[TILE_BL];
 	newFace->tile[TILE_T] = oldFace->tile[TILE_L];
 	newFace->tile[TILE_TR] = oldFace->tile[TILE_TL];
@@ -76,7 +140,8 @@ void rotateCW(struct Face_t *oldFace, struct Face_t *newFace) {
 	return;
 }
 
-void rotateACW(struct Face_t *oldFace, struct Face_t *newFace) {
+void rotateACW(struct Face_t *oldFace, struct Face_t *newFace)
+{
 	newFace->tile[TILE_TL] = oldFace->tile[TILE_TR];
 	newFace->tile[TILE_T] = oldFace->tile[TILE_R];
 	newFace->tile[TILE_TR] = oldFace->tile[TILE_BR];
@@ -93,10 +158,10 @@ void moveEdges(
 	struct Cube_t *oldCube,
 	struct Cube_t *newCube,
 	enum Face_e face,
-	enum Rotation_e direction
-) {
+	enum Rotation_e direction)
+{
 	int e, t;
-	for (e=0;e<EDGES_PER_FACE;e++) {
+	for (e = 0; e < EDGES_PER_FACE; e++) {
 		for (t=0;t<TILES_PER_EDGE;t++) {
 			newCube
 				->face[EDGE_COMPASS[face][e]]
@@ -167,7 +232,8 @@ bool validateCube(struct Cube_t *testCube, struct Cube_t *newCube)
 	return true;
 }
 
-void moveCube(struct Cube_t *thisCube, struct Cube_t *parentCube, enum Move_e thisMove) {
+void moveCube(struct Cube_t *thisCube, struct Cube_t *parentCube, enum Move_e thisMove)
+{
 	switch (thisMove) {
 		case MOVE_FCW:
 			rotateCW(&parentCube->face[FACE_F], &thisCube->face[FACE_F]);
@@ -233,7 +299,8 @@ void printMoveSequence(struct Cube_t *c)
 	return;
 }
 
-void printCube(struct Cube_t *cube) {
+void printCube(struct Cube_t *cube)
+{
 	int i, j, f;
 	for (i=0;i<3;i++) {
 		for (f=0;f<FACES_PER_CUBE;f++) {
@@ -247,7 +314,8 @@ void printCube(struct Cube_t *cube) {
 	return;
 }
 
-void destroyBranch(struct Cube_t *cube) {
+void destroyBranch(struct Cube_t *cube)
+{
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
 		if (cube->nextMove[m]) destroyBranch(cube->nextMove[m]);
@@ -256,7 +324,8 @@ void destroyBranch(struct Cube_t *cube) {
 	free(cube);
 }
 
-void pruneClones(struct Cube_t *orig, struct Cube_t *cube) {
+void pruneClones(struct Cube_t *orig, struct Cube_t *cube)
+{
 	if (cube->depth > orig->depth) {
 		if (compareCube(orig, cube)) {
 			cube->parent->nextMove[cube->lastMove] = NULL;
@@ -283,7 +352,8 @@ bool isFirst(struct Cube_t *cube, struct Cube_t *query)
 	return true;
 }
 
-struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation) {
+struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation)
+{
 	int m;
 	struct Cube_t *result, *child;
 	if (cube->depth < generation) {
@@ -329,7 +399,8 @@ struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation) {
 	return NULL;
 }
 
-void expandCube(struct Cube_t *cube) {
+void expandCube(struct Cube_t *cube)
+{
 	#if LEVEL > DEBUG_WARN
 	printf("expandCube()\n");
 	#endif
@@ -371,7 +442,8 @@ void expandCube(struct Cube_t *cube) {
 	}
 }
 
-void generateCube(struct Cube_t *parentCube, enum Move_e thisMove) {
+void generateCube(struct Cube_t *parentCube, enum Move_e thisMove)
+{
 	struct Cube_t *thisCube;
 #ifndef NDEBUG
 	printMoveSequence(parentCube);
@@ -423,7 +495,8 @@ justmove:
 	return;
 }
 
-bool GetFacesString(struct Cube_t *c, char *s) {
+bool GetFacesString(struct Cube_t *c, char *s)
+{
 	int f, t;
 
 	if (strlen(s) != FACES_PER_CUBE * TILES_PER_FACE) {
@@ -485,7 +558,8 @@ unsigned countCubes(struct Cube_t *cube, unsigned generation)
 	return (cube->depth == generation || generation == -1 ? 1 : 0) + count;
 }
 
-void transformCube(struct Cube_t *cube, enum Move_e move) {
+void transformCube(struct Cube_t *cube, enum Move_e move)
+{
 	//struct Cube_t *orig = GlobalAlloc(0, sizeof(struct Cube_t));
 	struct Cube_t *orig = malloc(sizeof(struct Cube_t));
 	//CopyMemory(orig, cube, sizeof(struct Cube_t));
