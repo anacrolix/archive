@@ -6,113 +6,9 @@
 #include <error.h>
 #include <assert.h>
 #include "eruutil/erudebug.h"
+#include "cube.h"
 
 #define MOVE_DEPTH 30
-
-#define UNIQUE_MOVES 12
-enum Move_e {
-	MOVE_FCW,
-	MOVE_FACW,
-	MOVE_UCW,
-	MOVE_UACW,
-	MOVE_RCW,
-	MOVE_RACW,
-	MOVE_DCW,
-	MOVE_DACW,
-	MOVE_BCW,
-	MOVE_BACW,
-	MOVE_LCW,
-	MOVE_LACW
-};
-
-#define FACES_PER_CUBE 6
-enum Face_e {
-	FACE_F,
-	FACE_U,
-	FACE_R,
-	FACE_D,
-	FACE_B,
-	FACE_L
-};
-
-#define TILES_PER_FACE 9
-enum Tile_e {
-	TILE_TL,
-	TILE_T,
-	TILE_TR,
-	TILE_L,
-	TILE_C,
-	TILE_R,
-	TILE_BL,
-	TILE_B,
-	TILE_BR
-};
-
-enum Rotation_e {
-	ROTATE_ACW,
-	ROTATE_CW
-};
-
-struct Face_t {
-	unsigned char tile[TILES_PER_FACE];
-};
-typedef struct Face_t Face;
-static_assert(sizeof(Face) == 9);
-
-struct Cube_t {
-	struct Cube_t *parent;
-	enum Move_e lastMove;
-	unsigned depth;
-	struct Face_t face[FACES_PER_CUBE];
-	struct Cube_t *nextMove[UNIQUE_MOVES];
-};
-typedef struct Cube_t Cube;
-static_assert(sizeof(Cube) == 116);
-
-#define EDGES_PER_FACE 4
-const enum Face_e EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE] = {
-	FACE_U, FACE_R, FACE_D, FACE_L, //F
-	FACE_B, FACE_R, FACE_F, FACE_L, //U
-	FACE_U, FACE_B, FACE_D, FACE_F, //R
-	FACE_F, FACE_R, FACE_B, FACE_L, //D
-	FACE_U, FACE_L, FACE_D, FACE_R, //B
-	FACE_U, FACE_F, FACE_D, FACE_B  //L
-};
-
-#define TILES_PER_EDGE 3
-const enum Tile_e
-EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] =
-{
-	TILE_BL, TILE_B, TILE_BR,
-	TILE_TL, TILE_L, TILE_BL,
-	TILE_TR, TILE_T, TILE_TL,
-	TILE_BR, TILE_R, TILE_TR,
-
-	TILE_TR, TILE_T, TILE_TL,
-	TILE_TR, TILE_T, TILE_TL,
-	TILE_TR, TILE_T, TILE_TL,
-	TILE_TR, TILE_T, TILE_TL,
-
-	TILE_BR, TILE_R, TILE_TR,
-	TILE_TL, TILE_L, TILE_BL,
-	TILE_BR, TILE_R, TILE_TR,
-	TILE_BR, TILE_R, TILE_TR,
-
-	TILE_BL, TILE_B, TILE_BR,
-	TILE_BL, TILE_B, TILE_BR,
-	TILE_BL, TILE_B, TILE_BR,
-	TILE_BL, TILE_B, TILE_BR,
-
-	TILE_TR, TILE_T, TILE_TL,
-	TILE_TL, TILE_L, TILE_BL,
-	TILE_BL, TILE_B, TILE_BR,
-	TILE_BR, TILE_R, TILE_TR,
-
-	TILE_TL, TILE_L, TILE_BL,
-	TILE_TL, TILE_L, TILE_BL,
-	TILE_TL, TILE_L, TILE_BL,
-	TILE_BR, TILE_R, TILE_TR
-};
 
 char const SOLVED_CUBE_STR[] =
 	"FFFFFFFFF"
@@ -122,11 +18,11 @@ char const SOLVED_CUBE_STR[] =
 	"BBBBBBBBB"
 	"LLLLLLLLL";
 
-struct Cube_t solvedCube;
+Cube solvedCube;
 
 const unsigned g_uMaxDepth = 20;
 char startCube[] = "ffbffbffbuuduuduudrrrrrrrrrddudduddufbbfbbfbblllllllll";
-struct Cube_t rootCube;
+Cube rootCube;
 
 void pause(void)
 {
@@ -166,8 +62,8 @@ void rotateACW(struct Face_t *oldFace, struct Face_t *newFace)
 }
 
 void moveEdges(
-	struct Cube_t *oldCube,
-	struct Cube_t *newCube,
+	Cube *oldCube,
+	Cube *newCube,
 	enum Face_e face,
 	enum Rotation_e direction)
 {
@@ -186,7 +82,7 @@ void moveEdges(
 	return;
 }
 
-inline bool compareCube(struct Cube_t *cubeOne, struct Cube_t *cubeTwo)
+inline bool compareCube(Cube *cubeOne, Cube *cubeTwo)
 {
 	if (!memcmp(cubeOne->face, cubeTwo->face, sizeof(cubeOne->face))) {
 		return true;
@@ -204,7 +100,7 @@ inline bool compareCube(struct Cube_t *cubeOne, struct Cube_t *cubeTwo)
 */
 }
 
-void pruneCube(struct Cube_t *cube)
+void pruneCube(Cube *cube)
 {
 	//sever parent
 	if (cube->parent) {
@@ -225,7 +121,7 @@ void pruneCube(struct Cube_t *cube)
 }
 
 //return false if there is a younger version of this cube, prune older versions on the way
-bool validateCube(struct Cube_t *testCube, struct Cube_t *newCube)
+bool validateCube(Cube *testCube, Cube *newCube)
 {
 	debug("validateCube()\n");
 	if (testCube->depth != 0 && compareCube(testCube, newCube)) {
@@ -243,7 +139,7 @@ bool validateCube(struct Cube_t *testCube, struct Cube_t *newCube)
 	return true;
 }
 
-void moveCube(struct Cube_t *thisCube, struct Cube_t *parentCube, enum Move_e thisMove)
+void moveCube(Cube *thisCube, Cube *parentCube, enum Move_e thisMove)
 {
 	switch (thisMove) {
 		case MOVE_FCW:
@@ -300,7 +196,7 @@ void moveCube(struct Cube_t *thisCube, struct Cube_t *parentCube, enum Move_e th
 	}
 }
 
-void printMoveSequence(struct Cube_t *c)
+void printMoveSequence(Cube *c)
 {
 	if (c->parent != NULL)
 		printMoveSequence(c->parent);
@@ -310,7 +206,7 @@ void printMoveSequence(struct Cube_t *c)
 	return;
 }
 
-void printCube(struct Cube_t *cube)
+void printCube(Cube *cube)
 {
 	int i, j, f;
 	for (i=0;i<3;i++) {
@@ -325,7 +221,7 @@ void printCube(struct Cube_t *cube)
 	return;
 }
 
-void destroyBranch(struct Cube_t *cube)
+void destroyBranch(Cube *cube)
 {
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
@@ -335,7 +231,7 @@ void destroyBranch(struct Cube_t *cube)
 	free(cube);
 }
 
-void pruneClones(struct Cube_t *orig, struct Cube_t *cube)
+void pruneClones(Cube *orig, Cube *cube)
 {
 	if (cube->depth > orig->depth) {
 		if (compareCube(orig, cube)) {
@@ -351,7 +247,7 @@ void pruneClones(struct Cube_t *orig, struct Cube_t *cube)
 	return;
 }
 
-bool isFirst(struct Cube_t *cube, struct Cube_t *query)
+bool isFirst(Cube *cube, Cube *query)
 {
 	if (compareCube(cube, query)) return false;
 	int m;
@@ -363,10 +259,10 @@ bool isFirst(struct Cube_t *cube, struct Cube_t *query)
 	return true;
 }
 
-struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation)
+Cube *expandGeneration(Cube *cube, unsigned generation)
 {
 	int m;
-	struct Cube_t *result, *child;
+	Cube *result, *child;
 	if (cube->depth < generation) {
 		//traverse
 		for (m = 0; m < UNIQUE_MOVES; m++) {
@@ -377,9 +273,9 @@ struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation)
 	} else if (cube->depth == generation) {
 		//expand generation
 		for (m = 0; m < UNIQUE_MOVES; m++) {
-			//child = GlobalAlloc(0, sizeof(struct Cube_t));
-			child = calloc(1, sizeof(struct Cube_t));
-			//ZeroMemory(child, sizeof(struct Cube_t));
+			//child = GlobalAlloc(0, sizeof(Cube));
+			child = calloc(1, sizeof(Cube));
+			//ZeroMemory(child, sizeof(Cube));
 			//CopyMemory(&child->face, &cube->face, sizeof(struct Face_t[FACES_PER_CUBE]));
 			memcpy(
 				&child->face,
@@ -410,7 +306,7 @@ struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation)
 	return NULL;
 }
 
-void expandCube(struct Cube_t *cube)
+void expandCube(Cube *cube)
 {
 	#if LEVEL > DEBUG_WARN
 	printf("expandCube()\n");
@@ -418,10 +314,10 @@ void expandCube(struct Cube_t *cube)
 	if (cube->depth >= g_uMaxDepth) return;
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
-		//struct Cube_t *childCube = GlobalAlloc(0, sizeof(struct Cube_t));
-		struct Cube_t *childCube = malloc(sizeof(struct Cube_t));
-		//CopyMemory(childCube, cube, sizeof(struct Cube_t));
-		memcpy(childCube, cube, sizeof(struct Cube_t));
+		//Cube *childCube = GlobalAlloc(0, sizeof(Cube));
+		Cube *childCube = malloc(sizeof(Cube));
+		//CopyMemory(childCube, cube, sizeof(Cube));
+		memcpy(childCube, cube, sizeof(Cube));
 		debug("moveCube() %u\n", m);
 		moveCube(cube, childCube, m);
 		if (!isFirst(childCube, &rootCube)) {
@@ -453,9 +349,9 @@ void expandCube(struct Cube_t *cube)
 	}
 }
 
-void generateCube(struct Cube_t *parentCube, enum Move_e thisMove)
+void generateCube(Cube *parentCube, enum Move_e thisMove)
 {
-	struct Cube_t *thisCube;
+	Cube *thisCube;
 #ifndef NDEBUG
 	printMoveSequence(parentCube);
 	debug(", %d\n", thisMove);
@@ -466,11 +362,11 @@ void generateCube(struct Cube_t *parentCube, enum Move_e thisMove)
 		goto justmove;
 	}
 	//alloc space for new cube
-	//thisCube = GlobalAlloc(0, sizeof(struct Cube_t));
-	thisCube = malloc(sizeof(struct Cube_t));
+	//thisCube = GlobalAlloc(0, sizeof(Cube));
+	thisCube = malloc(sizeof(Cube));
 	//generate new cube
-	//CopyMemory(thisCube, parentCube, sizeof(struct Cube_t));
-	memcpy(thisCube, parentCube, sizeof(struct Cube_t));
+	//CopyMemory(thisCube, parentCube, sizeof(Cube));
+	memcpy(thisCube, parentCube, sizeof(Cube));
 	thisCube->depth = parentCube->depth + 1;
 
 	moveCube(parentCube, thisCube, thisMove);
@@ -506,7 +402,7 @@ justmove:
 	return;
 }
 
-bool GetFacesString(struct Cube_t *c, const char *s)
+bool GetFacesString(Cube *c, const char *s)
 {
 	int f, t; // face, tile
 
@@ -561,7 +457,7 @@ bool GetFacesString(struct Cube_t *c, const char *s)
 	return true;
 }
 
-unsigned countCubes(struct Cube_t *cube, unsigned generation)
+unsigned countCubes(Cube *cube, unsigned generation)
 {
 	int m;
 	unsigned count = 0;
@@ -571,29 +467,25 @@ unsigned countCubes(struct Cube_t *cube, unsigned generation)
 	return (cube->depth == generation || generation == -1 ? 1 : 0) + count;
 }
 
-void transformCube(struct Cube_t *cube, enum Move_e move)
+void transformCube(Cube *cube, enum Move_e move)
 {
-	//struct Cube_t *orig = GlobalAlloc(0, sizeof(struct Cube_t));
-	struct Cube_t *orig = malloc(sizeof(struct Cube_t));
-	//CopyMemory(orig, cube, sizeof(struct Cube_t));
-	memcpy(orig, cube, sizeof(struct Cube_t));
+	//Cube *orig = GlobalAlloc(0, sizeof(Cube));
+	Cube *orig = malloc(sizeof(Cube));
+	//CopyMemory(orig, cube, sizeof(Cube));
+	memcpy(orig, cube, sizeof(Cube));
 	moveCube(cube, orig, move);
 	//GlobalFree(orig);
 	free(orig);
 	return;
 }
 
-void cube_init(Cube *cube)
-{
-	cube->parent = NULL;
-	cube->lastMove = -1;
-}
+
 
 int main(int argc, char *argv[])
 {
 	debug_size(rootCube.face);
 	debug_size(Cube);
-	memset(&rootCube, '\0', sizeof(rootCube));
+	Cube_Init(&rootCube);
 	rootCube.parent = NULL;
 	rootCube.lastMove = -1;
 	rootCube.depth = 0;
@@ -604,26 +496,26 @@ int main(int argc, char *argv[])
 	GetFacesString(&solvedCube, SOLVED_CUBE_STR);
 	printf("target solution\n");
 	printCube(&solvedCube);
-	struct Cube_t test;
-	//CopyMemory(&test, &solvedCube, sizeof(struct Cube_t));
-	memcpy(&test, &solvedCube, sizeof(struct Cube_t));
+	Cube test;
+	//CopyMemory(&test, &solvedCube, sizeof(Cube));
+	memcpy(&test, &solvedCube, sizeof(Cube));
 	transformCube(&test, MOVE_RACW);
 	transformCube(&test, MOVE_RACW);
 	transformCube(&test, MOVE_LACW);
 	transformCube(&test, MOVE_BCW);
 	transformCube(&test, MOVE_LACW);
 	transformCube(&test, MOVE_BACW);
-	transformCube(&test, MOVE_BCW);
-	transformCube(&test, MOVE_LACW);
-	transformCube(&test, MOVE_BACW);
-	transformCube(&test, MOVE_LACW);
+	//transformCube(&test, MOVE_BCW);
+	//transformCube(&test, MOVE_LACW);
+	//transformCube(&test, MOVE_BACW);
+	//transformCube(&test, MOVE_LACW);
 	//transformCube(&test, MOVE_BACW);
 	printf("test cube\n");
 	printCube(&test);
-	//CopyMemory(&rootCube, &test, sizeof(struct Cube_t));
-	memcpy(&rootCube, &test, sizeof(struct Cube_t));
+	//CopyMemory(&rootCube, &test, sizeof(Cube));
+	memcpy(&rootCube, &test, sizeof(Cube));
 	int g;
-	struct Cube_t *result;
+	Cube *result;
 	//LARGE_INTEGER liStart, liFinish, liFrequency;
 	//QueryPerformanceFrequency(&liFrequency);
 	for (g=0;g<g_uMaxDepth;g++) {

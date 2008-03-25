@@ -1,0 +1,125 @@
+#ifndef CUBE_H
+#define CUBE_H
+
+#include "eruutil/erudebug.h"
+
+// MOVES
+
+#define UNIQUE_MOVES 12
+enum Move_e {
+	MOVE_FCW,
+	MOVE_FACW,
+	MOVE_UCW,
+	MOVE_UACW,
+	MOVE_RCW,
+	MOVE_RACW,
+	MOVE_DCW,
+	MOVE_DACW,
+	MOVE_BCW,
+	MOVE_BACW,
+	MOVE_LCW,
+	MOVE_LACW
+};
+
+// TILES
+
+#define TILES_PER_FACE 9
+/* 0 1 2
+ * 3 4 5
+ * 6 7 8
+ */
+enum Tile_e {
+	TILE_TL,
+	TILE_T,
+	TILE_TR,
+	TILE_L,
+	TILE_C,
+	TILE_R,
+	TILE_BL,
+	TILE_B,
+	TILE_BR
+};
+
+// FACES
+
+#define FACES_PER_CUBE 6
+enum Face_e {
+	FACE_F,
+	FACE_U,
+	FACE_R,
+	FACE_D,
+	FACE_B,
+	FACE_L
+};
+struct Face_t {
+	char tile[TILES_PER_FACE];
+};
+typedef struct Face_t Face;
+static_assert(sizeof(Face) == 9);
+
+enum Rotation_e {
+	ROTATE_ACW,
+	ROTATE_CW
+};
+
+// CUBE
+
+typedef struct Cube_t {
+	struct Cube_t *parent;
+	enum Move_e lastMove;
+	unsigned depth;
+	struct Face_t face[FACES_PER_CUBE];
+	struct Cube_t *nextMove[UNIQUE_MOVES];
+} Cube;
+
+static_assert(sizeof(Cube) == 116);
+
+#define EDGES_PER_FACE 4
+static const enum Face_e
+EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE] = {
+	{FACE_U, FACE_R, FACE_D, FACE_L}, //F
+	{FACE_B, FACE_R, FACE_F, FACE_L}, //U
+	{FACE_U, FACE_B, FACE_D, FACE_F}, //R
+	{FACE_F, FACE_R, FACE_B, FACE_L}, //D
+	{FACE_U, FACE_L, FACE_D, FACE_R}, //B
+	{FACE_U, FACE_F, FACE_D, FACE_B}  //L
+};
+
+#define TILES_PER_EDGE 3
+static const enum Tile_e
+EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] =
+{
+	{{TILE_BL, TILE_B, TILE_BR},
+	{TILE_TL, TILE_L, TILE_BL},
+	{TILE_TR, TILE_T, TILE_TL},
+	{TILE_BR, TILE_R, TILE_TR}},
+
+	{{TILE_TR, TILE_T, TILE_TL},
+	{TILE_TR, TILE_T, TILE_TL},
+	{TILE_TR, TILE_T, TILE_TL},
+	{TILE_TR, TILE_T, TILE_TL}},
+
+	{{TILE_BR, TILE_R, TILE_TR},
+	{TILE_TL, TILE_L, TILE_BL},
+	{TILE_BR, TILE_R, TILE_TR},
+	{TILE_BR, TILE_R, TILE_TR}},
+
+	{{TILE_BL, TILE_B, TILE_BR},
+	{TILE_BL, TILE_B, TILE_BR},
+	{TILE_BL, TILE_B, TILE_BR},
+	{TILE_BL, TILE_B, TILE_BR}},
+
+	{{TILE_TR, TILE_T, TILE_TL},
+	{TILE_TL, TILE_L, TILE_BL},
+	{TILE_BL, TILE_B, TILE_BR},
+	{TILE_BR, TILE_R, TILE_TR}},
+
+	{{TILE_TL, TILE_L, TILE_BL},
+	{TILE_TL, TILE_L, TILE_BL},
+	{TILE_TL, TILE_L, TILE_BL},
+	{TILE_BR, TILE_R, TILE_TR}}
+};
+
+void Cube_Init(Cube *cube);
+
+#endif
