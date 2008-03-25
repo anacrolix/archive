@@ -1,11 +1,9 @@
-#include <windows.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define DEBUG
-//#define WIN32_LEAN_AND_MEAN
+#include <stdbool.h>
+#include "eruutil/erudebug.h"
 
 #define TILES_PER_FACE 9
 #define FACES_PER_CUBE 6
@@ -26,7 +24,7 @@ struct Face_t {
 struct Cube_t {
 	struct Cube_t *parent;
 	enum Move_e lastMove;
-	UINT depth;
+	unsigned depth;
 	struct Face_t face[FACES_PER_CUBE];
 	struct Cube_t *nextMove[UNIQUE_MOVES];
 };
@@ -49,11 +47,12 @@ const enum Tile_e EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] =
 	TILE_TL, TILE_L, TILE_BL, TILE_TL, TILE_L, TILE_BL, TILE_TL, TILE_L, TILE_BL, TILE_BR, TILE_R, TILE_TR
 };
 
-const UINT g_uMaxDepth = 20;
+const unsigned g_uMaxDepth = 20;
 char startCube[] = "ffbffbffbuuduuduudrrrrrrrrrddudduddufbbfbbfbblllllllll";
  //"045202221144314311053025401442135030534143253502251503";
 struct Cube_t rootCube;
-const char g_szSolvedCubeFaces[] = "FFFFFFFFFUUUUUUUUURRRRRRRRRDDDDDDDDDBBBBBBBBBLLLLLLLLL";
+//const char g_szSolvedCubeFaces[] = "FFFFFFFFFUUUUUUUUURRRRRRRRRDDDDDDDDDBBBBBBBBBLLLLLLLLL";
+char g_szSolvedCubeFaces[] = "FFFFFFFFFUUUUUUUUURRRRRRRRRDDDDDDDDDBBBBBBBBBLLLLLLLLL";
 struct Cube_t solvedCube;
 
 void pause(void) {
@@ -111,8 +110,13 @@ void moveEdges(
 	return;
 }
 
-inline BOOL compareCube(struct Cube_t *cubeOne, struct Cube_t *cubeTwo) {
-	if (!memcmp(cubeOne->face, cubeTwo->face, sizeof(cubeOne->face))) return TRUE;
+inline bool compareCube(struct Cube_t *cubeOne, struct Cube_t *cubeTwo)
+{
+	if (!memcmp(cubeOne->face, cubeTwo->face, sizeof(cubeOne->face))) {
+		return true;
+	} else {
+		return false;
+	}
 /*
 	int f, t;
 	for (f=0;f<FACES_PER_CUBE;f++) {
@@ -122,13 +126,16 @@ inline BOOL compareCube(struct Cube_t *cubeOne, struct Cube_t *cubeTwo) {
 		}
 	}
 */
-	return FALSE;
 }
 
-void pruneCube(struct Cube_t *cube) {
+void pruneCube(struct Cube_t *cube)
+{
 	//sever parent
 	if (cube->parent) {
-		if (cube->parent->nextMove[cube->lastMove] != cube) MessageBox(NULL, "Parent cube does not recognise child", NULL, 0);
+		if (cube->parent->nextMove[cube->lastMove] != cube) {
+			//MessageBox(NULL, "Parent cube does not recognise child", NULL, 0);
+			fatal(0, "Parent cube does not recognise child");
+		}
 		cube->parent->nextMove[cube->lastMove] = NULL;
 	}
 	int m;
@@ -137,25 +144,27 @@ void pruneCube(struct Cube_t *cube) {
 		if (cube->nextMove[m]) pruneCube(cube->nextMove[m]);
 	}
 	//kill self
-	GlobalFree(cube);
+	//GlobalFree(cube);
+	free(cube);
 }
 
 //return false if there is a younger version of this cube, prune older versions on the way
-BOOL validateCube(struct Cube_t *testCube, struct Cube_t *newCube) {
-	DEBUG printf("validateCube()\n");
+bool validateCube(struct Cube_t *testCube, struct Cube_t *newCube)
+{
+	debug("validateCube()\n");
 	if (testCube->depth != 0 && compareCube(testCube, newCube)) {
-		DEBUG printf("test cube matches new cube\n");
-		if (testCube->depth <= newCube->depth) return FALSE;
+		debug("test cube matches new cube\n");
+		if (testCube->depth <= newCube->depth) return false;
 		pruneCube(testCube);
-		return TRUE;
+		return true;
 	}
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
 		if (testCube->nextMove[m]) {
-			if (!validateCube(testCube->nextMove[m], newCube)) return FALSE;
+			if (!validateCube(testCube->nextMove[m], newCube)) return false;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 void moveCube(struct Cube_t *thisCube, struct Cube_t *parentCube, enum Move_e thisMove) {
@@ -209,11 +218,13 @@ void moveCube(struct Cube_t *thisCube, struct Cube_t *parentCube, enum Move_e th
 			moveEdges(parentCube, thisCube, FACE_L, ROTATE_ACW);
 			break;
 		default:
-			MessageBox(NULL, "Illegal move attempted", "wtf", 0);
+			//MessageBox(NULL, "Illegal move attempted", "wtf", 0);
+			fatal(0, "Illegal move attempted");
 	}
 }
 
-void printMoveSequence(struct Cube_t *c) {
+void printMoveSequence(struct Cube_t *c)
+{
 	if (c->parent != NULL)
 		printMoveSequence(c->parent);
 	else
@@ -241,7 +252,8 @@ void destroyBranch(struct Cube_t *cube) {
 	for (m=0;m<UNIQUE_MOVES;m++) {
 		if (cube->nextMove[m]) destroyBranch(cube->nextMove[m]);
 	}
-	GlobalFree(cube);
+	//GlobalFree(cube);
+	free(cube);
 }
 
 void pruneClones(struct Cube_t *orig, struct Cube_t *cube) {
@@ -259,18 +271,19 @@ void pruneClones(struct Cube_t *orig, struct Cube_t *cube) {
 	return;
 }
 
-BOOL isFirst(struct Cube_t *cube, struct Cube_t *query) {
-	if (compareCube(cube, query)) return FALSE;
+bool isFirst(struct Cube_t *cube, struct Cube_t *query)
+{
+	if (compareCube(cube, query)) return false;
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
 		if (cube->nextMove[m] != NULL) {
-			if (!isFirst(query, cube->nextMove[m])) return FALSE;
+			if (!isFirst(query, cube->nextMove[m])) return false;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
-struct Cube_t *expandGeneration(struct Cube_t *cube, UINT generation) {
+struct Cube_t *expandGeneration(struct Cube_t *cube, unsigned generation) {
 	int m;
 	struct Cube_t *result, *child;
 	if (cube->depth < generation) {
@@ -283,9 +296,14 @@ struct Cube_t *expandGeneration(struct Cube_t *cube, UINT generation) {
 	} else if (cube->depth == generation) {
 		//expand generation
 		for (m = 0; m < UNIQUE_MOVES; m++) {
-			child = GlobalAlloc(0, sizeof(struct Cube_t));
-			ZeroMemory(child, sizeof(struct Cube_t));
-			CopyMemory(&child->face, &cube->face, sizeof(struct Face_t[FACES_PER_CUBE]));
+			//child = GlobalAlloc(0, sizeof(struct Cube_t));
+			child = calloc(1, sizeof(struct Cube_t));
+			//ZeroMemory(child, sizeof(struct Cube_t));
+			//CopyMemory(&child->face, &cube->face, sizeof(struct Face_t[FACES_PER_CUBE]));
+			memcpy(
+				&child->face,
+				&cube->face,
+				sizeof(struct Face_t[FACES_PER_CUBE]));
 			moveCube(child, cube, m);
 			child->parent = cube;
 			child->lastMove = m;
@@ -296,15 +314,17 @@ struct Cube_t *expandGeneration(struct Cube_t *cube, UINT generation) {
 			}
 			//if (FALSE) {
 			if (!isFirst(&rootCube, child)) {
-				GlobalFree(child);
+				//GlobalFree(child);
+				free(child);
 				continue;
 			} else {
 				cube->nextMove[m] = child;
 			}
 		}
 	} else {
-		MessageBox(NULL, "something really fucked up here", NULL, 0);
-		exit(0);
+		//MessageBox(NULL, "something really fucked up here", NULL, 0);
+		//exit(0);
+		fatal(0, "Something reallly fucked up here");
 	}
 	return NULL;
 }
@@ -316,24 +336,30 @@ void expandCube(struct Cube_t *cube) {
 	if (cube->depth >= g_uMaxDepth) return;
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
-		struct Cube_t *childCube = GlobalAlloc(0, sizeof(struct Cube_t));
-		CopyMemory(childCube, cube, sizeof(struct Cube_t));
-		DEBUG printf("moveCube() %u\n", m);
+		//struct Cube_t *childCube = GlobalAlloc(0, sizeof(struct Cube_t));
+		struct Cube_t *childCube = malloc(sizeof(struct Cube_t));
+		//CopyMemory(childCube, cube, sizeof(struct Cube_t));
+		memcpy(childCube, cube, sizeof(struct Cube_t));
+		debug("moveCube() %u\n", m);
 		moveCube(cube, childCube, m);
 		if (!isFirst(childCube, &rootCube)) {
-			DEBUG printf("cube was not first\n");
-			GlobalFree(childCube);
+			debug("cube was not first\n");
+			//GlobalFree(childCube);
+			free(childCube);
 			continue;
 		}
 		pruneClones(childCube, &rootCube);
 		childCube->parent = cube;
 		childCube->lastMove = m;
 		childCube->depth = cube->depth + 1;
-		ZeroMemory(&(childCube->nextMove), sizeof(childCube->nextMove));
+		//ZeroMemory(&(childCube->nextMove), sizeof(childCube->nextMove));
+		memset(&childCube->nextMove, '\0', sizeof(childCube->nextMove));
 		cube->nextMove[m] = childCube;
-		DEBUG printMoveSequence(childCube);
-		DEBUG putchar('\n');
-		DEBUG printCube(childCube);
+#ifndef NDEBUG
+		printMoveSequence(childCube);
+		putchar('\n');
+		printCube(childCube);
+#endif
 		if (compareCube(childCube, &solvedCube)) {
 			printMoveSequence(childCube);
 			printCube(childCube);
@@ -347,34 +373,40 @@ void expandCube(struct Cube_t *cube) {
 
 void generateCube(struct Cube_t *parentCube, enum Move_e thisMove) {
 	struct Cube_t *thisCube;
-	DEBUG printMoveSequence(parentCube);
-	DEBUG printf(", %d\n", thisMove);
+#ifndef NDEBUG
+	printMoveSequence(parentCube);
+	debug(", %d\n", thisMove);
+#endif
 	if (thisMove == -1) {
-		DEBUG printf("cube is root\n");
+		debug("cube is root\n");
 		thisCube = parentCube;
 		goto justmove;
 	}
 	//alloc space for new cube
-	thisCube = GlobalAlloc(0, sizeof(struct Cube_t));
+	//thisCube = GlobalAlloc(0, sizeof(struct Cube_t));
+	thisCube = malloc(sizeof(struct Cube_t));
 	//generate new cube
-	CopyMemory(thisCube, parentCube, sizeof(struct Cube_t));
+	//CopyMemory(thisCube, parentCube, sizeof(struct Cube_t));
+	memcpy(thisCube, parentCube, sizeof(struct Cube_t));
 	thisCube->depth = parentCube->depth + 1;
 
 	moveCube(parentCube, thisCube, thisMove);
 	//check cube validity
-	DEBUG printf("validating cube\n");
+	debug("validating cube\n");
 	if (!validateCube(&rootCube, thisCube)) {
-		GlobalFree(thisCube);
+		//GlobalFree(thisCube);
+		free(thisCube);
 		return;
 	}
 	//take action and set handles
-	ZeroMemory(&thisCube->nextMove, sizeof(thisCube->nextMove));
+	//ZeroMemory(&thisCube->nextMove, sizeof(thisCube->nextMove));
+	memset(&thisCube->nextMove, '\0', sizeof(thisCube->nextMove));
 	thisCube->parent = parentCube;
 	thisCube->lastMove = thisMove;
 	parentCube->nextMove[thisMove] = thisCube;
 	//make additional moves if appropriate
 justmove:
-	DEBUG printf("checking if cube is solution\n");
+	debug("checking if cube is solution\n");
 	if (compareCube(thisCube, &solvedCube)) {
 		printf("cube matched solution\n");
 		printMoveSequence(thisCube);
@@ -391,12 +423,12 @@ justmove:
 	return;
 }
 
-BOOL GetFacesString(struct Cube_t *c, char s[]) {
+bool GetFacesString(struct Cube_t *c, char *s) {
 	int f, t;
 
 	if (strlen(s) != FACES_PER_CUBE * TILES_PER_FACE) {
 		printf("cube string invalid length\n");
-		return FALSE;
+		return false;
 	}
 	for (t=0;t<strlen(s);t++) s[t]=toupper(s[t]);
 	for (f=0;f<FACES_PER_CUBE;f++) {
@@ -436,16 +468,17 @@ BOOL GetFacesString(struct Cube_t *c, char s[]) {
 					break;
 				default:
 					printf("unrecognized face value\n");
-					return FALSE;
+					return false;
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }
 
-UINT countCubes(struct Cube_t *cube, UINT generation) {
+unsigned countCubes(struct Cube_t *cube, unsigned generation)
+{
 	int m;
-	UINT count = 0;
+	unsigned count = 0;
 	for (m = 0; m < UNIQUE_MOVES; m++) {
 		if (cube->nextMove[m] != NULL) count += countCubes(cube->nextMove[m], generation);
 	}
@@ -453,19 +486,24 @@ UINT countCubes(struct Cube_t *cube, UINT generation) {
 }
 
 void transformCube(struct Cube_t *cube, enum Move_e move) {
-	struct Cube_t *orig = GlobalAlloc(0, sizeof(struct Cube_t));
-	CopyMemory(orig, cube, sizeof(struct Cube_t));
+	//struct Cube_t *orig = GlobalAlloc(0, sizeof(struct Cube_t));
+	struct Cube_t *orig = malloc(sizeof(struct Cube_t));
+	//CopyMemory(orig, cube, sizeof(struct Cube_t));
+	memcpy(orig, cube, sizeof(struct Cube_t));
 	moveCube(cube, orig, move);
-	GlobalFree(orig);
+	//GlobalFree(orig);
+	free(orig);
 	return;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+int main(int argc, char *argv[])
+{
 	//initialize rootcube
 	//FILE *fp;
 	//fp = freopen ("rubix.txt", "w", stdout);
 	printf("sizeof(&rootCube->face)=%u\n", sizeof((&rootCube)->face));
-	ZeroMemory(&rootCube, sizeof(rootCube));
+	//ZeroMemory(&rootCube, sizeof(rootCube));
+	memset(&rootCube, '\0', sizeof(rootCube));
 	rootCube.parent = NULL;
 	rootCube.lastMove = -1;
 	rootCube.depth = 0;
@@ -477,7 +515,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	printf("target solution\n");
 	printCube(&solvedCube);
 	struct Cube_t test;
-	CopyMemory(&test, &solvedCube, sizeof(struct Cube_t));
+	//CopyMemory(&test, &solvedCube, sizeof(struct Cube_t));
+	memcpy(&test, &solvedCube, sizeof(struct Cube_t));
 	transformCube(&test, MOVE_RACW);
 	transformCube(&test, MOVE_RACW);
 	transformCube(&test, MOVE_LACW);
@@ -491,17 +530,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//transformCube(&test, MOVE_BACW);
 	printf("test cube\n");
 	printCube(&test);
-	CopyMemory(&rootCube, &test, sizeof(struct Cube_t));
+	//CopyMemory(&rootCube, &test, sizeof(struct Cube_t));
+	memcpy(&rootCube, &test, sizeof(struct Cube_t));
 	int g;
 	struct Cube_t *result;
-	LARGE_INTEGER liStart, liFinish, liFrequency;
-	QueryPerformanceFrequency(&liFrequency);
+	//LARGE_INTEGER liStart, liFinish, liFrequency;
+	//QueryPerformanceFrequency(&liFrequency);
 	for (g=0;g<g_uMaxDepth;g++) {
-		QueryPerformanceCounter(&liStart);
+		//QueryPerformanceCounter(&liStart);
 		result = expandGeneration(&rootCube, g);
 		if (result != NULL) break;
-		QueryPerformanceCounter(&liFinish);
-		printf("Cubes at generation %3u: %10u (new: %10u); time taken: %8.6f s\n", g, countCubes(&rootCube, -1), countCubes(&rootCube, g+1), (double)(liFinish.QuadPart-liStart.QuadPart)/(double)liFrequency.QuadPart);
+		//QueryPerformanceCounter(&liFinish);
+		//printf("Cubes at generation %3u: %10u (new: %10u); time taken: %8.6f s\n", g, countCubes(&rootCube, -1), countCubes(&rootCube, g+1), (double)(liFinish.QuadPart-liStart.QuadPart)/(double)liFrequency.QuadPart);
 	}
 	if (result != NULL) {
 		printMoveSequence(result);
