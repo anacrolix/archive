@@ -8,5 +8,5 @@ clean :
 
 erubix : $(OBJS)
 
-erubix.o : erubix.c cube.h
-cube.o : cube.h
+erubix.o cube.o : cube.h eruutil/erudebug.h
+#erubix.o cube.o : eruutil/erudebug.h

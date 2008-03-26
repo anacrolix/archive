@@ -53,6 +53,8 @@ EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE] =
 	{TILE_BR, TILE_R, TILE_TR}}
 };
 
+const char *Move_str[] = {"F", "F'", "U", "U'", "R", "R'", "D", "D'", "B", "B'", "L", "L'"};
+
 void Cube_Init(Cube *cube)
 {
 	cube->parent = NULL;
