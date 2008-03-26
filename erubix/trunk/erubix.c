@@ -20,8 +20,8 @@ char const SOLVED_CUBE_STR[] =
 
 Cube solvedCube;
 
-const unsigned g_uMaxDepth = 20;
-char startCube[] = "ffbffbffbuuduuduudrrrrrrrrrddudduddufbbfbbfbblllllllll";
+//const unsigned g_uMaxDepth = 20;
+//char startCube[] = "ffbffbffbuuduuduudrrrrrrrrrddudduddufbbfbbfbblllllllll";
 Cube rootCube;
 
 void pause(void)
@@ -39,7 +39,7 @@ void rotateCW(struct Face_t *oldFace, struct Face_t *newFace)
 	newFace->tile[TILE_T] = oldFace->tile[TILE_L];
 	newFace->tile[TILE_TR] = oldFace->tile[TILE_TL];
 	newFace->tile[TILE_L] = oldFace->tile[TILE_B];
-	//newFace->tile[TILE_C] = oldFace->tile[TILE_C];
+	newFace->tile[TILE_C] = oldFace->tile[TILE_C];
 	newFace->tile[TILE_R] = oldFace->tile[TILE_T];
 	newFace->tile[TILE_BL] = oldFace->tile[TILE_BR];
 	newFace->tile[TILE_B] = oldFace->tile[TILE_R];
@@ -53,7 +53,7 @@ void rotateACW(struct Face_t *oldFace, struct Face_t *newFace)
 	newFace->tile[TILE_T] = oldFace->tile[TILE_R];
 	newFace->tile[TILE_TR] = oldFace->tile[TILE_BR];
 	newFace->tile[TILE_L] = oldFace->tile[TILE_T];
-	//newFace->tile[TILE_C] = oldFace->tile[TILE_C];
+	newFace->tile[TILE_C] = oldFace->tile[TILE_C];
 	newFace->tile[TILE_R] = oldFace->tile[TILE_B];
 	newFace->tile[TILE_BL] = oldFace->tile[TILE_TL];
 	newFace->tile[TILE_B] = oldFace->tile[TILE_L];
@@ -202,17 +202,17 @@ void printMoveSequence(Cube *c)
 		printMoveSequence(c->parent);
 	else
 		return;
-	printf(", %d", c->lastMove);
+	printf("%s ", Move_str[c->lastMove]);
+	//printf(", %d", c->lastMove);
 	return;
 }
 
 void printCube(Cube *cube)
 {
-	int i, j, f;
-	for (i=0;i<3;i++) {
-		for (f=0;f<FACES_PER_CUBE;f++) {
-			for (j=0;j<3;j++) {
-				putchar('0'+cube->face[f].tile[i*3+j]);
+	for (int i = 0; i < 3; i++) {
+		for (int f = 0; f < FACES_PER_CUBE; f++) {
+			for (int j = 0; j < 3; j++) {
+				putchar('0' + cube->face[f].tile[i * 3 + j]);
 			}
 			putchar(' ');
 		}
@@ -259,28 +259,22 @@ bool isFirst(Cube *cube, Cube *query)
 	return true;
 }
 
-Cube *expandGeneration(Cube *cube, unsigned generation)
+Cube *expandGeneration(Cube *cube, unsigned gen)
 {
-	int m;
 	Cube *result, *child;
-	if (cube->depth < generation) {
+	if (cube->depth < gen) {
 		//traverse
-		for (m = 0; m < UNIQUE_MOVES; m++) {
+		for (int m = 0; m < UNIQUE_MOVES; m++) {
 			if (cube->nextMove[m] == NULL) continue;
-			result = expandGeneration(cube->nextMove[m], generation);
+			result = expandGeneration(cube->nextMove[m], gen);
 			if (result != NULL) return result;
 		}
-	} else if (cube->depth == generation) {
+	} else if (cube->depth == gen) {
 		//expand generation
-		for (m = 0; m < UNIQUE_MOVES; m++) {
-			//child = GlobalAlloc(0, sizeof(Cube));
-			child = calloc(1, sizeof(Cube));
-			//ZeroMemory(child, sizeof(Cube));
-			//CopyMemory(&child->face, &cube->face, sizeof(struct Face_t[FACES_PER_CUBE]));
-			memcpy(
-				&child->face,
-				&cube->face,
-				sizeof(struct Face_t[FACES_PER_CUBE]));
+		for (int m = 0; m < UNIQUE_MOVES; m++) {
+			assert(cube->nextMove[m] == NULL);
+			child = Cube_New();
+			verify(memcpy(child->face, cube->face, sizeof(child->face)) == child->face);
 			moveCube(child, cube, m);
 			child->parent = cube;
 			child->lastMove = m;
@@ -299,19 +293,14 @@ Cube *expandGeneration(Cube *cube, unsigned generation)
 			}
 		}
 	} else {
-		//MessageBox(NULL, "something really fucked up here", NULL, 0);
-		//exit(0);
-		fatal(0, "Something reallly fucked up here");
+		fatal(0, "Something really fucked up here");
 	}
 	return NULL;
 }
 
 void expandCube(Cube *cube)
 {
-	#if LEVEL > DEBUG_WARN
-	printf("expandCube()\n");
-	#endif
-	if (cube->depth >= g_uMaxDepth) return;
+	//if (cube->depth >= g_uMaxDepth) return;
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
 		//Cube *childCube = GlobalAlloc(0, sizeof(Cube));
@@ -394,67 +383,12 @@ justmove:
 		pause();
 		return;
 	}
-	if (thisCube->depth >= g_uMaxDepth) return;
+	//if (thisCube->depth >= g_uMaxDepth) return;
 	int m;
 	for (m=0;m<UNIQUE_MOVES;m++) {
 		generateCube(thisCube, m);
 	}
 	return;
-}
-
-bool GetFacesString(Cube *c, const char *s)
-{
-	int f, t; // face, tile
-
-	if (strlen(s) != FACES_PER_CUBE * TILES_PER_FACE) {
-		fatal(0, "Cube string has invalid length: %s", s);
-		return false;
-	}
-
-	for (f=0; f < FACES_PER_CUBE; f++) {
-		for (t=0; t < TILES_PER_FACE; t++) {
-			int x = toupper(s[f * TILES_PER_FACE + t]);
-			assert(isalnum(x));
-			switch (x) {
-				case 'F':
-				case '0':
-				case 0:
-					c->face[f].tile[t] = FACE_F;
-					break;
-				case 'T':
-				case 'U':
-				case '1':
-				case 1:
-					c->face[f].tile[t] = FACE_U;
-					break;
-				case 'R':
-				case '2':
-				case 2:
-					c->face[f].tile[t] = FACE_R;
-					break;
-				case 'A':
-				case 'B':
-				case '3':
-				case 3:
-					c->face[f].tile[t] = FACE_B;
-					break;
-				case 'D':
-				case '4':
-				case 4:
-					c->face[f].tile[t] = FACE_D;
-					break;
-				case 'L':
-				case '5':
-				case 5:
-					c->face[f].tile[t] = FACE_L;
-					break;
-				default:
-					fatal(0, "Unrecognized face value: %c", x);
-					return false;
-			}
-		}
-	}
-	return true;
 }
 
 unsigned countCubes(Cube *cube, unsigned generation)
@@ -479,51 +413,49 @@ void transformCube(Cube *cube, enum Move_e move)
 	return;
 }
 
-
-
 int main(int argc, char *argv[])
 {
+	// check some type sizes
 	debug_size(rootCube.face);
 	debug_size(Cube);
-	Cube_Init(&rootCube);
-	rootCube.parent = NULL;
-	rootCube.lastMove = -1;
-	rootCube.depth = 0;
-	GetFacesString(&rootCube, startCube);
-	printf("starting cube\n");
-	printCube(&rootCube);
-	//initialize solved cube
-	GetFacesString(&solvedCube, SOLVED_CUBE_STR);
-	printf("target solution\n");
+	debug("\n");
+
+	// initialize solved cube
+	Cube_Init(&solvedCube);
+	if (!Cube_LoadTiles(&solvedCube, SOLVED_CUBE_STR, "FURDBL")) {
+		fatal(0, "Failed to load solved cube");
+	}
+	printf("Target solution:\n");
 	printCube(&solvedCube);
-	Cube test;
-	//CopyMemory(&test, &solvedCube, sizeof(Cube));
-	memcpy(&test, &solvedCube, sizeof(Cube));
-	transformCube(&test, MOVE_RACW);
-	transformCube(&test, MOVE_RACW);
-	transformCube(&test, MOVE_LACW);
-	transformCube(&test, MOVE_BCW);
-	transformCube(&test, MOVE_LACW);
-	transformCube(&test, MOVE_BACW);
-	//transformCube(&test, MOVE_BCW);
-	//transformCube(&test, MOVE_LACW);
-	//transformCube(&test, MOVE_BACW);
-	//transformCube(&test, MOVE_LACW);
-	//transformCube(&test, MOVE_BACW);
-	printf("test cube\n");
-	printCube(&test);
-	//CopyMemory(&rootCube, &test, sizeof(Cube));
-	memcpy(&rootCube, &test, sizeof(Cube));
-	int g;
+	putchar('\n');
+
+	// initialize problem cube
+	Cube_Init(&rootCube);
+	rootCube.depth = 0;
+	assert(sizeof(rootCube.face) == sizeof(solvedCube.face));
+	verify(memcpy(rootCube.face, solvedCube.face, sizeof(rootCube.face)) == rootCube.face);
+	transformCube(&rootCube, MOVE_RACW);
+	transformCube(&rootCube, MOVE_RACW);
+	transformCube(&rootCube, MOVE_LACW);
+	transformCube(&rootCube, MOVE_BCW);
+	transformCube(&rootCube, MOVE_LACW);
+	transformCube(&rootCube, MOVE_BACW);
+	transformCube(&rootCube, MOVE_BCW);
+	transformCube(&rootCube, MOVE_LACW);
+	transformCube(&rootCube, MOVE_BACW);
+	//transformCube(&rootCube, MOVE_LACW);
+	//transformCube(&rootCube, MOVE_BACW);
+	verify(Cube_ValidateTiles(&rootCube));
+	printf("Cube initial state:\n");
+	printCube(&rootCube);
+	putchar('\n');
+
+	// solve cube
 	Cube *result;
-	//LARGE_INTEGER liStart, liFinish, liFrequency;
-	//QueryPerformanceFrequency(&liFrequency);
-	for (g=0;g<g_uMaxDepth;g++) {
-		//QueryPerformanceCounter(&liStart);
-		result = expandGeneration(&rootCube, g);
+	for (int gen = 0; gen < 8; gen++) {
+		result = expandGeneration(&rootCube, gen);
 		if (result != NULL) break;
-		//QueryPerformanceCounter(&liFinish);
-		//printf("Cubes at generation %3u: %10u (new: %10u); time taken: %8.6f s\n", g, countCubes(&rootCube, -1), countCubes(&rootCube, g+1), (double)(liFinish.QuadPart-liStart.QuadPart)/(double)liFrequency.QuadPart);
+		printf("Generation %2d: %10u cubes (%10u new)\n", gen, countCubes(&rootCube, -1), countCubes(&rootCube, gen + 1));
 	}
 	if (result != NULL) {
 		printMoveSequence(result);
@@ -532,6 +464,6 @@ int main(int argc, char *argv[])
 	} else {
 		printf("no solution found\n");
 	}
-	pause();
+	//pause();
 	return 0;
 }

@@ -1,7 +1,7 @@
 #ifndef CUBE_H
 #define CUBE_H
 
-#include "eruutil/erudebug.h"
+//#include "eruutil/erudebug.h"
 
 // MOVES
 
@@ -20,6 +20,8 @@ enum Move_e {
 	MOVE_LCW,
 	MOVE_LACW
 };
+
+static const char *Move_str[] = {"F", "F'", "U", "U'", "R", "R'", "D", "D'", "B", "B'", "L", "L'"};
 
 // TILES
 
@@ -82,7 +84,10 @@ EDGE_COMPASS[FACES_PER_CUBE][EDGES_PER_FACE];
 extern const enum Tile_e
 EDGE_MAPPING[FACES_PER_CUBE][EDGES_PER_FACE][TILES_PER_EDGE];
 
+Cube *Cube_New();
 void Cube_Init(Cube *);
-void Cube_Remove(Cube *);
+void Cube_Kill(Cube *);
+bool Cube_LoadTiles(Cube *cube, const char *tiles, const char *key);
+bool Cube_ValidateTiles(Cube *cube);
 
 #endif
