@@ -18,6 +18,7 @@
 	#define debug(fmt, ...)
 	#define debugln(fmt, ...)
 	#define debug_size(type)
+	#define dump(var, fmt)
 #else
 	#define verify(f) (assert(f))
 	#define warn(errval, fmt, ...) \
@@ -29,16 +30,9 @@
 	// maybe change this to psize()?
 	#define debug_size(type) (error_at_line(0, 0, __FILE__, __LINE__, \
 		"sizeof(" #type ") = %d", sizeof(type)))
+	#define dump(var, fmt) \
+		({fprintf(stderr, "%s: %s = " fmt, __func__, #var, var); \
+		fputc('\n', stderr);})
 #endif
-
-// future macro? dump variable value to stderr
-/*
-#ifdef NDEBUG
-#define dump(var, fmt)
-#else
-#define dump(var, fmt) \
-	(fprintf(stderr, "%s:%u: %s = " fmt, __FILE__, __LINE__, #var, var))
-#endif
-*/
 
 #endif
