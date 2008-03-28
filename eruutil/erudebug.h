@@ -8,6 +8,9 @@
 #define static_assert(cond) \
 	extern char dummy_assert_array[(cond)?1:-1]
 
+// replace debug_size with this?
+#define psize debug_size
+
 #ifdef NDEBUG
 	#define verify(f) (f)
 	#define warn(errval, fmt, ...) \
