@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
 	bit_finish(&bp);
 	putchar('\n');
 
-	char *endbyte = fdmap + fdstat.st_size;
+	unsigned char *endbyte = fdmap + fdstat.st_size;
 	long longbit = sysconf(_SC_LONG_BIT);
 	if (longbit == -1) {warn(errno, "sysconf()"); goto done;}
-	assert(longbit == 32);
+	//assert(longbit == 32); //not valid for 64bit
 	unsigned bits = 0;
 	for (int i = 0; i < 100; i++) {
 		struct bitptr bp;
