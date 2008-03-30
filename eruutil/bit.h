@@ -2,8 +2,8 @@
 #define BIT_H
 
 struct bitptr {
-	const unsigned char *byte;
-	unsigned short cache;
+	const char unsigned *byte;
+	short unsigned cache;
 	unsigned short left;
 };
 

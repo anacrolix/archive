@@ -7,7 +7,7 @@ static unsigned const short mask[] = {
 #define LO_BIT_MASK(bits) (mask[bits])
 //#define LO_BIT_MASK(bits) ((1 << bits) - 1)
 
-void bit_init(struct bitptr *bp, const unsigned char *byte)
+void bit_init(struct bitptr *bp, char const unsigned *byte)
 {
 	bp->byte = byte;
 	bp->cache = 0;
