@@ -12,9 +12,10 @@
 #define psize debug_size
 
 #ifdef NDEBUG
-	#define verify(f) (f)
+	#define verify(f) ((f) ? (void)(0):(void)(0))
 	#define warn(errval, fmt, ...) \
-		({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
+		(error(0, errval, fmt, ##__VA_ARGS__))
+		//({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
 	#define debug(fmt, ...)
 	#define debugln(fmt, ...)
 	#define debug_size(type)
