@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	bit_skip(&bp, 17);
-	printf("%x\n", bit_read(&bp, 8));
+	printf("%lx\n", bit_read(&bp, 8));
 
 	int fd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1) {
@@ -88,5 +88,6 @@ int main(int argc, char *argv[])
 
 	printf("Test passed.\n");
 
+	verify(printf("hi ;D\n") == 5);
 	return 0;
 }

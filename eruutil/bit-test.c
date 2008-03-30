@@ -28,7 +28,7 @@ void print_bits(struct bitptr *bp, unsigned len)
 int main(int argc, char *argv[])
 {
 	int retVal = EXIT_FAILURE;
-	char *fdmap = MAP_FAILED;
+	unsigned char *fdmap = MAP_FAILED;
 	int fd = -1;
 
 	if (argc != 2) goto done;

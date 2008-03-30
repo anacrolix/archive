@@ -1,4 +1,4 @@
-CFLAGS = -std=c99 -O2
+CFLAGS = -std=c99 -O2 -Wall #-DNDEBUG
 
 target : test bit-test
 
