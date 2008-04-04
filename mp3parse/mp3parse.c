@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <stdbool.h>
-#include "../eruutil/erudebug.h"
+#include "eruutil/erudebug.h"
 
 #define ID3V2_SIZE_LEN 4
 
@@ -77,7 +77,7 @@ static_assert(sizeof(mfh_t) == 4);
 static_assert(sizeof(id3v1hdr_t) == 128);
 //static_assert(sizeof(mfh_t) == 12);
 static_assert(sizeof(off_t) == sizeof(long long));
-static_assert(sizeof(long) == 4);
+static_assert(sizeof(int) == 4);
 static_assert(sizeof(id3v2hdr_t) == 10);
 static_assert(sizeof(int) >= ID3V2_SIZE_LEN);
 //static_assert(sizeof(framehdr_t) == 4);
@@ -230,13 +230,13 @@ int getDataBounds(off_t *start, off_t *end, FILE *fs)
 	} else {
 		dataStart = 0;
 	}
-	debugln("tag headers indicate data [%llu, %llu]", dataStart, dataEnd);
+	debugln("tag headers indicate data [%lu, %lu]", dataStart, dataEnd);
 	for (*start = 0; ; (*start)++) {
 		mfh_t mfh;
 		*end = *start;
 		while (getFrameHdr(&mfh, fs, *end)) {
-			debugln("trying offset %llu", *end);
-			int len = lengthFrameHdr(&mfh);
+			debugln("trying offset %lu", *end);
+			unsigned int len = lengthFrameHdr(&mfh);
 			if (len <= sizeof(mfh)) {
 				debugln("rejected frame based on length");
 				break;
@@ -245,7 +245,7 @@ int getDataBounds(off_t *start, off_t *end, FILE *fs)
 		}
 		if (*end >= dataEnd) break;
 	}
-	debugln("frame headers indicate data [%llu, %llu]", *start, *end);
+	debugln("frame headers indicate data [%lu, %lu]", *start, *end);
 	if (*end != dataEnd) {
 		debugln("frame extends beyond end of file!");
 	}
