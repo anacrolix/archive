@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 #include <SDL/SDL.h>
 #include "eruutil/erudebug.h"
 
@@ -13,7 +14,7 @@ const int
 	GRID_WIDTH = 2,
 	GRID_HEIGHT = 2,
 	UPDATES_PER_FRAME = 1,
-	FRAME_RATE = 50;
+	FRAME_RATE = 30;
 
 const char WINDOW_CAPTION[] = "Conway SDL";
 
@@ -238,9 +239,10 @@ int main()
 	assert(SCREEN_HEIGHT % GRID_HEIGHT == 0);
 	assert(SCREEN_WIDTH % GRID_WIDTH == 0);
 	numThreads = sysconf(_SC_NPROCESSORS_CONF);
-	assert(numThreads > 0);
+	if (numThreads == -1) fatal(errno, "sysconf()");
+	assert(NUM_THREADS > 0);
 	assert((SCREEN_HEIGHT / GRID_HEIGHT) % NUM_THREADS == 0);
-	dump(numThreads, "%ld");
+	dump(NUM_THREADS, "%ld");
 	init();
 	loop();
 	return EXIT_SUCCESS;
