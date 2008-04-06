@@ -29,7 +29,7 @@ typedef struct {char state; Uint8 r, g, b;} cell_t;
 cell_t *world = NULL;
 cell_t *newWorld, *oldWorld, *tmpWorld;
 
-pthread_t drawThread = 0;
+//pthread_t drawThread = 0;
 
 long numThreads;
 #define NUM_THREADS numThreads
@@ -124,11 +124,9 @@ void *drawWorld(void *arg)
 
 void draw()
 {
-	if (drawThread) pthread_join(drawThread, NULL);
-	//int width = SCREEN_WIDTH / GRID_WIDTH;
-	//int height = SCREEN_HEIGHT / GRID_HEIGHT;
-	//memcpy(tmpWorld, world, width * height * sizeof(cell_t));
-	pthread_create(&drawThread, NULL, drawWorld, (void *)world);
+	//if (drawThread) pthread_join(drawThread, NULL);
+	//pthread_create(&drawThread, NULL, drawWorld, (void *)world);
+	drawWorld(world);
 }
 
 void *updateWorld(void *arg)
