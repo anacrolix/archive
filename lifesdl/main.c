@@ -129,7 +129,7 @@ void *updateWorld(void *arg)
 { //cell_t *oldWorld, cell_t *newWorld, int firstRow, int lastRow
 	int width = SCREEN_WIDTH / GRID_WIDTH;
 	int height = SCREEN_HEIGHT / GRID_HEIGHT;
-	int firstRow = (int)arg;
+	long firstRow = (long)arg;
 	int lastRow = firstRow + height / NUM_THREADS;
 	for (int y = firstRow; y < lastRow; y++) {
 		for (int x = 0; x < width; x++) {
@@ -176,7 +176,7 @@ void update()
 	newWorld = world;
 	pthread_t *threads = calloc(NUM_THREADS, sizeof(pthread_t));
 	if (!threads) exit(EXIT_FAILURE);
-	for (int t = 0; t < NUM_THREADS; t++) {
+	for (long t = 0; t < NUM_THREADS; t++) {
 		if (pthread_create(&threads[t], NULL, updateWorld, (void *)(t * (SCREEN_HEIGHT / GRID_HEIGHT) / NUM_THREADS))) {
 			perror("pthread_create");
 			exit(EXIT_FAILURE);
