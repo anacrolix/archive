@@ -1,8 +1,8 @@
 CC = gcc
 LDFLAGS = -lSDL
-CFLAGS = -std=c99 -pg -O2
+CFLAGS = -std=c99 -O2 -Wall -Wextra
 
 all: main
 
 clean:
-	rm -v main *.o
+	rm -vf main *.o

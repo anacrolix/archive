@@ -5,7 +5,8 @@
 #include <pthread.h>
 #include <SDL/SDL.h>
 
-const int SCREEN_WIDTH = 1200,
+const int
+	SCREEN_WIDTH = 1200,
 	SCREEN_HEIGHT = 800,
 	SCREEN_BPP = 32,
 	GRID_WIDTH = 2,
@@ -114,6 +115,7 @@ void *drawWorld(void *arg)
 		}
 	}
 	if (SDL_Flip(screen)) exit(EXIT_FAILURE);
+	return NULL;
 }
 
 void draw()
@@ -152,7 +154,10 @@ void *updateWorld(void *arg)
 					}
 				}
 			}
-			cell_t cell;
+			cell_t cell = {
+				.r = UINT8_MAX,
+				.g = UINT8_MAX, 
+				.b = UINT8_MAX};
 			if (adj < 2 || adj > 3) {
 				cell.state = 0;
 				cell.g = 0;
@@ -167,6 +172,7 @@ void *updateWorld(void *arg)
 			newWorld[y * width + x] = cell;
 		}
 	}
+	return NULL;
 }
 
 void update()
@@ -222,7 +228,7 @@ void loop()
 	}
 }
 
-int main(int argc, char *argv[])
+int main()
 {
 	printf("mod(640)-1 == %d\n", -1 % 640);
 	printf("ticks per second == %ld\n", sysconf(_SC_CLK_TCK));
