@@ -1,6 +1,9 @@
 #ifndef ERUDEBUG_H
 #define ERUDEBUG_H
 
+#include <error.h>
+#include <stdio.h>
+
 #define fatal(errval, fmt, ...) \
 	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
 
