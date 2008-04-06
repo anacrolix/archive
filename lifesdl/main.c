@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <SDL/SDL.h>
+#include "eruutil/erudebug.h"
 
 const int
 	SCREEN_WIDTH = 1200,
@@ -11,8 +12,7 @@ const int
 	SCREEN_BPP = 32,
 	GRID_WIDTH = 2,
 	GRID_HEIGHT = 2,
-	UPDATES_PER_FRAME = 10,
-	NUM_THREADS = 8,
+	UPDATES_PER_FRAME = 1,
 	FRAME_RATE = 50;
 
 const char WINDOW_CAPTION[] = "Conway SDL";
@@ -29,6 +29,9 @@ cell_t *world = NULL;
 cell_t *newWorld, *oldWorld, *tmpWorld;
 
 pthread_t drawThread = 0;
+
+long numThreads;
+#define NUM_THREADS numThreads
 
 void cleanup()
 {
@@ -230,11 +233,14 @@ void loop()
 
 int main()
 {
-	printf("mod(640)-1 == %d\n", -1 % 640);
-	printf("ticks per second == %ld\n", sysconf(_SC_CLK_TCK));
+	dump(-1 % 640, "%d");
+	dump(sysconf(_SC_CLK_TCK), "%ld");
 	assert(SCREEN_HEIGHT % GRID_HEIGHT == 0);
 	assert(SCREEN_WIDTH % GRID_WIDTH == 0);
+	numThreads = sysconf(_SC_NPROCESSORS_CONF);
+	assert(numThreads > 0);
 	assert((SCREEN_HEIGHT / GRID_HEIGHT) % NUM_THREADS == 0);
+	dump(numThreads, "%ld");
 	init();
 	loop();
 	return EXIT_SUCCESS;
