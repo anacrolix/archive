@@ -181,25 +181,29 @@ void *updateWorld(void *arg)
 
 void update()
 {
+	// swap world buffers
 	world = oldWorld;
 	oldWorld = newWorld;
 	newWorld = world;
-	pthread_t *threads = calloc(NUM_THREADS, sizeof(pthread_t));
-	if (!threads) exit(EXIT_FAILURE);
-	for (long t = 0; t < NUM_THREADS; t++) {
-		if (pthread_create(&threads[t], NULL, updateWorld, (void *)(t * (SCREEN_HEIGHT / GRID_HEIGHT) / NUM_THREADS))) {
-			perror("pthread_create");
-			exit(EXIT_FAILURE);
+	
+	pthread_t threads[numThreads];
+	// create update threads
+	for (long t = 0; t < numThreads; t++) {
+		int ret;
+		if ((ret = pthread_create(&threads[t], NULL, updateWorld,
+			(void *)(t * (SCREEN_HEIGHT / GRID_HEIGHT) / numThreads)))) 
+		{
+			fatal(ret, "pthread_create()");
 		}
 	}
-	for (int t = 0; t < NUM_THREADS; t++) {
-		void *ret;
-		if (pthread_join(threads[t], &ret)) {
-			perror("pthread_join");
-			exit(EXIT_FAILURE);
+	// join update threads
+	for (long t = 0; t < numThreads; t++) {
+		void *tret;
+		int jret;
+		if ((jret = pthread_join(threads[t], &tret))) {
+			fatal(jret, "pthread_join()");
 		}
 	}
-	free(threads);
 	world = newWorld;
 	generation++;
 }

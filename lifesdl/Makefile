@@ -1,6 +1,6 @@
 CC = gcc
-LDFLAGS = -lSDL
-CFLAGS = -std=c99 -O2 -Wall -Wextra
+LDFLAGS = -lSDL -pthread
+CFLAGS = -std=c99 -O2 -Wall -Wextra -pthread
 
 all: main
 
