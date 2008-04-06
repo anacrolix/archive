@@ -30,7 +30,7 @@
 		({fprintf(stderr, fmt, ##__VA_ARGS__); fputc('\n', stderr);})
 	// maybe change this to psize()?
 	#define debug_size(type) (error_at_line(0, 0, __FILE__, __LINE__, \
-		"sizeof(" #type ") = %d", sizeof(type)))
+		"sizeof(" #type ") = %lu", sizeof(type)))
 	#define dump(var, fmt) \
 		({fprintf(stderr, "%s: %s = " fmt, __func__, #var, var); \
 		fputc('\n', stderr);})
