@@ -1,0 +1,4 @@
+This source demonstrates the effects of caching, and cachelines by
+"striding" through a given quantity of data, writing out a value. It
+is demonstrated that the optimal use of memory is sequentially and 
+using minimal cachelines concurrently.
