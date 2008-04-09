@@ -3,6 +3,9 @@
 
 #include <error.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <assert.h>
 
 #define fatal(errval, fmt, ...) \
 	(error_at_line(EXIT_FAILURE, errval, __FILE__, __LINE__, fmt, ##__VA_ARGS__))
