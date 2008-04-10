@@ -1,11 +1,15 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <sys/times.h>
 #include <unistd.h>
+#include <string.h>
 #include "eruutil/erudebug.h"
 
 #define DATASIZE 4096 * 4096 * 16
 
 static_assert(sizeof(clock_t) == sizeof(long int));
+static_assert(sizeof(size_t) == sizeof(long unsigned int));
 
 // call times() or die
 inline void xtimes(struct tms *tms)
@@ -66,8 +70,14 @@ clock_t time_stride(
 
 int main()
 {
-	dump(time_stride(DATASIZE, sizeof(long)), "%ld");
-	dump(time_stride(DATASIZE, 16 * sizeof(long)), "%ld");
-	dump(time_stride(DATASIZE, sizeof(long)), "%ld");
+	printf("Writing out to %d bytes of data, striding by increasing "
+		"lengths, wrapping around when the end is reached\n", DATASIZE);
+	dump(ffsl(DATASIZE / sizeof(long)), "%d");
+	printf("%16s%16s%16s\n", "stride length", "num of strides", "time taken (ms)");
+	for (long i = 0; i < ffsl(DATASIZE / sizeof(long)); i++) {
+		printf("%16ld%16ld%16ld\n", sizeof(long) << i,
+			DATASIZE / (sizeof(long) << i),
+			time_stride(DATASIZE, sizeof(long) << i));
+	}
 	return 0;
 }
