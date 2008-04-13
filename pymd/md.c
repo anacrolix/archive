@@ -68,9 +68,44 @@ total_pe(PyObject *self, PyObject *args)
 	}	
 	return Py_BuildValue("d", pe);
 }
+
+static PyObject *
+get_accels(PyObject *self, PyObject *args)
+{
+	/*
+	def get_accels(molecules):
+		accels = []
+		for mol1 in molecules:
+			accel = vector()
+			for mol2 in molecules:
+				if mol1 == mol2: continue
+				r12 = abs(mol1.pos - mol2.pos)
+				assert abs(mol2.pos - mol1.pos) == r12
+				fcom = (12 * r12 ** -8) * (r12 ** -6 - 1)
+				force = fcom * (mol1.pos - mol2.pos)
+				accel += force
+			accels.append(accel)
+		return accels
+	*/
+	PyObject *mol_list;
+	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
+	if (!PyList_Check(mol_list)) return NULL;
+	int size = PyList_Size(mol_list);
+	double accels[size];	
+	for (int m1 = 0; m1 < size; m1++) {
+		accels[m1] = 0;
+		for (int m2 = 0; m2 < size; m2++) {
+			if (m1 == m2) continue;
+			double r12, fcom, force;
+		}
+	}
+	return NULL;
+}
+
 PyMethodDef md_methods[] = {
 	{"total_ke", total_ke, METH_VARARGS},
 	{"total_pe", total_pe, METH_VARARGS},
+	{"get_accels", get_accels, METH_VARARGS},
 	{NULL, NULL}
 };
 
