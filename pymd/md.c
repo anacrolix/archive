@@ -8,22 +8,22 @@ def total_ke(molecules):
 	return ke / 2
 */
 static PyObject *
-total_ke(PyObject *dummy, PyObject *args)
+total_ke(PyObject *self, PyObject *args)
 {
 	double ke = 0.0;
-	PyObject *mollist;
-	if (!PyArg_ParseTuple(args, "O", &mollist)) return NULL;
-	if (!PyList_Check(mollist)) return NULL;
-	int size = PyList_Size(mollist);
+	PyObject *mol_list;
+	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
+	if (!PyList_Check(mol_list)) return NULL;
+	int size = PyList_Size(mol_list);
 	for (int i = 0; i < size; i++) {
-		PyObject *mol = PyList_GetItem(mollist, i);
-		if (mol == NULL) return NULL;
-		PyObject *vel = PyObject_GetAttrString(mol, "vel");
-		if (vel == NULL) return NULL;
-		PyObject *absvel = PyNumber_Absolute(vel);
-		double tke = PyFloat_AsDouble(absvel);
+		PyObject *mol, *vel, *abs;
+		if (!(mol = PyList_GetItem(mol_list, i))) return NULL;
+		if (!(vel = PyObject_GetAttrString(mol, "vel"))) return NULL;	
+		if (!(abs = PyNumber_Absolute(vel))) return NULL;
+		double tke = PyFloat_AsDouble(abs);
 		ke += pow(tke, 2);
-		if (absvel == NULL) return NULL;
+		Py_DECREF(vel);
+		Py_DECREF(abs);
 	}
 	return Py_BuildValue("d", ke / 2);
 }
