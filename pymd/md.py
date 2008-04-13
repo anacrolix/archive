@@ -26,24 +26,7 @@ for x in range(mols_per_side):
 			new_mol.accel = vector()
 			molecules.append(new_mol)
 
-def total_ke(molecules):
-	ke = 0.0
-	for mol in molecules:
-		ke += abs(mol.vel) ** 2
-	return ke / 2
-
-def total_pe():
-	pe = 0.0
-	for m1 in range(len(molecules)):
-		mol1 = molecules[m1]
-		for m2 in range(m1 + 1, len(molecules)):
-			mol2 = molecules[m2]
-			r12 = abs(mol1.pos - mol2.pos)
-			assert abs(mol2.pos - mol1.pos) == r12
-			pe += r12 ** -6 * (r12 ** -6 - 2)
-	return pe 
-
-def get_accels():
+def get_accels(molecules):
 	accels = []
 	for mol1 in molecules:
 		accel = vector()
@@ -60,12 +43,12 @@ def get_accels():
 print "%15s%15s%15s%15s" % ("time", "total", "pe", "ke")
 
 for step in range(max_steps):
-	pe = total_pe()
+	pe = md.total_pe(molecules)
 	ke = md.total_ke(molecules)
 	print "%15f%15e%15e%15e" % (step * dt, pe + ke, pe, ke)
 	rate(10000)
 	# get a(t)
-	accels = get_accels()
+	accels = get_accels(molecules)
 	for a in range(len(accels)):
 		molecules[a].accel = accels[a]
 	# get r(t+dt)
@@ -73,7 +56,7 @@ for step in range(max_steps):
 		mol = molecules[m]
 		mol.pos += dt * (mol.vel + dt * accels[m] / 2)
 	# get v(t+dt)
-	acceldts = get_accels()
+	acceldts = get_accels(molecules)
 	for m in range(len(molecules)):
 		molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
 	

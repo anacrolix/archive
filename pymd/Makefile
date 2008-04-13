@@ -1,4 +1,4 @@
-CFLAGS = -I'/usr/include/python2.4' -fPIC -std=c99
+CFLAGS = -I'/usr/include/python2.4' -fPIC -std=c99 -Wall
 
 all: md.so
 	
