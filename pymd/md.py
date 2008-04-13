@@ -5,7 +5,8 @@ from random import random
 import md
 
 radius = 0.25
-max_steps = 10
+max_steps = 10000000
+max_substeps = 100
 dt = 0.001
 
 side_len = float(raw_input("Enter cube side length: "))
@@ -42,21 +43,26 @@ def get_accels(molecules):
 
 print "%15s%15s%15s%15s" % ("time", "total", "pe", "ke")
 
-for step in range(max_steps):
+step = 0
+while step < range(max_steps):
+	rate(60)
 	pe = md.total_pe(molecules)
 	ke = md.total_ke(molecules)
-	print "%15f%15e%15e%15e" % (step * dt, pe + ke, pe, ke)
-	rate(10000)
-	# get a(t)
-	accels = get_accels(molecules)
-	for a in range(len(accels)):
-		molecules[a].accel = accels[a]
-	# get r(t+dt)
-	for m in range(len(molecules)):
-		mol = molecules[m]
-		mol.pos += dt * (mol.vel + dt * accels[m] / 2)
-	# get v(t+dt)
-	acceldts = get_accels(molecules)
-	for m in range(len(molecules)):
-		molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
+	print "%15f%15e%15e%15e" % (step * max_substeps * dt, pe + ke, pe, ke)
+	substep = 0
+	while substep < max_substeps:
+		# get a(t)
+		accels = get_accels(molecules)
+		for a in range(len(accels)):
+			molecules[a].accel = accels[a]
+		# get r(t+dt)
+		for m in range(len(molecules)):
+			mol = molecules[m]
+			mol.pos += dt * (mol.vel + dt * accels[m] / 2)
+		# get v(t+dt)
+		acceldts = get_accels(molecules)
+		for m in range(len(molecules)):
+			molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
+		substep += 1
+	step += 1
 	
