@@ -1,95 +1,79 @@
 #!/usr/bin/env python
 
-from visual import *
+from visual import sphere, vector, rate
 from random import random
-from math import sqrt
+import md
 
-global printed_header
+radius = 0.25
+max_steps = 10
+dt = 0.001
 
-def init_mols():
-	for x in range(mols_per_side):
-		xpos = side_len * x / (mols_per_side - 1) - side_len / 2
-		for y in range(mols_per_side):
-			ypos = side_len * y / (mols_per_side - 1) - side_len / 2
-			for z in range(mols_per_side):
-				zpos = side_len * z / (mols_per_side - 1) - side_len / 2
-				newmol = sphere(pos=(xpos,ypos,zpos), radius=0.25, color=(random(),random(),random()))
-				newmol.vel = vector(0.0,0.0,0.0)
-				molecules.append(newmol)
-	assert len(molecules) == mols_per_side ** 3
-	print "Created", len(molecules), "molecules"
+side_len = float(raw_input("Enter cube side length: "))
+mols_per_side = int(raw_input("Enter molecules to a side: "))
+molecules = []
+
+for x in range(mols_per_side):
+	xpos = side_len * x / (mols_per_side - 1) - side_len / 2
+	for y in range(mols_per_side):
+		ypos = side_len * y / (mols_per_side - 1) - side_len / 2
+		for z in range(mols_per_side):
+			zpos = side_len * z / (mols_per_side - 1) - side_len / 2
+			new_mol = sphere()
+			new_mol.pos = vector(xpos, ypos, zpos)
+			new_mol.color = ((x)/float(mols_per_side-1), float(y)/float(mols_per_side-1), (z)/float(mols_per_side-1))
+			new_mol.radius = radius
+			new_mol.vel = vector()
+			new_mol.accel = vector()
+			molecules.append(new_mol)
+
+def total_ke(molecules):
+	ke = 0.0
+	for mol in molecules:
+		ke += abs(mol.vel) ** 2
+	return ke / 2
 
 def total_pe():
 	pe = 0.0
 	for m1 in range(len(molecules)):
+		mol1 = molecules[m1]
 		for m2 in range(m1 + 1, len(molecules)):
-			r12 = abs(molecules[m1].pos - molecules[m2].pos)
-			pe += 1 / (r12 ** 12) - 2 / (r12 ** 6)
-	return pe
+			mol2 = molecules[m2]
+			r12 = abs(mol1.pos - mol2.pos)
+			assert abs(mol2.pos - mol1.pos) == r12
+			pe += r12 ** -6 * (r12 ** -6 - 2)
+	return pe 
 
-def total_ke():
-	ke = 0.0
-	for mol in molecules:
-		ke += abs(mol.vel) ** 2
-	return ke
+def get_accels():
+	accels = []
+	for mol1 in molecules:
+		accel = vector()
+		for mol2 in molecules:
+			if mol1 == mol2: continue
+			r12 = abs(mol1.pos - mol2.pos)
+			assert abs(mol2.pos - mol1.pos) == r12
+			fcom = (12 * r12 ** -8) * (r12 ** -6 - 1)
+			force = fcom * (mol1.pos - mol2.pos)
+			accel += force
+		accels.append(accel)
+	return accels
 
-def print_energy_data():
-	ke = total_ke()
-	pe = total_pe()
-	print "%15f%15f%15f%15f" % (step * dt, ke + pe, pe, ke)
+print "%15s%15s%15s%15s" % ("time", "total", "pe", "ke")
 
-def print_energy_header():
-	print "%15s%15s%15s%15s" % ("Time", "Total Energy", "PE", "KE")
-
-def get_force(m1pos, m2pos):
-	r12 = (m1pos - m2pos).mag
-	return (m1pos - m2pos).norm * 12 * (1 / (r12 ** 14) - 1 / (r12 ** 8))
-
-def get_cur_accel(mol):
-	mol.accel = vector(0.0, 0.0, 0.0)
-	for m in molecules:
-		if m == mol: continue
-		mol.accel += get_force(mol.pos, m.pos)
-
-def get_next_accel(mol):
-	mol.naccel = vector(0.0, 0.0, 0.0)
-	for m in molecules:
-		if m == mol: continue
-		mol.naccel += get_force(mol.newpos, m.newpos)
-
-def get_new_positions():
-	for m in molecules:
-		get_cur_accel(m)
-		m.newpos = m.pos + m.vel * dt + m.accel * (dt ** 2) / 2
-
-def get_new_vels():
-	for m in molecules:
-		get_next_accel(m)
-		m.newvel = m.halfvel + m.naccel * dt / 2
-
-def move_mols():
-	for m in molecules:
-		m.pos = m.newpos
-		m.vel = m.newvel
-
-def get_half_vels():
-	for m in molecules:
-		m.halfvel = m.vel + m.accel * dt / 2
-
-molecules = []
-side_len = float(raw_input("Enter cube side length: "))
-mols_per_side = int(raw_input("Enter molecules to a side: "))
-init_mols()
-dt = 0.001
-max_steps = 10
-print_energy_header()
 for step in range(max_steps):
-	print_energy_data()
+	pe = total_pe()
+	ke = md.total_ke(molecules)
+	print "%15f%15e%15e%15e" % (step * dt, pe + ke, pe, ke)
 	rate(10000)
-	for m in molecules:
-		m.accel = 0.0
-		for n in molecules:
-			if m == n: continue
-			m.accel += get_force(m.pos, n.pos)
-		m.pos += m.vel * dt + m.accel * (dt ** 2)
-		
+	# get a(t)
+	accels = get_accels()
+	for a in range(len(accels)):
+		molecules[a].accel = accels[a]
+	# get r(t+dt)
+	for m in range(len(molecules)):
+		mol = molecules[m]
+		mol.pos += dt * (mol.vel + dt * accels[m] / 2)
+	# get v(t+dt)
+	acceldts = get_accels()
+	for m in range(len(molecules)):
+		molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
+	
