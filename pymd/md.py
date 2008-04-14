@@ -69,4 +69,5 @@ while step < max_steps:
 	ke = md.total_ke(molecules)
 	print "%15f%15e%15e%15e" % (step * max_substeps * dt, pe + ke, pe, ke)
 	step += update_mols(molecules, max_substeps)
+	md.update_mols(molecules, 500)
 	
