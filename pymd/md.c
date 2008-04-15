@@ -4,16 +4,9 @@
 typedef struct {double x, y, z;} vector;
 typedef struct {vector pos, vel;} molecule;
 
-static PyObject *
+PyObject *
 total_ke(PyObject *self, PyObject *args)
 {
-	/*
-	def total_ke(molecules):
-		ke = 0.0
-		for mol in molecules:
-			ke += abs(mol.vel) ** 2
-		return ke / 2
-	*/
 	double ke = 0.0;
 	PyObject *mol_list;
 	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
@@ -32,21 +25,9 @@ total_ke(PyObject *self, PyObject *args)
 	return Py_BuildValue("d", ke / 2);
 }
 
-static PyObject *
+PyObject *
 total_pe(PyObject *self, PyObject *args)
 {
-	/*
-	def total_pe():
-		pe = 0.0
-		for m1 in range(len(molecules)):
-			mol1 = molecules[m1]
-			for m2 in range(m1 + 1, len(molecules)):
-				mol2 = molecules[m2]
-				r12 = abs(mol1.pos - mol2.pos)
-				assert abs(mol2.pos - mol1.pos) == r12
-				pe += r12 ** -6 * (r12 ** -6 - 2)
-		return pe 
-	*/
 	double pe = 0.0;
 	PyObject *mol_list;
 	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
@@ -73,7 +54,8 @@ total_pe(PyObject *self, PyObject *args)
 	return Py_BuildValue("d", pe);
 }
 
-static bool get_vector(PyObject *pyvec, vector *cvec)
+inline bool
+get_vector(PyObject *pyvec, vector *cvec)
 {
 	PyObject *x, *y, *z;
 	x = PyObject_GetAttrString(pyvec, "x");
@@ -89,7 +71,8 @@ static bool get_vector(PyObject *pyvec, vector *cvec)
 	return true;
 }
 
-static bool set_vector(PyObject *pyvec, vector *cvec)
+inline bool
+set_vector(PyObject *pyvec, vector *cvec)
 {
 	PyObject *x, *y, *z;
 	x = Py_BuildValue("d", cvec->x);
@@ -101,68 +84,43 @@ static bool set_vector(PyObject *pyvec, vector *cvec)
 	return true;
 }
 
-static bool get_accels(vector accels[], molecule mols[], long size)
+inline bool
+get_accels(vector accels[], molecule mols[], long size)
 {
-	/*
-	def get_accels(molecules):
-		accels = []
-		for mol1 in molecules:
-			accel = vector()
-			for mol2 in molecules:
-				if mol1 == mol2: continue
-				r12 = abs(mol1.pos - mol2.pos)
-				assert abs(mol2.pos - mol1.pos) == r12
-				fcom = (12 * r12 ** -8) * (r12 ** -6 - 1)
-				force = fcom * (mol1.pos - mol2.pos)
-				accel += force
-			accels.append(accel)
-		return accels
-	*/
+	for (long v = 0; v < size; v++) {
+		accels[v].x = 0;
+		accels[v].y = 0;
+		accels[v].z = 0;
+	}
 	for (long a = 0; a < size; a++) {
 		vector p1 = mols[a].pos;
-		accels[a].x = 0;
-		accels[a].y = 0;
-		accels[a].z = 0;
-		for (long b = 0; b < size; b++) {
-			if (a == b) continue;
+		for (long b = a + 1; b < size; b++) {
 			vector p2 = mols[b].pos;
-			double r12 = sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2) + pow(p1.z - p2.z, 2));
+			double r12 = sqrt(pow(p1.x - p2.x, 2) 
+				+ pow(p1.y - p2.y, 2) 
+				+ pow(p1.z - p2.z, 2));
 			double fcom = (12 * pow(r12, -8)) * (pow(r12, -6) - 1);
 			accels[a].x += fcom * (p1.x - p2.x);
 			accels[a].y += fcom * (p1.y - p2.y);
 			accels[a].z += fcom * (p1.z - p2.z);
+			accels[b].x += fcom * (p2.x - p1.x);
+			accels[b].y += fcom * (p2.y - p1.y);
+			accels[b].z += fcom * (p2.z - p1.z);
 		}
 	}
 	return true;
 }
 
-static PyObject *
+PyObject *
 update_mols(PyObject *self, PyObject *args)
 {
-	/*
-	def step_mols(molecules):
-		# get a(t)
-		accels = get_accels(molecules)
-		for a in range(len(accels)):
-			molecules[a].accel = accels[a]
-		# get r(t+dt)
-		for m in range(len(molecules)):
-			mol = molecules[m]
-			mol.pos += dt * (mol.vel + dt * accels[m] / 2)
-		# get v(t+dt)
-		acceldts = get_accels(molecules)
-		for m in range(len(molecules)):
-			molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
-
-	def update_mols(molecules, steps):
-		for step in range(steps):
-			step_mols(molecules)
-		return steps
-	*/
 	PyObject *mol_list;
 	long max_steps;
-	if (!PyArg_ParseTuple(args, "Ol", &mol_list, &max_steps)) return NULL;
+	double dt;
+	if (!PyArg_ParseTuple(args, "Old", &mol_list, &max_steps, &dt)) 
+		return NULL;
 	if (!PyList_Check(mol_list)) return NULL;
+	//fprintf(stderr, "%f\n", dt);
 	// get list size
 	long size = PyList_Size(mol_list);
 	// retrieve each molecules pos and velocity
@@ -178,18 +136,28 @@ update_mols(PyObject *self, PyObject *args)
 		Py_DECREF(pos);
 		Py_DECREF(vel);
 	}
-	// get acceleration
-	vector accels[size];
-	if (!get_accels(accels, mols, size)) return NULL;	
-	// update molecule positions	
-	for (long i = 0; i < size; i++) {
-		//mols[i].pos.x += 
-	}
-	// get new acceleration	
-	vector acceldts[size];
-	if (!get_accels(acceldts, mols, size)) return NULL;
-	// update molecule velocities
-	for (long i = 0; i < size; i++) {
+	for (long s = 0; s < max_steps; s++) {
+		// get acceleration
+		vector accels[size];
+		if (!get_accels(accels, mols, size)) return NULL;	
+		// update molecule positions	
+		for (long i = 0; i < size; i++) {
+			//mols[i].pos.x += 
+			///mol.pos += dt * (mol.vel + dt * accels[m] / 2)
+			mols[i].pos.x += dt * (mols[i].vel.x + dt * accels[i].x / 2);
+			mols[i].pos.y += dt * (mols[i].vel.y + dt * accels[i].y / 2);
+			mols[i].pos.z += dt * (mols[i].vel.z + dt * accels[i].z / 2);		
+		}
+		// get new acceleration
+		vector acceldts[size];
+		if (!get_accels(acceldts, mols, size)) return NULL;
+		// update molecule velocities
+		for (long i = 0; i < size; i++) {
+			///molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
+			mols[i].vel.x += dt * (accels[i].x + acceldts[i].x) / 2;
+			mols[i].vel.y += dt * (accels[i].y + acceldts[i].y) / 2;
+			mols[i].vel.z += dt * (accels[i].z + acceldts[i].z) / 2;	
+		}
 	}
 	// push new molecule velocities and positions back to the list
 	for (long i = 0; i < size; i++) {
@@ -210,7 +178,7 @@ PyMethodDef md_methods[] = {
 	{"total_ke", total_ke, METH_VARARGS},
 	{"total_pe", total_pe, METH_VARARGS},
 	{"update_mols", update_mols, METH_VARARGS},
-	{NULL, NULL}
+	{"", NULL, 0}
 };
 
 PyMODINIT_FUNC

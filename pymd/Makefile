@@ -1,4 +1,8 @@
-CFLAGS = -I'/usr/include/python2.4' -fPIC -std=c99 -Wall
+CC = gcc
+DBGFLAGS = --coverage
+ALLFLAGS = $(DBGFLAGS)
+CFLAGS = $(ALLFLAGS) -I'/usr/include/python2.4' -std=c99 -Wall -fpic -O2
+LDFLAGS = $(ALLFLAGS) -lm -shared
 
 all: md.so
 	
@@ -6,4 +10,4 @@ clean:
 	-rm -vf md.o md.so
 
 md.so: md.o
-	$(CC) -shared -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)

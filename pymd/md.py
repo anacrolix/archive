@@ -5,8 +5,8 @@ from random import random
 import md
 
 radius = 0.25
-max_steps = 10
-max_substeps = 1
+max_steps = 1
+max_substeps = 9
 dt = 0.001
 
 side_len = float(raw_input("Enter cube side length: "))
@@ -27,47 +27,17 @@ for x in range(mols_per_side):
 			new_mol.accel = vector()
 			molecules.append(new_mol)
 
-def get_accels(molecules):
-	accels = []
-	for mol1 in molecules:
-		accel = vector()
-		for mol2 in molecules:
-			if mol1 == mol2: continue
-			r12 = abs(mol1.pos - mol2.pos)
-			assert abs(mol2.pos - mol1.pos) == r12
-			fcom = (12 * r12 ** -8) * (r12 ** -6 - 1)
-			force = fcom * (mol1.pos - mol2.pos)
-			accel += force
-		accels.append(accel)
-	return accels
-
-def step_mols(molecules):
-	# get a(t)
-	accels = get_accels(molecules)
-	for a in range(len(accels)):
-		molecules[a].accel = accels[a]
-	# get r(t+dt)
-	for m in range(len(molecules)):
-		mol = molecules[m]
-		mol.pos += dt * (mol.vel + dt * accels[m] / 2)
-	# get v(t+dt)
-	acceldts = get_accels(molecules)
-	for m in range(len(molecules)):
-		molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
-
-def update_mols(molecules, steps):
-	for step in range(steps):
-		step_mols(molecules)
-	return steps
+def print_energy_data(molecules):
+	pe = md.total_pe(molecules)
+	ke = md.total_ke(molecules)
+	print "%15f%15e%15e%15e" % (step * dt, pe + ke, pe, ke)	
 
 print "%15s%15s%15s%15s" % ("time", "total", "pe", "ke")
 
 step = 0
 while step < max_steps:
 	rate(60)
-	pe = md.total_pe(molecules)
-	ke = md.total_ke(molecules)
-	print "%15f%15e%15e%15e" % (step * max_substeps * dt, pe + ke, pe, ke)
-	step += update_mols(molecules, max_substeps)
-	md.update_mols(molecules, 500)
-	
+	print_energy_data(molecules)
+	step += md.update_mols(molecules, max_substeps, dt)
+
+print_energy_data(molecules)
