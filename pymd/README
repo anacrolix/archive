@@ -1,0 +1,18 @@
+REQUIREMENTS
+* Python
+* VPython (visual)
+* Make (for automated compilation)
+
+INSTRUCTIONS
+
+Compile the Python lib:
+$ make
+You can provide CPUARCH=<arch> to override the default 'pentium4' like so:
+$ make CPUARCH=nocona
+
+Run the Python script:
+$ ./md.py
+This requires that md.so be in the same folder for importing by Python.
+
+Compare results:
+The script asks for sufficient input variables to test any examples. Note that "Steps per frame" are steps that are hidden from Python, and calculated entirely in C. Energy values for these steps are not displayed.
