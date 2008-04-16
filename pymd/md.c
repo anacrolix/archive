@@ -4,15 +4,15 @@
 typedef struct {double x, y, z;} vector;
 typedef struct {vector pos, vel;} molecule;
 
-PyObject *
+static PyObject *
 total_ke(PyObject *self, PyObject *args)
 {
 	double ke = 0.0;
 	PyObject *mol_list;
 	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
 	if (!PyList_Check(mol_list)) return NULL;
-	int size = PyList_Size(mol_list);
-	for (int i = 0; i < size; i++) {
+	long size = PyList_Size(mol_list);
+	for (long i = 0; i < size; i++) {
 		PyObject *mol, *vel, *abs;
 		if (!(mol = PyList_GetItem(mol_list, i))) return NULL;
 		if (!(vel = PyObject_GetAttrString(mol, "vel"))) return NULL;	
@@ -25,19 +25,19 @@ total_ke(PyObject *self, PyObject *args)
 	return Py_BuildValue("d", ke / 2);
 }
 
-PyObject *
+static PyObject *
 total_pe(PyObject *self, PyObject *args)
 {
 	double pe = 0.0;
 	PyObject *mol_list;
 	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
 	if (!PyList_Check(mol_list)) return NULL;
-	int size = PyList_Size(mol_list);
-	for (int m1 = 0; m1 < size; m1++) {
+	long size = PyList_Size(mol_list);
+	for (long m1 = 0; m1 < size; m1++) {
 		PyObject *mol1, *mol1pos;
 		if (!(mol1 = PyList_GetItem(mol_list, m1))) return NULL;
 		if (!(mol1pos = PyObject_GetAttrString(mol1, "pos"))) return NULL;
-		for (int m2 = m1 + 1; m2 < size; m2++) {
+		for (long m2 = m1 + 1; m2 < size; m2++) {
 			PyObject *mol2, *mol2pos, *r12vec, *pysep;
 			if (!(mol2 = PyList_GetItem(mol_list, m2))) return NULL;
 			if (!(mol2pos = PyObject_GetAttrString(mol2, "pos"))) return NULL;
@@ -54,7 +54,7 @@ total_pe(PyObject *self, PyObject *args)
 	return Py_BuildValue("d", pe);
 }
 
-inline bool
+static inline bool
 get_vector(PyObject *pyvec, vector *cvec)
 {
 	PyObject *x, *y, *z;
@@ -71,7 +71,7 @@ get_vector(PyObject *pyvec, vector *cvec)
 	return true;
 }
 
-inline bool
+static inline bool
 set_vector(PyObject *pyvec, vector *cvec)
 {
 	PyObject *x, *y, *z;
@@ -84,7 +84,7 @@ set_vector(PyObject *pyvec, vector *cvec)
 	return true;
 }
 
-inline bool
+static inline bool
 get_accels(vector accels[], molecule mols[], long size)
 {
 	for (long v = 0; v < size; v++) {
@@ -111,7 +111,7 @@ get_accels(vector accels[], molecule mols[], long size)
 	return true;
 }
 
-PyObject *
+static PyObject *
 update_mols(PyObject *self, PyObject *args)
 {
 	PyObject *mol_list;
@@ -174,7 +174,7 @@ update_mols(PyObject *self, PyObject *args)
 	return Py_BuildValue("l", max_steps);
 }
 
-PyMethodDef md_methods[] = {
+static PyMethodDef md_methods[] = {
 	{"total_ke", total_ke, METH_VARARGS},
 	{"total_pe", total_pe, METH_VARARGS},
 	{"update_mols", update_mols, METH_VARARGS},
