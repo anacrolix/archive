@@ -1,8 +1,8 @@
-CC = gcc
-DBGFLAGS = --coverage
-ALLFLAGS = $(DBGFLAGS)
-CFLAGS = $(ALLFLAGS) -I'/usr/include/python2.4' -std=c99 -Wall -fpic -O2
-LDFLAGS = $(ALLFLAGS) -lm -shared
+DBGFLAGS = --coverage -pg
+CPUARCH = nocona
+ALLFLAGS = 
+CFLAGS = $(ALLFLAGS) -I'/usr/include/python2.4' -std=c99 -Wall -fpic -O3 -march=$(CPUARCH)
+LDFLAGS = $(ALLFLAGS) -shared
 
 all: md.so
 	
