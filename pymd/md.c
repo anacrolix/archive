@@ -4,9 +4,17 @@
 typedef struct {double x, y, z;} vector;
 typedef struct {vector pos, vel;} molecule;
 
+/// takes a Python list of spheres with position and velocity vectors and returns the classical kinetic energy of the system
 static PyObject *
 total_ke(PyObject *self, PyObject *args)
 {
+	/*
+	def total_ke(molecules):
+		ke = 0.0
+		for mol in molecules:
+			ke += abs(mol.vel) ** 2
+		return ke / 2
+	*/
 	double ke = 0.0;
 	PyObject *mol_list;
 	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
@@ -25,9 +33,22 @@ total_ke(PyObject *self, PyObject *args)
 	return Py_BuildValue("d", ke / 2);
 }
 
+/// takes a Python list of spheres with position and velocity vectors and returns the Lennard-Jones potential of the system
 static PyObject *
 total_pe(PyObject *self, PyObject *args)
 {
+	/*
+	def total_pe():
+		pe = 0.0
+		for m1 in range(len(molecules)):
+			mol1 = molecules[m1]
+			for m2 in range(m1 + 1, len(molecules)):
+				mol2 = molecules[m2]
+				r12 = abs(mol1.pos - mol2.pos)
+				assert abs(mol2.pos - mol1.pos) == r12
+				pe += r12 ** -6 * (r12 ** -6 - 2)
+		return pe 
+	*/
 	double pe = 0.0;
 	PyObject *mol_list;
 	if (!PyArg_ParseTuple(args, "O", &mol_list)) return NULL;
@@ -54,6 +75,7 @@ total_pe(PyObject *self, PyObject *args)
 	return Py_BuildValue("d", pe);
 }
 
+/// packs a Python visual.vector into a C vector
 static inline bool
 get_vector(PyObject *pyvec, vector *cvec)
 {
@@ -71,6 +93,7 @@ get_vector(PyObject *pyvec, vector *cvec)
 	return true;
 }
 
+/// sets a Python visual.vector from a C vector
 static inline bool
 set_vector(PyObject *pyvec, vector *cvec)
 {
@@ -84,9 +107,26 @@ set_vector(PyObject *pyvec, vector *cvec)
 	return true;
 }
 
+/// derives the acceleration using the potential on each molecule
 static inline bool
 get_accels(vector accels[], molecule mols[], long size)
 {
+	/*
+	def get_accels(molecules):
+		accels = []
+		for mol1 in molecules:
+			accel = vector()
+			for mol2 in molecules:
+				if mol1 == mol2: continue
+				r12 = abs(mol1.pos - mol2.pos)
+				assert abs(mol2.pos - mol1.pos) == r12
+				fcom = (12 * r12 ** -8) * (r12 ** -6 - 1)
+				force = fcom * (mol1.pos - mol2.pos)
+				accel += force
+			accels.append(accel)
+		return accels
+	*/
+	// note the code has deviated from the initial python skeleton above
 	for (long v = 0; v < size; v++) {
 		accels[v].x = 0;
 		accels[v].y = 0;
@@ -111,9 +151,30 @@ get_accels(vector accels[], molecule mols[], long size)
 	return true;
 }
 
+/// apply the velocity verlet algorithm for a number of time steps before returning the results
 static PyObject *
 update_mols(PyObject *self, PyObject *args)
 {
+	/*
+	def step_mols(molecules):
+		# get a(t)
+		accels = get_accels(molecules)
+		for a in range(len(accels)):
+			molecules[a].accel = accels[a]
+		# get r(t+dt)
+		for m in range(len(molecules)):
+			mol = molecules[m]
+			mol.pos += dt * (mol.vel + dt * accels[m] / 2)
+		# get v(t+dt)
+		acceldts = get_accels(molecules)
+		for m in range(len(molecules)):
+			molecules[m].vel += dt * (molecules[m].accel + acceldts[m]) / 2
+
+	def update_mols(molecules, steps):
+		for step in range(steps):
+			step_mols(molecules)
+		return steps
+	*/
 	PyObject *mol_list;
 	long max_steps;
 	double dt;
@@ -174,6 +235,7 @@ update_mols(PyObject *self, PyObject *args)
 	return Py_BuildValue("l", max_steps);
 }
 
+/// list of python function exports
 static PyMethodDef md_methods[] = {
 	{"total_ke", total_ke, METH_VARARGS},
 	{"total_pe", total_pe, METH_VARARGS},
@@ -181,6 +243,7 @@ static PyMethodDef md_methods[] = {
 	{"", NULL, 0}
 };
 
+/// python extension initialization routine
 PyMODINIT_FUNC
 initmd(void)
 {

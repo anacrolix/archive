@@ -16,3 +16,54 @@ This requires that md.so be in the same folder for importing by Python.
 
 Compare results:
 The script asks for sufficient input variables to test any examples. Note that "Steps per frame" are steps that are hidden from Python, and calculated entirely in C. Energy values for these steps are not displayed.
+
+Sample data:
+
+matt@stanley ~/coding/comp3320/ass1 $ ./md.py 
+Simulation parameters (enter for default)
+Cube side length (4): 
+Molecules to a side (4): 
+Steps per frame (10): 
+Total steps (-1): 50
+Time step (0.001): 
+           time          total             pe             ke
+       0.000000  -5.961714e+01  -5.961714e+01   0.000000e+00
+       0.010000  -5.961714e+01  -5.963115e+01   1.400440e-02
+       0.020000  -5.961714e+01  -5.967320e+01   5.605642e-02
+       0.030000  -5.961714e+01  -5.974342e+01   1.262728e-01
+       0.040000  -5.961714e+01  -5.984199e+01   2.248490e-01
+       0.050000  -5.961714e+01  -5.996920e+01   3.520611e-01
+Performed 50 steps in 0.13 s
+
+matt@stanley ~/coding/comp3320/ass1 $ ./md.py 
+Simulation parameters (enter for default)
+Cube side length (4): 2
+Molecules to a side (4): 3
+Steps per frame (10): 
+Total steps (-1): 1
+Time step (0.001): 
+           time          total             pe             ke
+       0.000000  -7.577011e+01  -7.577011e+01   0.000000e+00
+       0.010000  -7.577011e+01  -7.578513e+01   1.502037e-02
+Performed 10 steps in 0.01 s
+
+matt@stanley ~/coding/comp3320/ass1 $ ./md.py 
+Simulation parameters (enter for default)
+Cube side length (4): 5
+Molecules to a side (4): 5
+Steps per frame (10): 
+Total steps (-1): 100
+Time step (0.001): 
+           time          total             pe             ke
+       0.000000  -1.802956e+02  -1.802956e+02   0.000000e+00
+       0.010000  -1.802956e+02  -1.803432e+02   4.754367e-02
+       0.020000  -1.802956e+02  -1.804860e+02   1.903493e-01
+       0.030000  -1.802956e+02  -1.807246e+02   4.289425e-01
+       0.040000  -1.802956e+02  -1.810598e+02   7.642045e-01
+       0.050000  -1.802956e+02  -1.814930e+02   1.197381e+00
+       0.060000  -1.802956e+02  -1.820257e+02   1.730093e+00
+       0.070000  -1.802956e+02  -1.826600e+02   2.364353e+00
+       0.080000  -1.802956e+02  -1.833982e+02   3.102583e+00
+       0.090000  -1.802956e+02  -1.842433e+02   3.947639e+00
+       0.100000  -1.802956e+02  -1.851985e+02   4.902834e+00
+Performed 100 steps in 0.96 s

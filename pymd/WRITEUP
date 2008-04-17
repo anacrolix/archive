@@ -2,4 +2,18 @@ Time taken: Approximately 20 hours (of actual productivity).
 
 Collaboration: None bar the official Python website, and lecture notes.
 
+The code uses starts with Python, and utilizes a Python extension in C for speed enhancement. The visual.sphere objects are initialized using python, and then passed to the md module for unpacking, calculation, and repacking back to python in order to update the model view.
 
+An alternative code model was considered, that of using C for the main, and embedding Python. This may have been faster, but slightly more difficult, and the ultimate enhancement being that the core "control" loop, currently in md.py would have been in C (albeit it's overhead is likely already very low, it simply prints out some text, and performs a condition check, before reentering C).
+
+The use of exceptions to set default values is not optimal. However this is not in the main loop, and so does not affect performance. The same goes for the initialization of the molecule objects, this code is not repeated, and it is convenient to perform this in Python.
+
+The pow() function was used throughout for power operations. This may not be optimal for simple positive integer powers, depending on the implementation of pow(), it may have been better to expand out the terms and calculate it "manually" rather than execute another function to perform this.
+
+The use of longs for sentinel values throughout, was intended to hopefully perform better by using the architectures native integer type.
+
+Rather than exiting C, and then reentering to get the sum PE and KE, it would save on object dereferencing etc. if these were to be calculated by update_mols() and returned after the last "substep". Performance increase would be likely be low except for smaller substep values.
+
+The function get_accels() is the most called section of the code. The aforementioned consideration of pow() vs. explicit power calculations may have some benefit here. Furthermore, assigning accels[a] and accels[b] to temporary values (may, compiler optimization dependent) save on on pointer calculation instructions.
+
+In update_mols(), during extraction of velocity and position vector values, references are thrown out, and reobtained during the repacking before returning to Python. These references could be saved, and reused during the reassignment phase.
