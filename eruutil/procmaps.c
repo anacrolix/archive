@@ -1,13 +1,14 @@
-#include "extalloc.h"
+#include "allocex.h"
 #include "pallocf.h"
 #include "procmaps.h"
+#include "debug.h"
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include <error.h>
 #include <stdlib.h>
-#include "debug.h"
+#include <stdint.h>
 
 void print_proc_maps(procmap_t *maps, int count)
 {
@@ -15,7 +16,7 @@ void print_proc_maps(procmap_t *maps, int count)
 		procmap_t *m = &maps[i];
 		int printed = printf(
 			"%08lx-%08lx %4s %08lx %02hhx:%02hhx %-lu",
-			m->start, m->end, m->perms, m->offset,
+			(intptr_t)m->start, (intptr_t)m->end, m->perms, m->offset,
 			m->major, m->minor, m->inode);
 		for (int j = 0; j < 73 - printed; j++) putchar(' ');
 		puts(m->path);
