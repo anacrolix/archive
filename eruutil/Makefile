@@ -1,11 +1,8 @@
-CFLAGS = -std=c99 -O2 -Wall #-DNDEBUG
+CFLAGS = -std=c99 -Wall -g
 
-target : test bit-test
-
-test : test.o bit.o
-
-bit-test : bit.o bit.h
-bit.o : bit.h
+all : clean test
 
 clean :
-	rm -v test bit-test *.o
+	-rm -vf *.o
+
+test : test.o procmaps.o pallocf.o allocex.o
