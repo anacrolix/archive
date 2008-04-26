@@ -1,12 +1,12 @@
 #include "procmaps.h"
+#include "debug.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <error.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "debug.h"
 
-int main()
+static bool test_procmaps()
 {
 	pid_t mypid = getpid();
 	trace("%d", mypid);
@@ -14,6 +14,13 @@ int main()
 	int mapcount;
 	verify(get_proc_maps(mypid, &maps, &mapcount));
 	print_proc_maps(maps, mapcount);
+	free(maps);
+	return true;
+}
+
+int main()
+{
+	assert(test_procmaps());
 	return EXIT_SUCCESS;
 }
 
