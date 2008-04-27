@@ -20,6 +20,7 @@ void print_proc_maps(FILE *fp, procmap_t *maps, int count)
 			m->major, m->minor, m->inode);
 		for (int j = 0; j < 73 - printed; j++) fputc(' ', fp);
 		fputs(m->path, fp);
+		fputc('\n', fp);
 	}
 }
 
@@ -67,6 +68,6 @@ bool get_proc_maps(pid_t pid, procmap_t **maps, int *count)
 	trace("%d", *count);
 	fclose(file);
 	*maps = realloc(*maps, *count * sizeof(**maps));
-	assert(*maps);
+	//assert(*maps);
 	return true;
 }
