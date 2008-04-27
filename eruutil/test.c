@@ -1,20 +1,58 @@
 #include "procmaps.h"
 #include "debug.h"
+#include "pallocf.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <error.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 static bool test_procmaps()
 {
 	pid_t mypid = getpid();
 	trace("%d", mypid);
-	procmap_t *maps;
-	int mapcount;
-	verify(get_proc_maps(mypid, &maps, &mapcount));
-	print_proc_maps(maps, mapcount);
-	free(maps);
+	FILE *myfile = tmpfile();
+	assert(myfile);
+	{
+		procmap_t *maps;
+		int mapcount;
+		verify(get_proc_maps(mypid, &maps, &mapcount));	
+		print_proc_maps(myfile, maps, mapcount);
+		free(maps);
+	}
+	char *mapspath = mprintf("/proc/%d/maps", mypid);
+	FILE *mapsfile = fopen(mapspath, "r");
+	free(mapspath);
+	assert(mapsfile);	
+	
+	verify(!fseek(myfile, 0, SEEK_SET));
+	while (true) {
+		int a = fgetc(myfile);
+		int b = fgetc(mapsfile);
+		if (a == EOF || b == EOF) {
+			if (a == EOF && b == EOF) break;
+			trace("%ld", ftell(myfile));
+			//system("wc -c /proc/$$/maps");
+			sleep(5);
+			break;
+		}
+		if (a != b) {
+			putchar(a); putchar('\n');
+			putchar(b); putchar('\n');
+			trace("%ld", ftell(myfile));
+			break;
+		}
+	}
+	/*
+	int c;
+	while ((c = fgetc(mapsfile)) != EOF) {
+		verify(putchar(c) == c);
+	}
+	*/
+	fclose(myfile);
+	fclose(mapsfile);
 	return true;
 }
 

@@ -1,4 +1,4 @@
-CFLAGS = -std=c99 -Wall -g
+CFLAGS = -std=c99 -Wall -g -D_XOPEN_SOURCE
 
 all : clean test
 
