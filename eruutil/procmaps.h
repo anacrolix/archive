@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef struct {
 	void *start, *end;
@@ -10,5 +11,5 @@ typedef struct {
 	char path[0x100];
 } procmap_t;
 
-void print_proc_maps(procmap_t *maps, int count);
+void print_proc_maps(FILE *fp, procmap_t *maps, int count);
 bool get_proc_maps(pid_t pid, procmap_t **maps, int *count);

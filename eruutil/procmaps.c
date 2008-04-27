@@ -10,16 +10,16 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-void print_proc_maps(procmap_t *maps, int count)
+void print_proc_maps(FILE *fp, procmap_t *maps, int count)
 {
 	for (int i = 0; i < count; i++) {
 		procmap_t *m = &maps[i];
-		int printed = printf(
+		int printed = fprintf(fp,
 			"%08lx-%08lx %4s %08lx %02hhx:%02hhx %-lu",
 			(intptr_t)m->start, (intptr_t)m->end, m->perms, m->offset,
 			m->major, m->minor, m->inode);
-		for (int j = 0; j < 73 - printed; j++) putchar(' ');
-		puts(m->path);
+		for (int j = 0; j < 73 - printed; j++) fputc(' ', fp);
+		fputs(m->path, fp);
 	}
 }
 
