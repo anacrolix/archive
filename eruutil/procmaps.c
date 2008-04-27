@@ -18,8 +18,12 @@ void print_proc_maps(FILE *fp, procmap_t *maps, int count)
 			"%08lx-%08lx %4s %08lx %02hhx:%02hhx %-lu",
 			(intptr_t)m->start, (intptr_t)m->end, m->perms, m->offset,
 			m->major, m->minor, m->inode);
-		for (int j = 0; j < 73 - printed; j++) fputc(' ', fp);
-		fputs(m->path, fp);
+		fputc(' ', fp);
+		printed++;
+		if (m->path[0]) {
+			for (int j = 0; j < 73 - printed; j++) fputc(' ', fp);
+			fputs(m->path, fp);
+		}
 		fputc('\n', fp);
 	}
 }
@@ -33,7 +37,9 @@ static bool parse_proc_maps_line(const char *line, procmap_t *map)
 		&map->start, &map->end, map->perms, &map->offset, &map->major,
 		&map->minor, &map->inode);
 	if (items != 7) return false;
-	verify(strncpy(map->path, &line[73], sizeof(map->path)) == map->path);
+	if (strnlen(line, 74) == 74) {
+		verify(strncpy(map->path, &line[73], sizeof(map->path)) == map->path);
+	}
 	return true;
 }
 
