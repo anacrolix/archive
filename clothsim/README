@@ -1,0 +1,27 @@
+This directory contains code for completing COMP3320 assignment 2
+on fremont. You have the following 5 files
+
+Makefile, cloth.h, mycloth.c, opengl_stuff.c, testcloth.o
+
+Type make and you should two executables
+  testcloth
+  mycloth
+
+Run testcloth
+	./testcloth
+and it should perform the cloth simulation opening a OpenGL graphics 
+window. You can change various input options. To see these do
+	./testcloth -h
+
+You have only been provided with a compiled copy of testcloth.o. Your
+first job is to write C code, equivalent to what is in testcloth.c, but
+in the file mycloth.c. If you look in this file you will find a
+reasonable outline of what you need to do. You should be able to construct
+the C code using this guide and the full python code you have already
+been given.
+
+Note that writing mycloth.c and reproducing testcloth is just the
+initial part of the assignment. The second objective will be to parallelise
+this code using openmp and analyse the performance. If you find
+you are having problems creating mycloth.c - you MUST COME AND SEE ME.
+Don't spend more than 5 hours trying to do this.
