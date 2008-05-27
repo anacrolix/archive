@@ -4,7 +4,7 @@ double *x, *y, *z;
 double *cpx, *cpy, *cpz;
 
 int n=25,delta=2,update=10, nogui=0, maxiter, rendermode=2,paused=0; 
-float sep=0.5,mass=1,fcon=10,grav=1,dt=0.01,offset=0,ballsize=3;
+float sep=0.5,mass=1,fcon=10,grav=1,dt=0.01,offset=0.001,ballsize=3;
 
 struct timeval *tp1, *tp2;
 
