@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define VEL_DAMP 0.996
+#define VEL_DAMP 0.995
 
 typedef long unsigned index_t;
 
@@ -23,12 +23,9 @@ double *fx, *fy, *fz; // forces
 double *vx, *vy, *vz; // velocities
 double *oldfx, *oldfy, *oldfz; // old forces
 
-// stores the ball attributes
-double xball, yball, zball, rball;
-
 // useful macros
-#define MAX(a,b) ( (a) > (b) ? (a) : (b))
-#define MIN(a,b) ( (a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define for_each_cloth_node(a, b) \
 	for (index_t a = 0; a < b*b; a++)
 #define mag(x, y, z) (sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2)))
@@ -37,7 +34,12 @@ double xball, yball, zball, rball;
 
 #define vector_mag(v) (mag((v).x, (v).y, (v).z))
 
-/// calculates PE and F
+struct vector vector_scale(struct vector v, double n)
+{
+	return (struct vector){v.x * n, v.y * n, v.z * n};
+}
+
+// calculates PE and F
 double eval_pef(int n, int delta, double grav, double sep,
                 double fcon, double *x, double *y, double *z,		
                 double *fx, double *fy, double *fz)
@@ -76,42 +78,28 @@ double eval_pef(int n, int delta, double grav, double sep,
 	return pe;
 } 
 
-/* This is the initialization routine, to allocate memory and do
-   first PE and force evaluation */
-
-void initialize(int n, float mass, float fcon,
-		int delta, float grav, float sep, float ballsize,
-		float dt, double *x, double *y, double *z)
+// allocate memory and initialize PE and F
+void initialize(int n, float mass, float fcon, int delta, float grav,
+	float sep, float ballsize, float dt,
+	double *x, double *y, double *z)
 {
-	// allocate and zero force and vel arrays
-	double **simarrs[] = {&fx, &fy, &fz, &vx, &vy, &vz, &oldfx, &oldfy, &oldfz};
-	long const simarrs_len = sizeof(simarrs) / sizeof(__typeof__(*simarrs));
+	// allocate and zero F and v arrays
+	double **simarrs[] = {&fx, &fy, &fz,
+		&vx, &vy, &vz, &oldfx, &oldfy, &oldfz};
+	index_t const simarrs_len = 
+		sizeof(simarrs) / sizeof(__typeof__(*simarrs));
 	assert(simarrs_len == 9);
-	for (long i = 0; i < simarrs_len; i++) {
-		*simarrs[i] = calloc(n * n, sizeof(double));
-		for (long j = 0; j < n * n; j++) {
+	for (index_t i = 0; i < simarrs_len; i++) {
+		*simarrs[i] = calloc(n * n, sizeof(***simarrs));
+		for (index_t j = 0; j < n * n; j++) {
 			(*simarrs[i])[j] = 0.0;
 		}
 	}
-  // evaluate potential and force
-  pe = eval_pef(n, delta, grav, sep, fcon, x, y, z, fx, fy, fz);
-  // save ballsize
-  rball = ballsize;
+	// evaluate potential and force
+	pe = eval_pef(n, delta, grav, sep, fcon, x, y, z, fx, fy, fz);
 }
 
-/*
-double vector_mag(struct vector v)
-{
-	return sqrt(pow(v.x, 2) + pow(v.y, 2) + pow(v.z, 2));
-}
-*/
-
-struct vector vector_scale(struct vector v, double n)
-{
-	return (struct vector){v.x * n, v.y * n, v.z * n};
-}
-
-/// This is the the body for one integration timestep
+// this is the the body for one integration timestep
 void loopcode(int n, float mass, float fcon,
 	      int delta, float grav, float sep, float ballsize,
 	      float dt, double *x, double *y, double *z)
