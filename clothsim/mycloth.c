@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define VEL_DAMP 0.995
+#define VEL_DAMP 0.996
 
 typedef long unsigned index_t;
 
@@ -105,6 +105,7 @@ double vector_mag(struct vector v)
 	return sqrt(pow(v.x, 2) + pow(v.y, 2) + pow(v.z, 2));
 }
 */
+
 struct vector vector_scale(struct vector v, double n)
 {
 	return (struct vector){v.x * n, v.y * n, v.z * n};
@@ -125,14 +126,20 @@ void loopcode(int n, float mass, float fcon,
 	memcpy(oldfy, fy, sizeof(*fy) * n * n);
 	memcpy(oldfz, fz, sizeof(*fz) * n * n);
 
-	//	apply constraints - push cloth outside of ball, set to zero velocity
+	// push node to outside of cloth, remove radial velocity
 	for_each_cloth_node(i, n) {
 		struct vector sep = vector_new(x, y, z, i);
 		double dist = vector_mag(sep);
 		if (dist < ballsize) {
 			struct vector newpos = vector_scale(sep, ballsize / dist);
 			vector_out(newpos, x, y, z, i);
-			vx[i] = 0; vy[i] = 0; vz[i] = 0;
+			struct vector vel = vector_new(vx, vy, vz, i);
+			struct vector urp = vector_scale(sep, 1 / ballsize);
+			double dotprod_mag = vel.x * urp.x + vel.y * urp.y + vel.z * urp.z;
+			urp = vector_scale(urp, dotprod_mag);
+			vel.x -= urp.x; vel.y -= urp.y; vel.z -= urp.z;
+			vector_out(vel, vx, vy, vz, i);
+			//vx[i] = 0; vy[i] = 0; vz[i] = 0;
 		}
 	}
 
