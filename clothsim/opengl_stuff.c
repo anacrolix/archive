@@ -1,32 +1,46 @@
 #include "cloth.h"
-
-double *x, *y, *z;
-double *cpx, *cpy, *cpz;
-
-int n=25,delta=2,update=10, nogui=0, maxiter, rendermode=2,paused=0; 
-float sep=0.5,mass=1,fcon=10,grav=1,dt=0.01,offset=0.001,ballsize=3;
-
-struct timeval *tp1, *tp2;
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <unistd.h>
-
-// ---GUI
 #include <GL/gl.h>			
 #include <GL/glu.h>
 #include <GL/glut.h>
 //#include "/usr/glut/include/GL/glut.h"
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <unistd.h>
 #include <math.h>
+#include <errno.h>
 
 #define crossProduct(a0,a1,a2,b0,b1,b2,c0,c1,c2,d0,d1,d2) \
    (d0) = ((b1)-(a1)) * ((c2)-(a2)) - ((c1)-(a1)) * ((b2)-(a2)); \
    (d1) = ((b2)-(a2)) * ((c0)-(a0)) - ((c2)-(a2)) * ((b0)-(a0)); \
    (d2) = ((b0)-(a0)) * ((c1)-(a1)) - ((c0)-(a0)) * ((b1)-(a1));
 
-int loop=0;
+double *x, *y, *z;
+double *cpx, *cpy, *cpz;
+
+int
+	n = 25,
+	delta = 2,
+	update = 5,
+	nogui = 0,
+	maxiter,
+	rendermode = 2,
+	paused = 0,
+	num_threads = 1;
+float
+	sep = 0.5,
+	mass = 1,
+	fcon = 10,
+	grav = 1,
+	dt = 0.01,
+	offset = 0.0f,
+	ballsize = 3;
+
+struct timeval 
+	*tp1,
+	*tp2;
+
+int loop = 0;
 void keyboard(unsigned char key, int x, int y);
 void motion(int x, int y);
 void mouse(int button, int state, int x, int y);
@@ -53,60 +67,33 @@ GLfloat mat_specular[] = { 0.80, 0.8, 0.80, 1.0 };
 GLfloat light_amb[] = { 0.525, 0.525, 0.525, 1.0 };
 GLfloat light_position[] = { 25.0, 45.0, 19.0, 1.0 };
 int mousex, mousey;
-// --- END GUI
 
-// ---GUI
-/*static void menuChoice (int item)
-  {
-  switch (item) {
-  case 1:
-  rendermode=0;break;
-  case 2:
-  rendermode=1;break;
-  case 3:
-  rendermode=2;break;
-
-  case 9:
-  keyboard(27,0,0); //Esc
-  break;
-
-  default:
-  break;
-  }
-  }
-*/
 GLUquadricObj *qobj;		
-static int	Menu;			
-// ---END GUI
+static int	Menu;	
 
-
-
-static void idleTime (void)		// when idle...
+/// glut idle callback
+static void idleTime(void)
 {
-  if(paused){
-    glutPostRedisplay();		// -----GUI
-    usleep(10000);
-  }else{
-   /***************************************************/
-   /* HERE YOU DO 1 DYNAMICS TIMESTEP WITH GUI        */
-   /* YOU NEED TO WRITE THIS ROUTINE IN MYCODE.C      */
+	if (paused) {
+		glutPostRedisplay();
+		usleep(10000);
+	} else {
+		loopcode(n, mass, fcon, delta, grav, sep, ballsize, dt, x, y,
+			z, num_threads);
 
-    loopcode(n,mass,fcon,delta,grav,sep,ballsize,dt,x,y,z);
-
-   /***************E N D*******************************/
-
-    if(loop%update==0){
-      glutPostRedisplay();		// -----GUI
-      gettimeofday(tp2, NULL);
-      if(loop%(update*50)==0){
-	printf("____________________________________________________\n"
-	       "  Loop_Num           PE          Elapsed Time\n\n");}
-      printf("%10d %20.12e ",loop,pe);
-      printf("%12.6f\n",(float)(tp2->tv_sec-tp1->tv_sec)+
-	     (float)(tp2->tv_usec-tp1->tv_usec)*1.0e-6);
-    }
-    loop++;
-  }
+		if (loop % update == 0) {
+			glutPostRedisplay();
+			gettimeofday(tp2, NULL);
+			if (loop % (update * 50) == 0) {
+				printf("____________________________________________________\n"
+				"  Loop_Num           PE          Elapsed Time\n\n");
+			}
+			printf("%10d %20.12e ",loop,pe);
+			printf("%12.6f\n",(float)(tp2->tv_sec-tp1->tv_sec)+
+			(float)(tp2->tv_usec-tp1->tv_usec) * 1.0e-6);
+		}
+		loop++;
+	}
 }
 
 /// Initialise matrices to 0, mallocs, etc
@@ -135,172 +122,168 @@ void initMatrix()
 	}
 }
 
-int main(int argc, char** argv)
+void __attribute__((noreturn)) usage(int exitcode)
 {
+	printf(
+		" %s\n"
+		"Nodes_per_dimension:             -n int \n"
+		"Grid_separation:                 -s float \n"
+		"Mass_of_node:                    -m float \n"
+		"Force_constant:                  -f float \n"
+		"Node_interaction_level:          -d int \n"
+		"Gravity:                         -g float \n"
+		"Radius_of_ball:                  -b float \n"
+		"offset_of_falling_cloth:         -o float \n"
+		"timestep:                        -t float \n"
+		"Timesteps_per_display_update:    -u int \n"
+		"Perform X timesteps without GUI: -x int\n"
+		"Rendermode:                      -r (1,2,3)\n"
+		, program_invocation_name);
+	exit(exitcode);
+}
 
-  int i;
-  // assess input flags
-  if (argc % 2 == 0)
-    argv[1][0]= 'x';
+int main(int argc, char *argv[])
+{
+	// assess input flags
+	if (argc % 2 == 0)
+		argv[1][0]= 'x';
 
-  for(i=1;i<argc;i+=2){
-    if(argv[i][0] == '-'){	
-      switch (argv[i][1]) {
-      case 'n':
-	n = atoi(argv[i+1]);
-	break;
-      case 's':
-	sep = atof(argv[i+1]);
-	break;
-      case 'm':	
-	mass = atof(argv[i+1]);
-	break;
-      case 'f':
-	fcon = atof(argv[i+1]);
-	break;
-      case 'd':
-	delta = atoi(argv[i+1]);
-	break;
-      case 'g':
-	grav = atof(argv[i+1]);
-	break;
-      case 'b':
-	ballsize = atof(argv[i+1]);
-	break;
-      case 'o':
-	offset = atof(argv[i+1]);
-	break;
-      case 't':
-	dt = atof(argv[i+1]);
-	break;
-      case 'u':
-	update = atoi(argv[i+1]);
-	break;
-      case 'x':
-	maxiter = atoi(argv[i+1]);
-	nogui = 1;
-	break;
-      case 'r':
-	rendermode = atoi(argv[i+1]);
-	break;
-      default:
-	printf(" %s\n"
-	       "Nodes_per_dimension:             -n int \n"
-	       "Grid_separation:                 -s float \n"
-	       "Mass_of_node:                    -m float \n"
-	       "Force_constant:                  -f float \n"
-	       "Node_interaction_level:          -d int \n"
-	       "Gravity:                         -g float \n"
-	       "Radius_of_ball:                  -b float \n"
-	       "offset_of_falling_cloth:         -o float \n"
-	       "timestep:                        -t float \n"
-	       "Timesteps_per_display_update:    -u int \n"
-	       "Perform X timesteps without GUI: -x int\n"
-	       "Rendermode (1 for face shade, 2 for vertex shade, 3 for no shade):\n"
-	       "                                 -r (1,2,3)\n",argv[0]);
-	return -1;
-      }
-    }else{
-      printf(" %s\n"
-	     "Nodes_per_dimension:             -n int \n"
-	     "Grid_separation:                 -s float \n"
-	     "Mass_of_node:                    -m float \n"
-	     "Force_constant:                  -f float \n"
-	     "Node_interaction_level:          -d int \n"
-	     "Gravity:                         -g float \n"
-	     "Radius_of_ball:                  -b float \n"
-	     "offset_of_falling_cloth:         -o float \n"
-	     "timestep:                        -t float \n"
-	     "Timesteps_per_display_update:    -u int \n"
-	     "Perform X timesteps without GUI: -x int\n"
-	     "Rendermode (1 for face shade, 2 for vertex shade, 3 for no shade):\n"
-	     "                                 -r (1,2,3)\n",argv[0]);
-      return -1;
-    }
-  }
+	for (long i = 1; i < argc; i += 2) {
+		if (argv[i][0] == '-') {	
+			switch (argv[i][1]) {
+				case 'n':
+				n = atoi(argv[i+1]);
+				break;
+				case 's':
+				sep = atof(argv[i+1]);
+				break;
+				case 'm':	
+				mass = atof(argv[i+1]);
+				break;
+				case 'f':
+				fcon = atof(argv[i+1]);
+				break;
+				case 'd':
+				delta = atoi(argv[i+1]);
+				break;
+				case 'g':
+				grav = atof(argv[i+1]);
+				break;
+				case 'b':
+				ballsize = atof(argv[i+1]);
+				break;
+				case 'o':
+				offset = atof(argv[i+1]);
+				break;
+				case 't':
+				dt = atof(argv[i+1]);
+				break;
+				case 'u':
+				update = atoi(argv[i+1]);
+				break;
+				case 'x':
+				maxiter = atoi(argv[i+1]);
+				nogui = 1;
+				break;
+				case 'r':
+				rendermode = atoi(argv[i+1]);
+				break;
+				case 'p':
+					num_threads = atoi(argv[i + 1]);
+					break;
+				default:
+					usage(EXIT_FAILURE);
+			}
+		} else {
+			printf(" %s\n"
+			"Nodes_per_dimension:             -n int \n"
+			"Grid_separation:                 -s float \n"
+			"Mass_of_node:                    -m float \n"
+			"Force_constant:                  -f float \n"
+			"Node_interaction_level:          -d int \n"
+			"Gravity:                         -g float \n"
+			"Radius_of_ball:                  -b float \n"
+			"offset_of_falling_cloth:         -o float \n"
+			"timestep:                        -t float \n"
+			"Timesteps_per_display_update:    -u int \n"
+			"Perform X timesteps without GUI: -x int\n"
+			"Rendermode (1 for face shade, 2 for vertex shade, 3 for no shade):\n"
+			"                                 -r (1,2,3)\n",argv[0]);
+			return -1;
+		}
+	}
 
-  // print out values to be used in the program
-  printf("____________________________________________________\n"
-	 "_____ COMP3320 Assignment 2 - Cloth Simulation _____\n"
-	 "____________________________________________________\n"
-	 "Number of nodes per dimension:  %d\n"
-	 "Grid separation:                %f\n"
-	 "Mass of node:                   %f\n"
-	 "Force constant                  %f\n"
-	 "Node Interaction Level (delta): %d\n"
-	 "Gravity:                        %f\n"
-	 "Radius of Ball:                 %f\n"
-	 "Offset of falling cloth:        %f\n"
-	 "Timestep:                       %f\n"
-	 "Timesteps per display update:   %i\n"
-	 ,n,sep,mass,fcon,delta,grav,ballsize,offset,dt,update);
+	// print out values to be used in the program
+	printf(
+		"____________________________________________________\n"
+		"_____ COMP3320 Assignment 2 - Cloth Simulation _____\n"
+		"____________________________________________________\n"
+		"Number of nodes per dimension:  %d\n"
+		"Grid separation:                %f\n"
+		"Mass of node:                   %f\n"
+		"Force constant                  %f\n"
+		"Node Interaction Level (delta): %d\n"
+		"Gravity:                        %f\n"
+		"Radius of Ball:                 %f\n"
+		"Offset of falling cloth:        %f\n"
+		"Timestep:                       %f\n"
+		"Timesteps per display update:   %i\n"
+		"Max OpenMP threads:             %d\n",
+		n, sep, mass, fcon, delta, grav, ballsize, offset, dt, update,
+		num_threads);
 
-  initMatrix();   // set up
-  tp1=(struct timeval *)malloc(sizeof(struct timeval));
-  tp2=(struct timeval *)malloc(sizeof(struct timeval));
+	initMatrix();   // set up
+	tp1=(struct timeval *)malloc(sizeof(struct timeval));
+	tp2=(struct timeval *)malloc(sizeof(struct timeval));
 
-  /***************************************************/
-  /* HERE WE INITIALISE THE DYANMICS PART OF THE CODE*/
-  /* YOU NEED TO WRITE THIS ROUTINE IN MYCODE.C      */
+	initialize(n, mass, fcon, delta, grav, sep, ballsize, dt, x, y, z, num_threads);
 
-  initialize(n,mass,fcon,delta,grav,sep,ballsize,dt,x,y,z);
+	if (nogui == 0) {
+		printf("\nUsing OpenGL GUI\n\n MOUSE:\n Drag to rotate\n KEYS:\n 'spacebar' to pause/resume\n '-' to zoom out\n '=' to zoom in\n '1' for per face shading\n '2' for per vertex shading\n '3' for no shading\n 'Esc' to quit\n"
+		"____________________________________________________\n"
+		);
 
-  /***************E N D*******************************/
-
-
-  if (nogui == 0) {
-    printf("\nUsing OpenGL GUI\n\n MOUSE:\n Drag to rotate\n KEYS:\n 'spacebar' to pause/resume\n '-' to zoom out\n '=' to zoom in\n '1' for per face shading\n '2' for per vertex shading\n '3' for no shading\n 'Esc' to quit\n"
-	   "____________________________________________________\n"
-	   );
-
-    // ----- GUI starts here
-    glutInitWindowSize(500, 500);
-    glutInitWindowPosition(100, 75);
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB);
-    glutCreateWindow("COMP3320 Assignment2");
-    init();		// set up all lists and other stuff
-    glutKeyboardFunc(&keyboard);
-    glutMotionFunc(&motion);
-    glutMouseFunc(&mouse);
-    glutDisplayFunc(&display);
-    glutReshapeFunc(reshape);
-    glutIdleFunc(idleTime);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_NORMALIZE);
-    glEnable(GL_POINT_SMOOTH);
-    gettimeofday(tp1, NULL);
-    glutMainLoop();
-    // ----------GUI ends here
-  }
-  else {
-    /* THIS LOOP EXECUTES THE NO GUI VERSION OF THE CODE*/
-    printf("\nNo GUI\n"
-	   "Number of Iterations:           %d\n"
-	   "____________________________________________________\n",maxiter);
-    gettimeofday(tp1, NULL);
-    for(loop=0;loop<maxiter;loop++){
-
-     /***************************************************/
-     /* HERE YOU DO 1 DYNAMICS TIMESTEP WITHOUT GUI     */
-     /* YOU NEED TO WRITE THIS ROUTINE IN MYCODE.C      */
-
-      loopcode(n,mass,fcon,delta,grav,sep,ballsize,dt,x,y,z);
-
-     /***************E N D*******************************/
-
-      if(loop%update==0){
-	gettimeofday(tp2, NULL);
-	if(loop%(update*50)==0){
-	  printf("____________________________________________________\n"
-		 "  Loop_Num            PE          Elapsed Time\n\n");}
-          printf("%10d %20.12e ",loop,pe);
-          printf("%12.6f\n",(float)(tp2->tv_sec-tp1->tv_sec)+
-	                    (float)(tp2->tv_usec-tp1->tv_usec)*1.0e-6);
-      }
-    }
-  } 
-  return 1;
+		// ----- GUI starts here
+		glutInitWindowSize(500, 500);
+		glutInitWindowPosition(100, 75);
+		glutInit(&argc, argv);
+		glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB);
+		glutCreateWindow("COMP3320 Assignment2");
+		init();		// set up all lists and other stuff
+		glutKeyboardFunc(&keyboard);
+		glutMotionFunc(&motion);
+		glutMouseFunc(&mouse);
+		glutDisplayFunc(&display);
+		glutReshapeFunc(reshape);
+		glutIdleFunc(idleTime);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_NORMALIZE);
+		glEnable(GL_POINT_SMOOTH);
+		gettimeofday(tp1, NULL);
+		glutMainLoop();
+		// ----------GUI ends here
+	} else {
+		/* THIS LOOP EXECUTES THE NO GUI VERSION OF THE CODE*/
+		printf("\nNo GUI\n"
+		"Number of Iterations:           %d\n"
+		"____________________________________________________\n",maxiter);
+		gettimeofday(tp1, NULL);
+		for (loop = 0; loop < maxiter; loop++) {
+			loopcode(n,mass,fcon,delta,grav,sep,ballsize,dt,x,y,z, num_threads);
+			if(loop%update==0){
+				gettimeofday(tp2, NULL);
+				if(loop%(update*50)==0){
+					printf("____________________________________________________\n"
+					"  Loop_Num            PE          Elapsed Time\n\n");
+				}
+				printf("%10d %20.12e ",loop,pe);
+				printf("%12.6f\n",(float)(tp2->tv_sec-tp1->tv_sec)+
+				(float)(tp2->tv_usec-tp1->tv_usec)*1.0e-6);
+			}
+		}
+		return EXIT_SUCCESS;
+	} 
+	return EXIT_FAILURE;
 }
 
 void noshade(void)

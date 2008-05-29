@@ -1,12 +1,12 @@
 CC = gcc
 #CC	= cc
-CFLAGS = -std=c99 -D_BSD_SOURCE -O2
+CFLAGS = -std=c99 -D_BSD_SOURCE -D_GNU_SOURCE -O3 -march=native -pg
 #CFLAGS	= -m64 -Y P,/usr/openwin/lib/amd64:/usr/lib/64:/usr/glut/lib/glut:/usr/lib
 LDFLAGS	= 
 GLIBS   = -lGL -lGLU -lX11 -lm -lglut -lXi -lXmu
 OBJS = opengl_stuff.o
  
-all: 	mycloth #testcloth
+all: mycloth
 
 mycloth:	mycloth.o ${OBJS}
 		$(CC) $(CFLAGS) -o $@ mycloth.o ${OBJS} $(LDFLAGS) $(GLIBS)
