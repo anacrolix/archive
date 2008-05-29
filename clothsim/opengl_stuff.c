@@ -15,17 +15,16 @@
    (d1) = ((b2)-(a2)) * ((c0)-(a0)) - ((c2)-(a2)) * ((b0)-(a0)); \
    (d2) = ((b0)-(a0)) * ((c1)-(a1)) - ((c0)-(a0)) * ((b1)-(a1));
 
-double *x, *y, *z;
 double *cpx, *cpy, *cpz;
 
 int
-	n = 25,
-	delta = 2,
 	update = 5,
 	nogui = 0,
 	maxiter,
 	rendermode = 2,
 	paused = 0,
+	n = 25,
+	delta = 2,
 	num_threads = 1;
 float
 	sep = 0.5,
@@ -78,8 +77,7 @@ static void idleTime(void)
 		glutPostRedisplay();
 		usleep(10000);
 	} else {
-		loopcode(n, mass, fcon, delta, grav, sep, ballsize, dt, x, y,
-			z, num_threads);
+		loopcode(n, mass, fcon, delta, grav, sep, ballsize, dt, num_threads);
 
 		if (loop % update == 0) {
 			glutPostRedisplay();
@@ -236,7 +234,7 @@ int main(int argc, char *argv[])
 	tp1=(struct timeval *)malloc(sizeof(struct timeval));
 	tp2=(struct timeval *)malloc(sizeof(struct timeval));
 
-	initialize(n, mass, fcon, delta, grav, sep, ballsize, dt, x, y, z, num_threads);
+	initialize(n, mass, fcon, delta, grav, sep, ballsize, dt, num_threads);
 
 	if (nogui == 0) {
 		printf("\nUsing OpenGL GUI\n\n MOUSE:\n Drag to rotate\n KEYS:\n 'spacebar' to pause/resume\n '-' to zoom out\n '=' to zoom in\n '1' for per face shading\n '2' for per vertex shading\n '3' for no shading\n 'Esc' to quit\n"
@@ -269,7 +267,7 @@ int main(int argc, char *argv[])
 		"____________________________________________________\n",maxiter);
 		gettimeofday(tp1, NULL);
 		for (loop = 0; loop < maxiter; loop++) {
-			loopcode(n,mass,fcon,delta,grav,sep,ballsize,dt,x,y,z, num_threads);
+			loopcode(n, mass, fcon, delta, grav, sep, ballsize, dt, num_threads);
 			if(loop%update==0){
 				gettimeofday(tp2, NULL);
 				if(loop%(update*50)==0){

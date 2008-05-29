@@ -20,6 +20,18 @@ struct vector {	double x, y, z; };
 		(k)[(q)] = _v.z; \
 	} while (false)
 
+extern int
+	n,
+	delta,
+	num_threads;
+	
+extern float
+	dt,
+	ballsize,
+	grav,
+	sep,
+	fcon;
+
 double *fx, *fy, *fz; // forces
 double *vx, *vy, *vz; // velocities
 double *oldfx, *oldfy, *oldfz; // old forces
@@ -37,19 +49,15 @@ double *oldfx, *oldfy, *oldfz; // old forces
 
 #define vector_mag(v) (mag((v).x, (v).y, (v).z))
 
-struct vector vector_scale(struct vector v, double n)
+inline struct vector vector_scale(struct vector v, double n)
 {
 	return (struct vector){v.x * n, v.y * n, v.z * n};
 }
 
-inline void __eval_pef(int n, double sep,
-	double fcon, double *x, double *y, double *z, double *fx,
-	double *fy, double *fz, int num_threads, struct vector *f,
-	index_t t, index_t dx, index_t dy, index_t i, index_t j)
+void inline __eval_pef(struct vector *f, index_t t, index_t dx,
+	index_t dy, double len2_idx, index_t j)
 {
-	//assert(i != dx || j != dy);
-	//double len = intsqrts[((i - dx) * (i - dx)) + ((j - dy) * (j - dy))] * sep;
-	double len = sqrt((double)((i - dx) * (i - dx) + (j - dy) * (j - dy)) * sep);
+	double len = sqrt((len2_idx + (j-dy)*(j-dy)) * sep);
 	double r12_x = x[dx * n + dy] - x[t];
 	double r12_y = y[dx * n + dy] - y[t];
 	double r12_z = z[dx * n + dy] - z[t];
@@ -61,57 +69,42 @@ inline void __eval_pef(int n, double sep,
 	f->z += a * r12_z;
 }
 
-// calculates PE and F
-double eval_pef(int n, int delta, double grav, double sep,
-                double fcon, double *x, double *y, double *z,
-                double *fx, double *fy, double *fz, int num_threads)
+void inline _eval_pef_j(struct vector *f, index_t t, index_t dx, index_t i,
+	index_t j)
+{
+	double len2_idx = pow(i - dx, 2);
+	for (index_t dy = MAX(j - delta, 0); dy < j; dy++)
+		__eval_pef(f, t, dx, dy, len2_idx, j);
+	if (i != dx) __eval_pef(f, t, dx, j, len2_idx, j);
+	index_t const dy_max = MIN(j + delta + 1, n);
+	for (index_t dy = j + 1; dy < dy_max; dy++)
+		__eval_pef(f, t, dx, dy, len2_idx, j);
+}	
+
+/// calculates PE and F
+double eval_pef()
 {
 	pe = 0.0;
-	#pragma omp parallel for
-	for (index_t i = 0; i < n; i++) {
-		#pragma omp parallel for
-		for (index_t j = 0; j < n; j++) {
-			index_t t = i * n + j;
-			struct vector f = {0.0, 0.0, -grav};
-			for (index_t dx = MAX(i - delta, 0); dx < MIN(i + delta + 1, n); dx++)
-			{
-				if (j - delta >= 0 && j + delta < n) {
-					for (index_t dy = j - delta; dy < j; dy++)
-					{
-						__eval_pef(n, sep, fcon, x, y, z,
-							fx, fy, fz, num_threads, &f, t, dx, dy, i,
-							j);
-					}
-					if (i != dx) __eval_pef(n, sep, fcon, x, y, z, fx, fy, fz, num_threads, &f, t, dx, j, i, j);
-					for (index_t dy = j + 1; dy < j + delta + 1; dy++)
-					{
-						__eval_pef(n, sep, fcon, x, y, z,
-							fx, fy, fz, num_threads, &f, t, dx, dy, i,
-							j);
-					}
-				} else {
-					for (index_t dy = MAX(j - delta, 0); dy < MIN(j + delta + 1, n); dy++)
-					{
-						if (i != dx || j != dy) {
-							__eval_pef(n, sep, fcon, x, y, z,
-								fx, fy, fz, num_threads, &f, t, dx, dy, i,
-								j);
-						}
-					}
-				}
-			}
-			fx[t] = f.x;
-			fy[t] = f.y;
-			fz[t] = f.z;
+	index_t t_max = n * n;
+	#pragma omp parallel for schedule(dynamic, 128)
+	for (index_t t = 0; t < t_max; t++) {
+		index_t i = t / n;
+		index_t j = t % n;
+		struct vector f = {0.0, 0.0, -grav};
+		index_t const dx_max = MIN(i + delta + 1, n);
+		for (index_t dx = MAX(i - delta, 0); dx < dx_max; dx++)
+		{
+			_eval_pef_j(&f, t, dx, i, j);
 		}
+		fx[t] = f.x;
+		fy[t] = f.y;
+		fz[t] = f.z;
 	}
 	return pe;
 } 
 
 // allocate memory and initialize PE and F
-void initialize(int n, float mass, float fcon, int delta, float grav,
-	float sep, float ballsize, float dt, double *x, double *y, 
-	double *z, int num_threads)
+void initialize()
 {
 	// allocate and zero F and v arrays
 	double **simarrs[] =
@@ -132,16 +125,13 @@ void initialize(int n, float mass, float fcon, int delta, float grav,
 		intsqrts[i] = sqrt(i);
 	*/
 	// set maximum omp threads
-	//omp_set_num_threads(num_threads);
+	omp_set_num_threads(num_threads);
 	// evaluate potential and force
-	pe = eval_pef(n, delta, grav, sep, fcon, x, y, z, fx, fy, fz,
-		num_threads);
+	pe = eval_pef(n, delta, grav, sep, fcon, num_threads);
 }
 
 // this is the the body for one integration timestep
-void loopcode(int n, float mass, float fcon,
-	      int delta, float grav, float sep, float ballsize,
-	      float dt, double *x, double *y, double *z, int num_threads)
+void loopcode()
 {
 	// update position as per MD simulation, copy force array
 	#pragma omp parallel for schedule(guided, n)
@@ -173,8 +163,7 @@ void loopcode(int n, float mass, float fcon,
 	}
 
 	// calculate force and PE at new coordinates
-	pe = eval_pef(n, delta, grav, sep, fcon, x, y, z, fx, fy, fz,
-		num_threads);
+	pe = eval_pef(n, delta, grav, sep, fcon, num_threads);
 	
 	// dampen velocity
 	#pragma omp parallel for
