@@ -10,6 +10,8 @@ import stat
 import gnomevfs
 
 class FileTransfer:
+	def update(self, fraction):
+		self.update_cb(self.path, fraction)
 	def connect(self):	
 		try:
 			self.sock.connect((self.host, self.port))
@@ -20,21 +22,26 @@ class FileTransfer:
 	def io_cb(self, source, condition):
 		if (condition == gobject.IO_OUT):
 			print self.path
+			filesize = os.stat(self.path)[stat.ST_SIZE]
 			packet = "\r\n".join((
 				os.path.basename(self.path),
-				str(os.stat(self.path)[stat.ST_SIZE]),
+				str(filesize),
 				open(self.path, "rb").read()))
-			self.sock.send(packet)
+			assert(self.sock.send(packet) == len(packet))
+			self.update(1.0)
+			print "Send complete"
 			return False
 		else:
 			print "FileTransfer() failed"
-			gobject.source_remove(self.io_src_id)
+			#gobject.source_remove(self.io_src_id)
 			self.sock.close()
+			self.update(0.0)
 			return False
-	def __init__(self, path, host, port):	
+	def __init__(self, path, host, port, update_cb):	
 		self.path = path
 		self.host = host
 		self.port = port
+		self.update_cb = update_cb
 		self.sock = socket.socket(
 			socket.AF_INET, socket.SOCK_STREAM)
 		self.io_src_id = gobject.io_add_watch(self.sock, 
@@ -49,6 +56,9 @@ class TransferWindow:
 		print 'Drag and drop motion (%d, %d) in TransferWindow' % (xpos, ypos)
 		context.drag_status(gtk.gdk.ACTION_COPY, time)
 		return True
+	
+	def transfer_update(self, path, progress):
+		self.active_transfers[path].prog_ctrl.set_fraction(progress)
 	
 	def drag_drop_cb(self, widget, context, xpos, ypos, time):
 		print 'Drag and drop source targets:', context.targets
@@ -69,10 +79,12 @@ class TransferWindow:
 		for uri in uri_list:
 			path = gnomevfs.URI(uri).path
 			print uri, "(" + path + ")"
-			new_ft = FileTransfer(path, 'localhost', 3000)
+			new_ft = FileTransfer(path, 'localhost', 3000,
+				self.transfer_update)
 			self.active_transfers[path] = new_ft
 			pb = gtk.ProgressBar()
 			pb.set_text(path)
+			new_ft.prog_ctrl = pb
 			pb.show()
 			self.table.resize(len(self.active_transfers), 1)
 			self.table.attach(pb, 0, 1, len(self.active_transfers) - 1,
