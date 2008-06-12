@@ -26,6 +26,7 @@ class ReceiveTest(asyncore.dispatcher):
 			#assert(not os.path.exists(self.path))
 			open(self.path, 'wb').write(self.in_buffer)
 			self.close()
+			print "Received:", self.path
 			return
 		if (self.path == None or self.file_length == None) and len(self.in_buffer) > 0:
 			self.process_data()
