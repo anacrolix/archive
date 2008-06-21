@@ -33,7 +33,7 @@ class ServerHandler(asynchat.async_chat):
 	def handle_connect(self):
 		self.send("\r\n".join(['matt' + str(os.getpid()), '']))
 	def handle_error(self):
-		wx.CallAfter(self.master.on_custom, CustomEvent(EVT_SOCKERR_ID, 'call after server fail'))
+		#wx.CallAfter(self.master.on_custom, CustomEvent(EVT_SOCKERR_ID, 'call after server fail'))
 		wx.PostEvent(self.master, CustomEvent(EVT_SOCKERR_ID, 'Server connection failure'))
 		self.close()
 	def collect_incoming_data(self, data):
