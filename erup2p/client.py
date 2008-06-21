@@ -6,19 +6,6 @@ import asyncore, asynchat
 import socket
 import os
 
-EVT_PEERLOGIN_ID = wx.NewId()
-EVT_PEERLOGOUT_ID = wx.NewId()
-EVT_SOCKERR_ID = wx.NewId()
-#EVT_FILEDROP_ID = wx.NewId()
-
-EVT_CUSTOM_TYPE = wx.NewEventType()
-EVT_CUSTOM = wx.PyEventBinder(EVT_CUSTOM_TYPE)
-
-class CustomEvent(wx.PyCommandEvent):	
-	def __init__(self, evt_id, data=None):
-		wx.PyCommandEvent.__init__(self, EVT_CUSTOM_TYPE, evt_id)
-		self.data = data
-
 class ServerHandler(asynchat.async_chat):
 	buffer = ''
 	MESSAGES = {'connected': 3, 'disconnected': 2}
@@ -33,17 +20,16 @@ class ServerHandler(asynchat.async_chat):
 	def handle_connect(self):
 		self.send("\r\n".join(['matt' + str(os.getpid()), '']))
 	def handle_error(self):
-		#wx.CallAfter(self.master.on_custom, CustomEvent(EVT_SOCKERR_ID, 'call after server fail'))
-		wx.PostEvent(self.master, CustomEvent(EVT_SOCKERR_ID, 'Server connection failure'))
+		wx.CallAfter(self.master.server_error, 'Peer server connection failure!')
 		self.close()
 	def collect_incoming_data(self, data):
 		self.buffer += data
 	def process_msg(self):
 		assert len(self.msg_parms) == self.MESSAGES[self.cur_msg]
 		if self.cur_msg == 'connected':
-			wx.PostEvent(self.master, CustomEvent(EVT_PEERLOGIN_ID, {'name': self.msg_parms[0], 'addr': self.msg_parms[1:3]}))
+			wx.CallAfter(self.master.peer_login, self.msg_parms[0], self.msg_parms[1:3])
 		elif self.cur_msg == 'disconnected':
-			wx.PostEvent(self.master, CustomEvent(EVT_PEERLOGOUT_ID, self.msg_parms))
+			wx.CallAfter(self.master.peer_logout, self.msg_parms)
 		else:
 			assert False
 	def found_terminator(self):
@@ -61,7 +47,7 @@ class ServerHandler(asynchat.async_chat):
 			assert len(self.msg_parms) == 0
 		else:
 			assert len(self.msg_parms) < self.MESSAGES[self.cur_msg]	
-		self.buffer = ""		
+		self.buffer = ''		
 
 class AsynSockThread(threading.Thread):
 	#def __init__(self)
@@ -98,24 +84,18 @@ class MainWindow(wx.Frame):
 	transfer_frames = {}
 	peers = {}
 	
-	def on_custom(self, evt):		
-		evt_id = evt.GetId()
-		if evt_id == EVT_SOCKERR_ID:
-			wx.MessageDialog(self, evt.data, "Socket error", wx.ICON_EXCLAMATION).ShowModal()
-			print evt.data
-			self.Close()
-		elif evt_id == EVT_PEERLOGIN_ID:
-			self.peer_listbox.Append(evt.data['name'], evt.data['addr'])
-		elif evt_id == EVT_PEERLOGOUT_ID:
-			for n in range(self.peer_listbox.GetCount()):
-				print self.peer_listbox.GetClientData(n)
-				if self.peer_listbox.GetClientData(n) == evt.data:
-					self.peer_listbox.Delete(n)
-					self.peers[str(evt.data)].Close(True)
-					break
-		else:
-			print "Unknown event ID!"
-			assert False
+	def server_error(self, info_str):
+		wx.MessageDialog(self, info_str, "Server Error", wx.ICON_EXCLAMATION).ShowModal()
+		self.Close() # (True)?
+	
+	def peer_login(self, name, addr):
+		self.peer_listbox.Append(name, addr)
+	
+	def peer_logout(self, addr):
+		for n in range(self.peer_listbox.GetCount()):
+			if self.peer_listbox.GetClientData(n) == addr:
+				self.peer_listbox.Delete(n)
+				break
 
 	def __init__(self, parent, title):
 		# super ctor
@@ -139,7 +119,6 @@ class MainWindow(wx.Frame):
 		# server socket handler
 		self.server_handler = ServerHandler(self)
 		
-		self.Bind(EVT_CUSTOM, self.on_custom)
 		self.Bind(wx.EVT_CLOSE, self.on_close)
 		self.peer_listbox.Bind(wx.EVT_LEFT_DCLICK, self.on_dblclk_peer)
 	def on_about(self, event):
