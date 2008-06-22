@@ -5,10 +5,10 @@ import socket
 #import pickle
 
 class PeerHandler(asyncore.dispatcher):
+	LINE_TERM = '\r\n'
 	peer_name = None
 	sock_buffer = ''
 	got_list = False
-	LINE_TERM = '\r\n'
 
 	def read_line(self):
 		try:
@@ -30,6 +30,13 @@ class PeerHandler(asyncore.dispatcher):
 				print "Peer name:", self.peer_name
 				self.master.peercb_gotname(self)
 				self.master.peercb_getlist(self)
+			return
+		else:
+			peer_msg = self.read_line()
+			if peer_msg:
+				print peer_msg
+				print len(eval(peer_msg))
+				self.master.peer_message(self, eval(peer_msg)[0], eval(peer_msg)[1])
 			return
 		print "Received unexpected data!"
 	
@@ -62,6 +69,17 @@ class PeerServer(asyncore.dispatcher):
 		self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
 		self.bind((host, port))
 		self.listen(socket.SOMAXCONN)
+		
+	def peer_message(self, from_sock, to_addr, message):
+		print "to_addr:", to_addr
+		for sock in self.peers:
+			print "sock.addr:", sock.addr
+			if sock.addr == to_addr:
+				sock.send(repr(('message', from_sock.addr, message)) + '\r\n')
+				break
+		else:
+			assert False
+	
 	def peercb_gotname(self, peer_obj):
 		for peer in self.peers:
 			if peer == peer_obj: continue
