@@ -223,13 +223,28 @@ class MainWindow(wx.Frame):
 		#self.peers[str(self.peer_listbox.GetClientData(peer_index))] = ChatWindow(self, "hi")
 		#self.peers[str(self.peer_listbox.GetClientData(peer_index))].Show(True)
 
+class EruPeerApp(wx.App):
+	
+	#def __init__(self):
+		#wx.App.__init__(self)
+		
+	def OnInit(self):
+		self.main_frame = MainWindow()
+		self.SetTopWindow(self.main_frame)
+		self.main_frame.Show()
+		self.sock_thread = AsynSockThread()
+		self.sock_thread.start()
+		return True
+	
+	#def OnExit(self):
+		#if self.main_frame:
+			#self.main_frame.Close()
+
 def main():
-	app = wx.PySimpleApp()
-	frame = MainWindow()
-	frame.Show()
-	AsynSockThread().start()
+	app = EruPeerApp()
+	print "starting MainLoop"
 	app.MainLoop()
-	print "left wx mainloop"
+	print "finished MainLoop"
 
 if __name__ == "__main__":
 	main()
