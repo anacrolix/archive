@@ -1,108 +1,115 @@
 #!/bin/env python
 
-import asyncore
+import asyncore, asynchat
 import socket
 #import pickle
 
-class PeerHandler(asyncore.dispatcher):
-	LINE_TERM = '\r\n'
-	peer_name = None
-	sock_buffer = ''
-	got_list = False
+LINE_TERM = '\r\n'
 
-	def read_line(self):
-		try:
-			term_pos = self.sock_buffer.index(self.LINE_TERM)
-		except ValueError:
-			return None
-		rv = self.sock_buffer[:term_pos]
-		self.sock_buffer = \
-			self.sock_buffer[term_pos + len(self.LINE_TERM):]
-		return rv
+class PeerDispatcher(asynchat.async_chat):
 		
-	def handle_connect(self):
-		self.master.peercb_getlist(self)
-
-	def process_data(self):
-		if not self.peer_name:
-			self.peer_name = self.read_line()
-			if self.peer_name:
-				print "Peer name:", self.peer_name
-				self.master.peercb_gotname(self)
-				self.master.peercb_getlist(self)
-			return
-		else:
-			peer_msg = self.read_line()
-			if peer_msg:
-				print peer_msg
-				print len(eval(peer_msg))
-				self.master.peer_message(self, eval(peer_msg)[0], eval(peer_msg)[1])
-			return
-		print "Received unexpected data!"
+	def handle_close(self):		
+		
+		self.notify('close')
 	
-	def handle_write(self):
-		self.master.peercb_getlist(self)
-		self.got_list = True
-				
-	def writable(self):
-		#return not self.got_list
-		return False
+	def notify(self, header, *data):
+		
+		self.notify_cb(self, header, *data)
+			
+	def found_terminator(self):
+		
+		message = eval(self.buffer)
+		self.buffer = ''
+		self.log(message)
+		assert len(message) == 2
+		self.notify(message[0], *message[1])		
+	
+	def collect_incoming_data(self, data):
+		
+		self.buffer += data
+		
+	def log(self, *info):
+		
+		print str(self.addr) + ":",
+		for i in info: print i,
+		print
 
-	def handle_close(self):
-		self.master.peercb_closing(self)
-		self.close()
+	def __init__(self, channel, notify_cb):
+		
+		asynchat.async_chat.__init__(self, channel)
+		self.set_terminator(LINE_TERM)
+		self.notify_cb = notify_cb
+		self.buffer = ''
 
-	def handle_read(self):
-		self.sock_buffer += self.recv(1)
-		if len(self.sock_buffer) > 0:
-			self.process_data()
-
-	def __init__(self, channel, master):
-		asyncore.dispatcher.__init__(self, channel)
-		self.master = master
+class Peer():
+	
+	def send(self, header, *data):
+		
+		self.dispatcher.send(repr((header, data)) + LINE_TERM)
+	
+	def __init__(self, dispatcher):
+		
+		self.dispatcher = dispatcher
+		self.name = ":".join(map(lambda i: str(i), self.dispatcher.addr))
+		self.ident = self.dispatcher.addr
 
 class PeerServer(asyncore.dispatcher):
-	peers = []
-	def __init__(self, port, host=''):
+	
+	peers = {}
+	
+	def on_dispatcher_notify(self, dispatcher, header, *data):
+		
+		peer = self.peers[dispatcher.addr]
+		getattr(self, 'peercb_' + header)(peer, *data)
+	
+	def __init__(self):
+		
 		asyncore.dispatcher.__init__(self)
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-		self.bind((host, port))
+		self.bind(('', 3000))
 		self.listen(socket.SOMAXCONN)
+			
+	def log(self, info):
 		
-	def peer_message(self, from_sock, to_addr, message):
-		print "to_addr:", to_addr
-		for sock in self.peers:
-			print "sock.addr:", sock.addr
-			if sock.addr == to_addr:
-				sock.send(repr(('message', from_sock.addr, message)) + '\r\n')
-				break
-		else:
-			assert False
+		print info
+		
+	def peercb_login(self, peer):
+		
+		for other in self.peers.values():
+			if peer == other: continue
+			other.send('login', peer.ident)
+			peer.send('login', other.ident)
+			peer.send('setname', other.ident, other.name)
 	
-	def peercb_gotname(self, peer_obj):
-		for peer in self.peers:
-			if peer == peer_obj: continue
-			peer.send("\r\n".join(["connected", peer_obj.peer_name, peer_obj.addr[0], str(peer_obj.addr[1]), '']))
-	def peercb_closing(self, peer_obj):
-		self.peers.remove(peer_obj)
-		for p in self.peers:
-			p.send("\r\n".join(["disconnected", peer_obj.addr[0], str(peer_obj.addr[1]), '']))
-	def peercb_getlist(self, peer_obj):
-		for a in self.peers:
-			if a == peer_obj: continue
-			peer_obj.send("\r\n".join(["connected", a.peer_name, a.addr[0], str(a.addr[1]), '']))
+	def peercb_setname(self, peer, name):
+		
+		peer.name = name
+		for other in self.peers.values():
+			if peer == other: continue
+			other.send('setname', peer.ident, peer.name)
+			
+	def peercb_close(self, peer):
+		
+		peer.dispatcher.close()
+		del self.peers[peer.ident]
+		for other in self.peers.values():
+			other.send('close', peer.ident)
+			
 	def handle_accept(self):
+		
 		channel, addr = self.accept()
-		new_peer = PeerHandler(channel, self)
-		print "Accepted:", new_peer.addr
-		self.peers.append(new_peer)
-		#for peer_obj in self.peers:
-			#new_peer.send("\r\n".join(["connected", peer_obj.peer_name, peer_obj.addr[0], str(peer_obj.addr[1]), '']))
+		new_handler = PeerDispatcher(channel, self.on_dispatcher_notify)
+		assert addr == new_handler.addr
+		assert not self.peers.has_key(addr)
+		self.peers[addr] = Peer(new_handler)
+		assert addr == self.peers[addr].dispatcher.addr
 
 def main():
-	PeerServer(port=3000)
+	
+	PeerServer()
 	asyncore.loop()
 
 if __name__ == "__main__":
+	
 	main()
