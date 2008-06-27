@@ -14,6 +14,7 @@ class PeerDispatcher(asynchat.async_chat):
 	
 	def notify(self, header, *data):
 		
+		self.log(header, data)
 		self.notify_cb(self, header, *data)
 			
 	def found_terminator(self):
@@ -43,6 +44,12 @@ class PeerDispatcher(asynchat.async_chat):
 
 class Peer():
 	
+	def log(self, *info):
+		
+		print self.name + ":",
+		for i in info: print i,
+		print
+	
 	def send(self, header, *data):
 		
 		self.dispatcher.send(repr((header, data)) + LINE_TERM)
@@ -57,9 +64,10 @@ class PeerServer(asyncore.dispatcher):
 	
 	peers = {}
 	
-	def on_dispatcher_notify(self, dispatcher, header, *data):
+	def handle_dispatcher(self, dispatcher, header, *data):
 		
 		peer = self.peers[dispatcher.addr]
+		peer.log(header, data)
 		getattr(self, 'peercb_' + header)(peer, *data)
 	
 	def __init__(self):
@@ -99,7 +107,7 @@ class PeerServer(asyncore.dispatcher):
 	def handle_accept(self):
 		
 		channel, addr = self.accept()
-		new_handler = PeerDispatcher(channel, self.on_dispatcher_notify)
+		new_handler = PeerDispatcher(channel, self.handle_dispatcher)
 		assert addr == new_handler.addr
 		assert not self.peers.has_key(addr)
 		self.peers[addr] = Peer(new_handler)

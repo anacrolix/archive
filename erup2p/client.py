@@ -9,6 +9,11 @@ import time
 
 LINE_TERM = '\r\n'
 
+def log(*info):
+
+	for i in info: print i,
+	print
+
 class ServerHandler():
 	
 	class ServerDispatcher(asynchat.async_chat):
@@ -41,12 +46,19 @@ class ServerHandler():
 	
 	def send(self, header, *data):
 		
-		self.dispatcher.send(repr((header, data)) + LINE_TERM)
+		if not self.dispatcher: return False
+		try:
+			self.dispatcher.send(repr((header, data)) + LINE_TERM)
+		except socket.error, str:
+			print str
+			self.notify_cb("error", str)
+			return False
+		return True
 	
 	def __init__(self, notify_cb):
 		
 		self.notify_cb = notify_cb
-		#dispatcher = None
+		self.dispatcher = None
 
 	def handle_dispatcher(self, caller, event, *args):
 		
@@ -63,8 +75,11 @@ class ServerHandler():
 	
 	def close(self):
 		
-		if self.dispatcher:
-			self.dispatcher.close()
+		try:
+			if self.dispatcher:
+				self.dispatcher.close()
+		except AttributeError:
+			print "lulz you never created a server dispatcher"
 
 class AsyncSockThread(threading.Thread):
 
@@ -93,51 +108,180 @@ class PeerFileDropTarget(wx.FileDropTarget):
 
 class PeerFrame(wx.Frame):
 	
-	pass
+	def __init__(self, event_cb):
+		
+		wx.Frame.__init__(self, None)
+		self.event_cb = event_cb
+		
+		self.Bind(wx.EVT_CLOSE, self.on_close)	
+		self.Bind(wx.EVT_TEXT_ENTER, self.on_enter)	
+		
+		self.history_te = wx.TextCtrl(self, value="history", style=wx.TE_MULTILINE|wx.TE_AUTO_URL|wx.TE_READONLY)
+		
+		self.message_te = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
+		
+		bs = wx.BoxSizer(wx.VERTICAL)
+		bs.Add(self.history_te, 1, wx.EXPAND)
+		bs.Add(self.message_te, 0, wx.EXPAND)
+		self.SetSizer(bs)	
+		
+	def notify(self, message, *data):
+		
+		self.event_cb(self, message, *data)
+	
+	def on_enter(self, event):
+		
+		msg_str = self.message_te.GetValue()
+		print msg_str
+		self.message_te.Clear()
+		print "STUB"
+		#self.notify('message', msg_str)	
+		
+	def on_close(self, event):
+		
+		self.Show(False)
 
 class MainFrame(wx.Frame):
 	
 	def __init__(self, notify_cb):
 		
-		wx.Frame.__init__(self, None, title='Eru P2P')
+		wx.Frame.__init__(self, None, title='Eru P2P', size=(200, 400))
 		self.notify_cb = notify_cb
 		
-		lb = wx.ListBox(self)
-		lb.Append('wank stick')
+		# custom close event
+		self.Bind(wx.EVT_CLOSE, self.on_close)
+		
+		self.peer_listbox = wx.ListBox(self)
+		self.peer_listbox.Bind(wx.EVT_LEFT_DCLICK, self.on_dclick_peers)
 		
 		# mb = menubar, m = menu, mi = menuitem
 		mb = wx.MenuBar()
 		m = wx.Menu()
 		mi = m.Append(-1, text='&Connect')
 		self.Bind(wx.EVT_MENU, self.on_connect, mi)
+		mi = m.Append(-1, text='Set &Name...')
+		self.Bind(wx.EVT_MENU, self.on_setname, mi)
 		m.AppendSeparator()
 		mi = m.Append(-1, text='&Quit')
 		self.Bind(wx.EVT_MENU, self.on_quit, mi)
 		mb.Append(m, '&Server')
 		m = wx.Menu()
 		mi = m.Append(-1, '&About')
-		self.Bind(wx.EVT_MENU, self.on_about, mi)
+		self.Bind(wx.EVT_MENU, self.on_setname, mi)
 		mb.Append(m, '&Help')
 		self.SetMenuBar(mb)
+	
+	def notify(self, *data):
+		
+		self.notify_cb(self, *data)
 	
 	def on_connect(self, event):
 		
 		print "MainFrame:on_connect"
-		self.notify_cb("connect")
+		self.notify('connect')
 		
 	def on_about(self, event):
 		
-		print "MainFrame:on_about"
+		info = wx.AboutDialogInfo()
+		info.SetName('Eru P2P')
+		info.SetVersion('0.0.1')
+		info.SetDescription("""A simple Instant Messenger intended to provided reliable and simple chat and peer to peer file transfers.""")
+		#info.SetCopyright('None!')
+		info.SetWebSite('http://stupidape.dyndns.org')
+		info.AddDeveloper('Eruanno')
+		wx.AboutBox(info)
+		
+	def on_close(self, event):
+		
+		print "yo close me faggot lulz"
+		self.notify('close')
 		
 	def on_quit(self, event):
 		
-		self.Destroy()
+		self.Close()
+		#self.Destroy()
 	
+	def on_setname(self, event):
+		
+		self.notify('setname')
+		
+	def on_dclick_peers(self, event):
+		
+		i = self.peer_listbox.HitTest(event.GetPosition())
+		print "left double clicked on", i
+		if i < 0: return
+		assert i < self.peer_listbox.GetCount()
+		ident = self.peer_listbox.GetClientData(i)
+		assert ident
+		self.notify('openchat', ident)
+		
+	def get_peer_index(self, peer):
+		
+		for i in range(self.peer_listbox.GetCount()):
+			if self.peer_listbox.GetClientData(i) == peer.ident:
+				return i
+		else:
+			return -1
+		
+	def peer_login(self, peer):
+		
+		assert self.get_peer_index(peer) < 0
+		self.peer_listbox.Append(peer.name, peer.ident)
+		
+	def peer_setname(self, peer):
+		
+		self.peer_listbox.SetString(self.get_peer_index(peer), peer.name)
+		
+	def peer_close(self, peer):
+		
+		self.peer_listbox.Delete(self.get_peer_index(peer))
+	
+class PeerList(dict):
+	
+	class Peer():
+		
+		def __init__(self, ident):
+			
+			self.ident = ident
+			self.name = ":".join(map(lambda p: str(p), ident))
+			self.frame = PeerFrame(self.handle_peerframe)
+			self.update_frame_title()
+			
+		def update_frame_title(self, title=None):
+			
+			assert title == None # who are you and why teh fuck u usnig this?
+			if title == None:
+				title = " ".join((self.name, "-", ":".join(map(lambda p: str(p), self.ident))))
+			self.frame.SetTitle(title)
+			
+		def handle_peerframe(self, caller, event, *data):	
+		
+			pass
+		
+		#def __del__(self):
+			
+			#print "wtf some faggot deleted me"
+			#self.frame.Destroy()		
+	
+	def login(self, ident):
+		
+		assert not self.has_key(ident)
+		self[ident] = self.Peer(ident)
+	
+	def close(self, ident):
+		
+		assert self.has_key(ident)
+		self[ident].frame.Destroy()
+		del self[ident]		
+
 class ClientApp(wx.App):
+	
+	user_name = os.environ['LOGNAME']
+	server_addr = ('localhost', 3000)
 	
 	def OnInit(self):
 		
-		self.peer_frames = {}
+		self.peers = PeerList()
 		
 		self.main_frame = MainFrame(self.handle_mainframe)
 		self.SetTopWindow(self.main_frame)
@@ -156,25 +300,66 @@ class ClientApp(wx.App):
 		self.sock_thread.stop()
 		self.server_handler.close()
 		self.sock_thread.join()
-		
+				
 	def handle_server(self, event, *data):
 		
 		#wx.CallAfter(getattr(self, attrfunc), *args)
-		getattr(self, 'server_' + event)(*data)
+		log(event, data)
+		wx.CallAfter(getattr(self, 'server_' + event), *data)
 		
-	def handle_mainframe(self, event, *args):
+	def handle_mainframe(self, caller, event, *args):
+		# event is not to be confused with a wx event...
+		assert caller == self.main_frame
+		getattr(self, 'user_' + event)(*args)
+				
+	def user_connect(self):
 		
-		assert event == "connect" and len(args) == 0
-		self.server_handler.connect(('localhost', 3000))
+		self.server_handler.connect(self.server_addr)
+	
+	def user_setname(self):
+		
+		print "settnig name!"
+		ted = wx.TextEntryDialog(self.main_frame, 'As whom do you wish to be known?', defaultValue=self.user_name)
+		if ted.ShowModal() == wx.ID_OK:
+			self.user_name = ted.GetValue()
+			self.server_handler.send('setname', self.user_name)
+		
+	def user_close(self):
+		
+		self.main_frame.Destroy()
+		for a in self.peers.keys():
+			self.peers.close(a)
+		#del self.peers
+		
+	def user_openchat(self, ident):
+		
+		self.peers[ident].frame.Show(True)
 		
 	def server_connected(self):
 		
-		self.server_handler.send('login')
-		self.server_handler.send('setname', 'penis_' + str(os.getpid()))
+		self.server_handler.send('login') and \
+		self.server_handler.send('setname', self.user_name)
 		
-	def server_login(self, peer):
+	def server_login(self, ident):
 		
-		pass
+		self.peers.login(ident)
+		self.main_frame.peer_login(self.peers[ident])
+		#self.main_frame.login(self.peers[ident])
+		
+	def server_setname(self, ident, name):
+		
+		self.peers[ident].name = name
+		self.peers[ident].update_frame_title()
+		self.main_frame.peer_setname(self.peers[ident])
+		
+	def server_error(self, errstr):
+		
+		print "server_error", errstr
+		
+	def server_close(self, ident):
+		
+		self.main_frame.peer_close(self.peers[ident])
+		self.peers.close(ident)
 	
 def main():
 	
