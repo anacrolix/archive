@@ -8,6 +8,12 @@ import os
 import time
 
 LINE_TERM = '\r\n'
+VERSION = '0.0.1-alpha'
+APP_NAME = 'Eru P2P'
+WEBSITE_URL = 'http://stupidape.dyndns.org'
+DEVELOPERS = ('Eruanno',)
+DESCRIPTION = \
+"""A simple Instant Messenger intended to provided reliable and simple chat and peer to peer file transfers."""
 
 def log(*info):
 
@@ -135,7 +141,7 @@ class PeerFrame(wx.Frame):
 		print msg_str
 		self.message_te.Clear()
 		print "STUB"
-		#self.notify('message', msg_str)	
+		self.notify('message', msg_str)
 		
 	def on_close(self, event):
 		
@@ -167,7 +173,7 @@ class MainFrame(wx.Frame):
 		mb.Append(m, '&Server')
 		m = wx.Menu()
 		mi = m.Append(-1, '&About')
-		self.Bind(wx.EVT_MENU, self.on_setname, mi)
+		self.Bind(wx.EVT_MENU, self.on_about, mi)
 		mb.Append(m, '&Help')
 		self.SetMenuBar(mb)
 	
@@ -183,12 +189,14 @@ class MainFrame(wx.Frame):
 	def on_about(self, event):
 		
 		info = wx.AboutDialogInfo()
-		info.SetName('Eru P2P')
-		info.SetVersion('0.0.1')
-		info.SetDescription("""A simple Instant Messenger intended to provided reliable and simple chat and peer to peer file transfers.""")
+		info.SetName(APP_NAME)
+		info.SetVersion(VERSION)
+		info.SetDescription(DESCRIPTION)
 		#info.SetCopyright('None!')
-		info.SetWebSite('http://stupidape.dyndns.org')
-		info.AddDeveloper('Eruanno')
+		info.SetWebSite(WEBSITE_URL)
+		for dev in DEVELOPERS:
+			info.AddDeveloper(dev)
+		
 		wx.AboutBox(info)
 		
 	def on_close(self, event):
@@ -236,6 +244,10 @@ class MainFrame(wx.Frame):
 		
 		self.peer_listbox.Delete(self.get_peer_index(peer))
 	
+	def peer_closeall(self):
+		
+		self.peer_listbox.Clear()
+	
 class PeerList(dict):
 	
 	class Peer():
@@ -272,7 +284,13 @@ class PeerList(dict):
 		
 		assert self.has_key(ident)
 		self[ident].frame.Destroy()
-		del self[ident]		
+		del self[ident]
+		
+	def __del__(self):
+		
+		print "PeerList.__del__"
+		keys = self.keys()
+		for key in keys: self.close(key)
 
 class ClientApp(wx.App):
 	
@@ -285,11 +303,12 @@ class ClientApp(wx.App):
 	
 	def OnInit(self):
 		"""Corresponds to OnExit()"""
-		self.peers = PeerList()
 		
 		self.main_frame = MainFrame(self.handle_mainframe)
 		self.SetTopWindow(self.main_frame)
-		self.main_frame.Show()		
+		self.main_frame.Show()
+		
+		self.reset_peers()
 		
 		self.sock_thread = AsyncSockThread()
 		self.sock_thread.start()
@@ -304,6 +323,11 @@ class ClientApp(wx.App):
 		self.sock_thread.stop()
 		self.server_handler.close()
 		self.sock_thread.join()
+	
+	def reset_peers(self):
+		
+		self.peers = PeerList()
+		self.main_frame.peer_closeall()
 				
 	def handle_server(self, event, *data):
 		
@@ -318,7 +342,8 @@ class ClientApp(wx.App):
 				
 	def user_connect(self):
 		
-		self.server_handler.connect(self.server_addr)
+		self.reset_peers()
+		self.server_handler.connect(self.server_addr)		
 	
 	def user_setname(self):
 		
@@ -362,8 +387,11 @@ class ClientApp(wx.App):
 		
 	def server_close(self, ident):
 		
-		self.main_frame.peer_close(self.peers[ident])
-		self.peers.close(ident)
+		try:
+			self.main_frame.peer_close(self.peers[ident])
+			self.peers.close(ident)
+		except KeyError:
+			print "No matching peer:", ident
 	
 def main():
 	
