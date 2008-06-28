@@ -276,11 +276,15 @@ class PeerList(dict):
 
 class ClientApp(wx.App):
 	
+	# both the below vars need to be saved and loaded from a log file...
+	
+	# need to test this on windows
 	user_name = os.environ['LOGNAME']
-	server_addr = ('localhost', 3000)
+	# need to provide a dialog to change this
+	server_addr = ('stupidape.dyndns.org', 3000)
 	
 	def OnInit(self):
-		
+		"""Corresponds to OnExit()"""
 		self.peers = PeerList()
 		
 		self.main_frame = MainFrame(self.handle_mainframe)
@@ -295,7 +299,7 @@ class ClientApp(wx.App):
 		return True
 		
 	def OnExit(self):
-		
+		"""This seems to get called after all frames have died."""
 		print "Closing sockets..."
 		self.sock_thread.stop()
 		self.server_handler.close()
