@@ -77,7 +77,7 @@ class PeerFrame(wx.Frame):
 
 class PeerList(dict):
 
-	class Peer():
+	class Peer(object):
 
 		def __init__(self,  event_cb, ident):
 
