@@ -4,11 +4,13 @@
 
 # set default focus on message_te in PeerFrame
 # popup dialog asking if you want all chats closed on shutdown
+# status bar declaring connection status
 
 import wx
 import os
 import sys
-from network import AsyncSockThread, ServerHandler
+import socket
+from network import AsyncSockThread, MessageDispatcher as ServerHandler
 
 VERSION = '0.0.1-alpha'
 APP_NAME = 'Eru P2P'
@@ -303,7 +305,7 @@ class ClientApp(wx.App):
 
 	# SERVER CALLBACKS
 
-	def handle_server_event(self, event, *data):
+	def handle_server_event(self, source, event, *data):
 
 		#wx.CallAfter(getattr(self, attrfunc), *args)
 		print "handle_server_event(", event, data, ")"
