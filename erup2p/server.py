@@ -4,6 +4,7 @@ import asyncore
 import socket
 #import pickle
 from network import MessageDispatcher as PeerDispatcher
+import pdb
 
 class Peer():
 
@@ -69,12 +70,13 @@ class PeerServer(asyncore.dispatcher):
 
 	def peer_cb_close(self, peer):
 
+		print "peer_cb_close(", peer.ident, ")"
+		peer.dispatcher.close()
 		del self.peers[peer.ident]
 		for other in self.peers.values():
 			assert not peer == other
 			assert not peer.ident == other.ident
 			other.send('close', peer.ident)
-		peer.dispatcher.close()
 
 	def peer_cb_message(self, peer, ident, message):
 
@@ -92,9 +94,6 @@ class PeerServer(asyncore.dispatcher):
 		assert not self.peers.has_key(addr)
 		self.peers[addr] = Peer(new_handler)
 		assert addr == self.peers[addr].dispatcher.addr
-
-
-
 
 def main():
 

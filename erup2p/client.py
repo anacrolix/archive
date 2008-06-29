@@ -1,18 +1,19 @@
 #!/bin/env python
 
+# TODO
+
+# set default focus on message_te in PeerFrame
+# popup dialog asking if you want all chats closed on shutdown
+
 import wx
 import os
-import network
-import asynchat
-import asyncore
-import threading
-import time
-import socket
+import sys
+from network import AsyncSockThread, ServerHandler
 
 VERSION = '0.0.1-alpha'
 APP_NAME = 'Eru P2P'
 WEBSITE_URL = 'http://stupidape.dyndns.org'
-DEVELOPERS = ('Eruanno',)
+DEVELOPERS = ('Eruanno <stupidape@hotmail.com>',)
 DESCRIPTION = \
 """A simple Instant Messenger intended to provided reliable and simple chat and peer to peer file transfers."""
 
@@ -20,68 +21,6 @@ def log(*info):
 
 	for i in info: print i,
 	print
-
-class AsyncSockThread(threading.Thread):
-
-	quit = False
-
-	def __init__(self, timeout=1.0):
-
-		threading.Thread.__init__(self)
-		self.timeout = timeout
-
-	def run(self):
-
-		while True:
-			asyncore.loop(timeout=self.timeout)
-			print "asyncore: No sockets"
-			if self.quit: break
-			time.sleep(self.timeout)
-
-	def stop(self):
-
-		self.quit = True
-
-class ServerHandler():
-
-	LINE_TERM = '\r\n'
-
-	def send(self, header, *data):
-
-		if not self.dispatcher: return False
-		try:
-			self.dispatcher.send(header, *data)
-			#self.dispatcher.send(repr((header, data)) + self.LINE_TERM)
-		except socket.error, str:
-			print str
-			self.notify_cb("error", str)
-			return False
-		return True
-
-	def __init__(self, notify_cb):
-
-		self.notify_cb = notify_cb
-		self.dispatcher = None
-
-	def handle_dispatcher(self, caller, event, *args):
-
-		assert caller == self.dispatcher
-		self.notify_cb(event, *args)
-
-	def connect(self, address):
-
-		try: self.dispatcher.close()
-		except AttributeError: pass
-		self.dispatcher = network.MessageDispatcher(self.handle_dispatcher)
-		self.dispatcher.connect(address)
-
-	def close(self):
-
-		try:
-			if self.dispatcher:
-				self.dispatcher.close()
-		except AttributeError:
-			print "lulz you never created a server dispatcher"
 
 #class PeerFileDropTarget(wx.FileDropTarget):
 
@@ -99,7 +38,8 @@ class PeerFrame(wx.Frame):
 		self.Bind(wx.EVT_CLOSE, self.on_close)
 		self.Bind(wx.EVT_TEXT_ENTER, self.on_enter)
 
-		self.history_te = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_AUTO_URL|wx.TE_READONLY)
+		self.history_te = wx.TextCtrl(self,
+			style=wx.TE_MULTILINE|wx.TE_AUTO_URL|wx.TE_READONLY)
 
 		self.message_te = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
 
@@ -117,7 +57,6 @@ class PeerFrame(wx.Frame):
 		msg_str = self.message_te.GetValue()
 		print msg_str
 		self.message_te.Clear()
-		print "STUB"
 		self.notify('enter_message', msg_str)
 
 	def add_history_message(self, speaker, message): # inbound?
@@ -133,6 +72,65 @@ class PeerFrame(wx.Frame):
 			self.Destroy()
 		else:
 			self.Show(False)
+
+class PeerList(dict):
+
+	class Peer():
+
+		def __init__(self,  event_cb, ident):
+
+			self.ident = ident
+			self.event_cb = event_cb
+			self.name = ":".join(map(lambda p: str(p), ident))
+			self.frame = PeerFrame(self.handle_peerframe)
+			self.update_frame_title()
+
+		def update_frame_title(self, title=None):
+
+			assert title == None # who are you and why teh fuck u usnig this?
+			if title == None:
+				title = " ".join((self.name, "-", ":".join(map(lambda p: str(p), self.ident))))
+			self.frame.SetTitle(title)
+
+		def handle_peerframe(self, caller, event, *data):
+
+			print "handle_peerframe(", caller
+			assert caller == self.frame
+			self.event_cb(self, event, *data)
+
+		#def __del__(self):
+
+			#print "wtf some faggot deleted me"
+			#self.frame.Destroy()
+
+	def __init__(self, event_cb):
+
+		self.event_cb = event_cb
+
+	def login(self, ident):
+
+		assert not self.has_key(ident)
+		self[ident] = self.Peer(self.event_cb, ident)
+
+	def close(self, ident, force=False):
+
+		assert self.has_key(ident)
+		if force or not self[ident].frame.IsShown():
+			self[ident].frame.Destroy()
+		else:
+			self[ident].frame.destroy_on_close = True
+		del self[ident]
+
+	def closeall(self, force=False):
+
+		for a in self.keys():
+			self.close(a, force)
+
+	def __del__(self):
+
+		print "PeerList.__del__"
+		keys = self.keys()
+		for key in keys: self.close(key)
 
 class MainFrame(wx.Frame):
 
@@ -235,59 +233,6 @@ class MainFrame(wx.Frame):
 
 		self.peer_listbox.Clear()
 
-class PeerList(dict):
-
-	class Peer():
-
-		def __init__(self,  event_cb, ident):
-
-			self.ident = ident
-			self.event_cb = event_cb
-			self.name = ":".join(map(lambda p: str(p), ident))
-			self.frame = PeerFrame(self.handle_peerframe)
-			self.update_frame_title()
-
-		def update_frame_title(self, title=None):
-
-			assert title == None # who are you and why teh fuck u usnig this?
-			if title == None:
-				title = " ".join((self.name, "-", ":".join(map(lambda p: str(p), self.ident))))
-			self.frame.SetTitle(title)
-
-		def handle_peerframe(self, caller, event, *data):
-
-			assert caller == self.frame
-			self.event_cb(self, event, *data)
-
-		#def __del__(self):
-
-			#print "wtf some faggot deleted me"
-			#self.frame.Destroy()
-
-	def __init__(self, event_cb):
-
-		self.event_cb = event_cb
-
-	def login(self, ident):
-
-		assert not self.has_key(ident)
-		self[ident] = self.Peer(self.event_cb, ident)
-
-	def close(self, ident, force=False):
-
-		assert self.has_key(ident)
-		if force or not self[ident].frame.IsShown():
-			self[ident].frame.Destroy()
-		else:
-			self[ident].frame.destroy_on_close = True
-		del self[ident]
-
-	def __del__(self):
-
-		print "PeerList.__del__"
-		keys = self.keys()
-		for key in keys: self.close(key)
-
 class ClientApp(wx.App):
 
 	# both the below vars need to be saved and loaded from a log file...
@@ -347,6 +292,7 @@ class ClientApp(wx.App):
 	def user_close(self):
 
 		self.main_frame.Destroy()
+		self.peers.closeall(True)
 		for a in self.peers.keys():
 			self.peers.close(a, True)
 		#del self.peers
@@ -360,13 +306,17 @@ class ClientApp(wx.App):
 	def handle_server_event(self, event, *data):
 
 		#wx.CallAfter(getattr(self, attrfunc), *args)
-		log(event, data)
+		print "handle_server_event(", event, data, ")"
+		#log(event, data)
 		wx.CallAfter(getattr(self, 'server_cb_' + event), *data)
 
 	def server_cb_connected(self):
 
-		self.server_handler.send('login') and \
-		self.server_handler.send('setname', self.user_name)
+		try:
+			self.server_handler.send('login')
+			self.server_handler.send('setname', self.user_name)
+		except socket.error, wtf:
+			print "Failed to login! Did you reconnect too quickly?", wtf[1]
 
 	def server_cb_login(self, ident):
 
@@ -384,13 +334,25 @@ class ClientApp(wx.App):
 
 		print "server_error", errstr
 
-	def server_cb_close(self, ident):
+	def server_cb_close(self, ident=None):
 
-		try:
-			self.main_frame.peer_close(self.peers[ident])
-			self.peers.close(ident)
-		except KeyError:
-			print "No matching peer:", ident
+		print "server_cb_close(", ident, ")"
+		if ident == None:
+			#try:
+			#if self.server_handler.connecting:
+			#	return
+			#except AttributeError, wtf:
+				#print wtf
+				#sys.exit(0)
+			#self.server_handler.close()
+			self.main_frame.peer_closeall()
+			self.peers.closeall()
+		else:
+			try:
+				self.main_frame.peer_close(self.peers[ident])
+				self.peers.close(ident)
+			except KeyError:
+				print "No matching peer:", ident
 
 	def server_cb_message(self, ident, message):
 
@@ -412,8 +374,11 @@ class ClientApp(wx.App):
 
 	def peerframe_cb_enter_message(self, peer, message):
 
-		print "peerframe_enter_message_cb:", peer.ident, message
-		self.server_handler.send('message', peer.ident, message)
+		print "peerframe_cb_enter_message(", peer.ident, message, ")"
+		if self.peers.has_key(peer.ident):
+			self.server_handler.send('message', peer.ident, message)
+		else:
+			peer.frame.add_history_message('Error', 'Recipient not available!')
 
 def main():
 
