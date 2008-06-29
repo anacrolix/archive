@@ -4,7 +4,6 @@ import asyncore
 import socket
 #import pickle
 from network import MessageDispatcher as PeerDispatcher
-import pdb
 
 class Peer():
 
@@ -16,8 +15,10 @@ class Peer():
 
 	def send(self, header, *data):
 
-		self.dispatcher.send(header, *data)
-		#self.dispatcher.send(repr((header, data)) + LINE_TERM)
+		try:
+			self.dispatcher.send(header, *data)
+		except socket.error, wtf:
+			print self.dispatcher.addr, "send(", header, data, ")", wtf
 
 	def __init__(self, dispatcher):
 
