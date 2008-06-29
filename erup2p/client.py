@@ -361,7 +361,7 @@ class ClientApp(wx.App):
 		print "server_cb_message(", ident, message, ")"
 		self.peers[ident].frame.add_history_message(self.peers[ident].name, message)
 		self.peers[ident].frame.Show(True)
-		self.peers[ident].frame.RequestUserAttention(wx.USER_ATTENTION_ERROR)
+		self.peers[ident].frame.RequestUserAttention()
 
 	def server_cb_msg_ack(self, ident, message):
 
