@@ -11,6 +11,7 @@ import os
 import sys
 import socket
 from network import AsyncSockThread, MessageDispatcher as ServerHandler
+import threading
 
 VERSION = '0.0.1-alpha'
 APP_NAME = 'Eru P2P'
@@ -23,6 +24,13 @@ def log(*info):
 
 	for i in info: print i,
 	print
+
+server_event = threading.Event()
+server_event.set()
+
+def funcyou():
+	print "setting server event"
+	server_event.set()
 
 #class PeerFileDropTarget(wx.FileDropTarget):
 
@@ -111,7 +119,8 @@ class PeerList(dict):
 
 	def login(self, ident):
 
-		assert not self.has_key(ident)
+		if self.has_key(ident):
+			print "login(", ident, ")", "is already logged in!"
 		self[ident] = self.Peer(self.event_cb, ident)
 
 	def close(self, ident, force=False):
@@ -305,12 +314,24 @@ class ClientApp(wx.App):
 
 	# SERVER CALLBACKS
 
+
+
 	def handle_server_event(self, source, event, *data):
 
 		#wx.CallAfter(getattr(self, attrfunc), *args)
 		print "handle_server_event(", event, data, ")"
 		#log(event, data)
 		wx.CallAfter(getattr(self, 'server_cb_' + event), *data)
+		#assert server_event.isSet()
+		#server_event.clear()
+		a = threading.Event()
+		assert not a.isSet()
+		print "cleared server event"
+		wx.CallAfter(lambda a: a.set(), a)
+		#wx.GetApp().ProcessPendingEvents()
+		print "waiting on server event"
+		a.wait()
+		print "server event completed"
 
 	def server_cb_connected(self):
 

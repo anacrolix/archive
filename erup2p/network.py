@@ -45,11 +45,18 @@ class MessageDispatcher(asynchat.async_chat):
 
 	def connect(self, address):
 
+		print "MessageDispatcher.connect(", address, ")"
 		try: self.close()
 		except AttributeError, wtf: print wtf
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.buffer = ''
+		#print "starting connect"
+		#self.settimeout(3.0)
+		self.setblocking(1)
 		asynchat.async_chat.connect(self, address)
+		assert self.connected
+		#self.setblocking(0)
+		print "finished waiting for connect"
 
 	def notify(self, event, *args):
 
