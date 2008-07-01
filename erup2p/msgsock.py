@@ -3,19 +3,17 @@
 import socket
 import select
 import time
+import errno
 
 socket_map = {}
 
-def poll(timeout, map):
+def poll(timeout):
 
-	print "poll(", timeout, map, ")"
+	print "poll(", timeout, ")"
 
-	if map is None:
-		map = socket_map
-	assert map
-
+	print socket_map
 	r = []; w = []; e = []
-	for fd, obj in map.items():
+	for fd, obj in socket_map.items():
 		is_r = obj.readable()
 		is_w = obj.writable()
 		if is_r:
@@ -24,62 +22,38 @@ def poll(timeout, map):
 			w.append(fd)
 		if is_r or is_w:
 			e.append(fd)
+
 	if [] == r == w == e:
 		time.sleep(timeout)
 	else:
-		#try:
-		r, w, e = select.select(r, w, e, timeout)
-		#except select.error, err:
-			#if err[0] != EINTR:
-				#raise
-			#else:
-				#return
-
+		if timeout is None:
+			r, w, e = select.select(r, w, e)
+		else:
+			r, w, e = select.select(r, w, e, timeout)
 	for fd in r:
-		#obj = map.get(fd)
-		#if obj is None:
-			#continue
-		map[fd].handle_read()
-		#read(obj)
-
+		socket_map[fd].read_event()
 	for fd in w:
-		#obj = map.get(fd)
-		#if obj is None:
-			#continue
-		#write(obj)
-		map[fd].handle_write()
-
+		socket_map[fd].write_event()
 	for fd in e:
-		#obj = map.get(fd)
-		#if obj is None:
-			#continue
-		#_exception(obj)
-		map[fd].handle_error()
+		socket_map[fd].expt_event()
 
-def loop(timeout=1.0, map=None, count=None):
-
-	if map is None:
-		map = socket_map
+def loop(timeout=None, count=None):
 
 	if count is None:
 		while True:
-			poll(timeout, map)
+			poll(timeout)
 	else:
 		while count > 0:
-			poll(timeout, map)
+			poll(timeout)
 			count = count - 1
 
 class Socket:
-	def __init__(self, map):
-		if map is None:
-			self._map = socket_map
-		else:
-			self._map = map
-	def map_socket(self):
-		assert not self._map.has_key(self._fileno)
-		self._map[self._fileno] = self
-	def unmap_socket(self):
-		del self._map[self._fileno]
+	def __init__(self): pass
+	def add_to_map(self):
+		assert not socket_map.has_key(self._fileno)
+		socket_map[self._fileno] = self
+	def del_from_map(self):
+		del socket_map[self._fileno]
 		self._fileno = None
 	def writable(self):
 		raise NotImplementedError
@@ -87,79 +61,116 @@ class Socket:
 		raise NotImplementedError
 
 class EndPoint(Socket):
+	maxread = 0x1000
 	connected = False
-	def __init__(self, sock=None, map=None, read_cb=None):
-		Socket.__init__(self, map)
-		if not read_cb is None:
-			self.read_cb = read_cb
-		if sock is None:
+	def __init__(self, sockobj=None):
+		Socket.__init__(self)
+		if sockobj is None:
 			self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		else:
-			self.socket = sock
+			self.socket = sockobj
 			self.connected = True
 		self._fileno = self.socket.fileno()
-		self.map_socket()
+		self.add_to_map()
 	def readable(self):
+		# readable when connected
 		return self.connected
 	def writable(self):
-		#print "EndPoint.writable()"
+		# writable on asynchronous connection event
 		return not self.connected
+	def read_event(self):
+		print "EndPoint.read_event(", self, ")"
+		data = self.socket.recv(self.maxread)
+		if not data:
+			self.close_event()
+		else:
+			self.handle_read(data)
+	def write_event(self):
+		print "EndPoint.write_event(", self, ")"
+		if not self.connected:
+			self.connect_event()
+		else:
+			self.handle_write()
+	def connect_event(self):
+		print "connect_event()"
+		errval = self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+		if errval is 0:
+			print "connection accepted"
+			self.connected = True
+			self.handle_connect()
+		else:
+			raise socket.error, (errval, errno.errorcode[errval])
+			self.handle_refused((errval, errno.errorcode[errval]))
+	def close_event(self):
+		self.del_from_map()
+		self.socket.close()
+		self.handle_close()
 	def send(self, data):
 		assert self.socket.send(data) == len(data)
-	def handle_read(self):
+	def handle_read(self, data):
 		print "EndPoint.handle_read(", self.socket.getsockname(), "<-", self.socket.getpeername(), ")"
-		data = self.socket.recv(4096)
-		assert data > 0
 		print data
-		return data
-	def connect(self, addr):
+	def connect(self, addr, timeout=None):
 		print "EndPoint.connect(", addr, ")"
 		#self.socket.settimeout(None)
-		self.socket.connect(addr)
+		self.socket.settimeout(timeout)
+		try:
+			self.socket.connect(addr)
+		except socket.error, err:
+			if timeout is not None and err[0] in (errno.EINPROGRESS,):
+				return
+			else:
+				raise
 	def handle_write(self):
 		print "EndPoint.handle_write(", self.socket.getsockname(), ")"
 		assert self.connected is False
+		err = self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+		print (err, errno.errorcode[err])
 		self.connected = True
+	def handle_close(self):
+		print "MyEndPoint.handle_close(", self, ")"
+		print "that's nice i closed, who cares?"
 
 class Server(Socket):
-	def __init__(self, port=None, iface=None, map=None, accept_cb=None):
-		Socket.__init__(self, map)
-		if not accept_cb is None:
-			self.accept_cb = accept_cb
+	backlog = 5
+	def __init__(self, port=None):
+		# does nothing
+		Socket.__init__(self)
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.set_reuse_addr()
 		self._fileno = self.socket.fileno()
-		self.map_socket()
-		if not port is None:
-			if iface is None:
-				iface = ''
-			self.socket.bind((iface, port))
-		else:
-			assert iface is None
-		assert self.socket.listen(5) is None
+		self.add_to_map()
+		if port is not None:
+			# all interfaces
+			self.socket.bind(('', port))
+		# not sure what else it can return...
+		assert self.socket.listen(self.backlog) is None
 	def set_reuse_addr(self):
-		print "set_reuse_addr()"
+		"""Set the first bit flag true on the reuse address socket flags"""
+		print "Server.set_reuse_addr(", self, ")"
 		opt = self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)
-		print "reuseaddr opt is", opt
+		print "setting reuseaddr opt from", opt,
 		opt |= 1
-		print "setting reuseaddr opt to", opt
+		print "to", opt
 		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, opt)
 	def writable(self):
+		# listening sockets are not writable
 		return False
 	def readable(self):
+		# readable on every connection attempts
 		return True
+	def read_event(self):
+		print "Server.read_event(", self, ")"
+		sock, addr = self.socket.accept()
+		print "received connection from", addr
+		self.handle_accept(EndPoint(sock))
 	def handle_read(self):
 		print "Server.handle_read()"
 		sock, addr = self.socket.accept()
 		print "received connection from", addr
 		self.handle_accept(sock)
-	def handle_write(self):
-		assert False
-	def handle_accept(self, sock):
-		try:
-			self.accept_cb(sock)
-		except TypeError:
-			raise NotImplementedError
+	def handle_accept(self, endpoint):
+		raise NotImplementedError
 
 def accept(sock):
 	print sock
@@ -168,11 +179,20 @@ def accept(sock):
 	#sock.close()
 
 def test():
+	class MyServer(Server):
+		def handle_accept(self, endpoint):
+			pass
+	class MyEndPoint(EndPoint):
+		def handle_connect(self):
+			print "MyEndPoint.handle_connect(", self, ")"
+		def handle_close(self):
+			print "MyEndPoint.handle_close(", self, ")"
 	print "test()"
-	c = EndPoint()
+	c = MyEndPoint()
+	s = MyServer(port=3000)
 	c.connect(('localhost', 3000))
-	s = Server(port=3000, accept_cb=accept)
-	#c.send("penis")
+	time.sleep(2.0)
+	c.send("penis")
 	loop(count=3)
 	c.send("penis")
 	loop()
@@ -180,69 +200,3 @@ def test():
 if __name__ == "__main__":
 	print "this is __main__"
 	test()
-
-#class Socket:
-
-	#def __init__(self, sock=None, map=None):
-		#print "Client.__init__()"
-
-		#assert map is None
-		#if map is None:
-			#self._map = socket_map
-		#else:
-			#self._map = map
-
-		#if sock is None:
-			#"creating new socket"
-			#self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		#else:
-			#"using existing socket"
-			#self.socket = sock
-		#self._fileno = self.socket.fileno()
-		#print "new socket has fd:", self._fileno
-		#self.add_channel()
-
-	#def add_channel(self):
-		#print "Client.add_channel()"
-		#assert not self._map.has_key(self._fileno)
-		#self._map[self._fileno] = self
-
-	#def del_channel(self):
-		#print "Client.del_channel()"
-		#del self._map[self._fileno]
-		#self._fileno = None
-
-	#def connect(self, address):
-		#self.socket.connect(address)
-        ## XXX Should interpret Winsock return values
-        ##if err in (EINPROGRESS, EALREADY, EWOULDBLOCK):
-            ##return
-        ##if err in (0, EISCONN):
-            ##self.addr = address
-            ##self.connected = True
-            ##self.handle_connect()
-        ##else:
-            ##raise socket.error, (err, errorcode[err])
-
-	#def listen(self, backlog=5):
-		#return self.socket.listen(backlog)
-
-	#def accept(self):
-		## XXX can return either an address pair or None
-		##try:
-		#conn, addr = self.socket.accept()
-		#return conn, addr
-		##except socket.error, why:
-			##if why[0] == EWOULDBLOCK:
-				##pass
-			##else:
-				##raise
-
-	#def readable(self):
-		#return True
-
-	#def writable(self):
-		#return True
-
-	#def handle_read(self):
-		#raise NotImplementedError
