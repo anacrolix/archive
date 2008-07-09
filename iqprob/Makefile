@@ -1,0 +1,3 @@
+LDFLAGS = -lm
+
+all: iqprob
