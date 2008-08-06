@@ -2,32 +2,42 @@
 #include <iostream>
 #include <deque>
 
-void show(int i) {
-	std::cout << i << std::endl;
+template<typename I, typename C, typename F>
+F mem_fun_for_each(I first, I last, C me, F func)
+{
+	for (; first != last; ++first)
+		(me->*func)(*first);
 }
 
 class A
 {
 public:
+	typedef std::deque<int> Noob;
+
 	A() {
 		noob.push_back(2);
 	}
 	virtual ~A() {
-		std::for_each(noob.begin(), noob.end(), show);
+		::mem_fun_for_each(noob.begin(), noob.end(), this, &A::show);
 	}
-		
-	template<void (std::deque<int>::*T)(int const &)>
+
+	template<void (Noob::*T)(int const &)>
 	void push(int i) {
 		(noob.*T)(i);
 	}
+
 	static void (A::*front)(int);
 	static void (A::*back)(int);
 private:
-	std::deque<int> noob;
+	void show(int i) {
+		std::cout << i << std::endl;
+	}
+
+	Noob noob;
 };
 
-void (A::*A::front)(int)(&A::push<&std::deque<int>::push_front>);
-void (A::*A::back)(int)(&A::push<&std::deque<int>::push_back>);
+void (A::*A::front)(int)(&A::push<&Noob::push_front>);
+void (A::*A::back)(int)(&A::push<&Noob::push_back>);
 
 int main()
 {
@@ -36,4 +46,3 @@ int main()
 	(a.*A::front)(1);
 	return 0;
 }
-
