@@ -32,11 +32,11 @@ void dump_stack(stack);
 int main(int argc, char** argv)
 {
 	stack s;
+	int c;
 	if(!(s = malloc(sizeof(*s)))) {
 		fprintf(stderr, "Error: malloc failed in stack_init\n");
 		exit(EXIT_FAILURE);
 	}
-	char c;
 	while ((c=getchar()) != EOF) {
 		insert_stack(s, c);
 	}
@@ -66,8 +66,7 @@ void insert_stack(stack s, char c)
 		s->top->next = temp;
 	}
 }
-
-dump_stack(stack s)
+void dump_stack(stack s)
 {
 	snode temp;
 	while(s->top != NULL) {
