@@ -26,13 +26,16 @@ typedef struct snode_s {
 }snode_t;
 
 void insert_stack(stack, char);
-void dump_stack(snode);
+void dump_stack(stack);
 
 
 int main(int argc, char** argv)
 {
 	stack s;
-	s = malloc(sizeof(*s));
+	if(!(s = malloc(sizeof(*s)))) {
+		fprintf(stderr, "Error: malloc failed in stack_init\n");
+		exit(EXIT_FAILURE);
+	}
 	char c;
 	while ((c=getchar()) != EOF) {
 		insert_stack(s, c);
@@ -47,12 +50,18 @@ void insert_stack(stack s, char c)
 {
 	snode temp;
 	if (s->top == NULL) {	/*stack is empty!*/
-		s->top = malloc(sizeof(*s));
+		if(!(s->top = malloc(sizeof(*s->top)))) {
+			fprintf(stderr, "Error: malloc failed in snode_init\n");
+			exit(EXIT_FAILURE);
+		}
 		s->top->data = c;
 		s->top->next = NULL;
 	} else {				/*stack isn't empty*/
 		temp = s->top;
-		s->top = malloc(sizeof(*s));
+		if(!(s->top = malloc(sizeof(*s->top)))) {
+			fprintf(stderr, "Error: malloc failed in snode_init\n");
+			exit(EXIT_FAILURE);
+		}
 		s->top->data = c;
 		s->top->next = temp;
 	}
