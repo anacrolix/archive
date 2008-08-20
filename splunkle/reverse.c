@@ -23,31 +23,36 @@ typedef struct stack_s {
 typedef struct snode_s {
 	snode next;
 	char data;
-} snode_t;
+}snode_t;
 
-void insert_stack(snode, char);
+void insert_stack(stack, char);
 void dump_stack(snode);
 
 
 int main(int argc, char** argv)
 {
 	stack s;
+	s = malloc(sizeof(*s));
+	char c;
 	while ((c=getchar()) != EOF) {
 		insert_stack(s, c);
 	}
 	dump_stack(s);
+	free(s);
+	s = NULL;
+	return EXIT_SUCCESS;
 }
 
 void insert_stack(stack s, char c)
 {
 	snode temp;
 	if (s->top == NULL) {	/*stack is empty!*/
-		s->top = malloc(sizeof(*snode));
+		s->top = malloc(sizeof(*s));
 		s->top->data = c;
 		s->top->next = NULL;
 	} else {				/*stack isn't empty*/
 		temp = s->top;
-		s->top = malloc(sizeof(*snode));
+		s->top = malloc(sizeof(*s));
 		s->top->data = c;
 		s->top->next = temp;
 	}
