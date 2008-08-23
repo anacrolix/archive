@@ -1,4 +1,0 @@
-##
-=sys-libs/glibc-2.8_p20080602
-=net-misc/dhcpcd-4.0.0_rc3
-=dev-java/icedtea-9999
