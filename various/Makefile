@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -std=c99 -O2 -Wall
+CFLAGS = -std=c99 -Wall -g
 
-EXES = buftest revbuf jackrev
+EXES = buftest revbuf jackrev ssltest
 
 all: clean ${EXES}
 
@@ -10,3 +10,6 @@ clean:
 
 jackrev: jackrev.hs
 	ghc -O2 -fvia-C -optc-O2 --make jackrev.hs
+
+ssltest: ssltest.o
+	$(CC) -o $@ $< -lcrypto
