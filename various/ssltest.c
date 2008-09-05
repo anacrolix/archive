@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <openssl/rsa.h>
+#include <openssl/err.h>
 
 #define dimof(array) (sizeof(array) / sizeof(*array))
 
@@ -75,10 +77,59 @@ void print_rsa_values(RSA * rsa)
 
 int main (int argc, char * argv[])
 {
+	ERR_load_crypto_strings();
+
+	int const nr_rsa_bits = 1024;
 	openssl_cb_arg cb_arg = INIT_OPENSSL_CB_ARG(stderr);
 	RSA *rsa = RSA_generate_key(
-		1024, 0x10001, generate_rsa_key_callback, &cb_arg);
+		nr_rsa_bits, 0x10001, generate_rsa_key_callback, &cb_arg);
 	assert(rsa);
 	print_rsa_values(rsa);
+
+	assert(RSA_size(rsa) * 8 == nr_rsa_bits);
+	char from[50] = {'\0'};
+	strcpy(from, "hello there :)\n");
+	unsigned char to[nr_rsa_bits / 8];
+	int size = RSA_public_encrypt(50, (void*)from, to, rsa, RSA_PKCS1_OAEP_PADDING);
+	if (size < 0)
+		ERR_print_errors_fp(stderr);
+	printf("%d\n", size);
+	FILE *od = popen("od -t x1", "w");
+	assert(od);
+	assert(fwrite(to, 1, size, od) == size);
+	pclose(od);
+	assert(size != -1);
+
+	assert(size == nr_rsa_bits / 8);
+	char plaintext[size];
+	size = RSA_private_decrypt(size, to, plaintext, rsa, RSA_PKCS1_OAEP_PADDING);
+	assert(size != -1);
+
+	printf("%s", plaintext);
+	od = popen("od -A d -t x1", "w");
+	assert(od);
+	assert(fwrite(plaintext, 1, 128, od) == 128);
+	pclose(od);
+
+#if 0
+	for (int i = 3; i < 8; i++) {
+		BIGNUM **bn = (void *)(rsa) + RSA_FIELD_NAMES[i].off;
+		BN_free(*bn);
+		*bn = NULL;
+	}
+#endif
+	RSA_print_fp(stdout, rsa, 0);
+
+	assert(1 == PEM_write_RSAPrivateKey(
+		stdout,
+		rsa,
+		NULL, NULL, 0, NULL, NULL, NULL));
+#if 0
+	FILE *fp, RSA *x, const EVP_CIPHER *enc,
+                                        unsigned char *kstr, int klen,
+                                        pem_password_cb *cb, void *u);
+#endif
+
+	ERR_free_strings();
 	return 0;
 }
