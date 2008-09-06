@@ -36,7 +36,8 @@ struct rsa_value_desc_st const rsa_value_descs =
 };
 
 static long unsigned EXPONENT = 0x10001UL; // 65357 ?
-static int PADDING = RSA_PKCS1_OAEP_PADDING;
+static int PADDING_TYPE = RSA_PKCS1_OAEP_PADDING;
+static int PADDING_SIZE = 41;
 
 void init_rsa()
 {
@@ -59,18 +60,25 @@ void rsa_free(RSA ** rsa)
 	*rsa = NULL;
 }
 
+/**
+@param flen: Number of bytes at from
+@param to: Must point to RSA_size(rsa) bytes
+*/
 int rsa_public_encrypt(RSA * rsa, int flen, void * from, void * to)
 {
-	int tlen = RSA_public_encrypt(flen, from, to, rsa, PADDING);
+	assert(flen < RSA_size(rsa) - PADDING_SIZE);
+	int tlen = RSA_public_encrypt(flen, from, to, rsa, PADDING_TYPE);
 	assert(tlen != -1);
+	assert(tlen == RSA_size(rsa));
 	return tlen;
 }
 
 int rsa_private_decrypt(RSA * rsa, int flen, void * from, void * to)
 {
 	int tlen = RSA_private_decrypt(
-		flen, from, to, rsa, PADDING);
+		flen, from, to, rsa, PADDING_TYPE);
 	assert(tlen != -1);
+	assert(tlen < RSA_size(rsa) - PADDING_SIZE); // curious
 	return tlen;
 }
 

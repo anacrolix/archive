@@ -1,0 +1,13 @@
+1 to 1 chat/file transfer
+
+A, B: open client
+B: "hey i'm listening on host:port, my pub key sig is AB:CD:..."
+A: connect to host:port
+B: sends public key
+A: verifies key as given securely by B
+A: sends session key encrypted with B's public key
+B: decrypts session key using private key
+B: sends confirmation to A encrypted with session key
+A: initiates request...
+A, B: make love over session-encrypted stream
+

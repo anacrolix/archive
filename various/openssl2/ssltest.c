@@ -14,11 +14,19 @@ void print_rsa(RSA * rsa)
 	rsa_values_free(dec);
 }
 
+void hex_dump(void * bin, size_t len)
+{
+	FILE *fp = popen("od -A x -t x1", "w");
+	fwrite(bin, 1, len, fp);
+	pclose(fp);
+}
+
 int main (int argc, char * argv[])
 {
 	init_rsa();
 
-	RSA *rsa = rsa_new_keypair(1024);
+	int const bits = 1024;
+	RSA *rsa = rsa_new_keypair(bits);
 	assert(rsa);
 
 	printf("KEYPAIR\n");
@@ -34,12 +42,22 @@ int main (int argc, char * argv[])
 	rsa_free(&rsa);
 	rsa_free(&rsa); /* test for breakage */
 	RSA *prvkey = NULL, *pubkey = NULL;
-	prvkey = rsa_load_private(NULL, prv);
+	rsa_load_private(&prvkey, prv);
 	pubkey = rsa_load_public(&pubkey, pub);
 	printf("\nPRIVATE KEY\n");
 	print_rsa(prvkey);
 	printf("\nPUBLIC KEY\n");
 	print_rsa(pubkey);
+
+	char message[] = "hi there!! :)";
+	hex_dump(message, sizeof(message));
+	char buf[bits/8];
+	assert(rsa_public_encrypt(pubkey, sizeof(message), message, buf) == bits/8);
+	hex_dump(buf, sizeof(buf));
+	char plain[bits/8];
+	assert(rsa_private_decrypt(prvkey, bits/8, buf, plain) == sizeof(message));
+	hex_dump(plain, sizeof(plain));
+	puts(plain);
 
 	fini_rsa();
 	return EXIT_SUCCESS;
