@@ -1,9 +1,9 @@
-CFLAGS = -std=c99 -g
+CFLAGS = -std=c99 -g -Wall
 
 all: clean ssltest
 
 clean:
 	-rm -fv *.o ssltest
 
-ssltest: ssltest.o
-	$(CC) -o $@ $< -lcrypto
+ssltest: ssltest.o minrsa.o
+	$(CC) -o $@ $^ -lcrypto
