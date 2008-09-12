@@ -67,7 +67,7 @@ int sleep_m(unsigned long milisec)
 
 int main(int argc, char *argv[])
 {
-	srand( (unsigned int) time(NULL));
+	srand(time(NULL));
 
 	CarPark.size = CAR_PARK_SIZE; //it's empty
 	CarPark.keep_running = 1; //let it ruunn
@@ -86,13 +86,13 @@ int main(int argc, char *argv[])
     {
         printf("Error creating monitor thread.. :' (");
         abort();
-        
+
     }
-	
+
 
 	//Create the arrival thread
 	//hmm, i wonder if I can reuse the above variables? Stupid memory managment. I'll play it safe
-	pthread_t tid2;  
+	pthread_t tid2;
 	pthread_attr_t attr2;
 	pthread_attr_init(&attr2);
 	if( pthread_create(&tid2, &attr2, arrival, NULL) )
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 
 
 	//Create the departure thread
-	pthread_t tid3;  
+	pthread_t tid3;
 	pthread_attr_t attr3;
 	pthread_attr_init(&attr3);
 	if( pthread_create(&tid3, &attr3, departure, NULL) )
@@ -112,11 +112,11 @@ int main(int argc, char *argv[])
         abort();
     }
 
-	
-	///hmmmm, now don't exit. lol.	
+
+	///hmmmm, now don't exit. lol.
 	//wait for 'em all to finish
 	pthread_join(tid, NULL);
-	pthread_join(tid2, NULL);	
+	pthread_join(tid2, NULL);
 	pthread_join(tid3, NULL);
 
 	return 0;
@@ -128,7 +128,7 @@ int rand_i(int min, int max)
 	double numer = (double)(max-min+1)*rand();
 
 	int range = (int) (numer / denom);
-	
+
 	int ans = min + range;
 
 	assert(ans >= min && ans <= max);
@@ -141,26 +141,26 @@ int rand_i(int min, int max)
 
 
 char *new_car() //generate a new name for a car
-{	
+{
 	char* str = malloc(12); //size of car string
 	int i; //counter
 
 
 	//how a man makes a string
-	
+
 	str[0] = (char) rand_i('A','Z'); //random letter
 	str[1] = (char) rand_i('A','Z');
 	str[2] = ' ';
 	str[3] = (char) rand_i('1','9'); //first digit must not be a zero
-	
+
 	for(i = 4; i < 11; i++)
 		str[i] = (char) rand_i('0','9');
 
 	str[11] = '\0';
 
 	//You liked that? didn't you?
-	
-	
+
+
 
 	return str;
 
@@ -170,9 +170,9 @@ char* theTime()
 {
 	time_t x;
 	x = time(&x);
-	
+
 	char* t = ctime(&x);
-	
+
 	t[strlen(t)-2] = ' '; //replace new line with space
 
 	return t;
@@ -228,8 +228,8 @@ void *arrival(void *arg)
 
 		if(rand_i(1,100) > ARRIVAL_PERCENT_ACTION)
 			continue; //haha, you fail. Go back and try again. lol.
-		
-		
+
+
 		char* carName = new_car();
 
 		add_car(carName);
@@ -245,10 +245,10 @@ void *departure(void *arg)
 	while(CarPark.keep_running)
 	{
 		sleep_m(TIME_OUT_SLEEP);
-		
+
 		if(rand_i(1,100) > DEPARTURE_PERCENT_ACTION)
 			continue; //go back and try again
-		
+
 		remove_car();
 
 	}
@@ -269,7 +269,7 @@ void *monitor(void *arg)
 		{
 			printf("<---- Key [%c] has been pressed ---->\n", c);
 			printf("<---- Quitting Program ---->\n");
-			
+
 
 			CarPark.keep_running = 0;
 			break;
