@@ -282,9 +282,7 @@ void add_car(char *car)
 	strcpy(carpark.buffer[availableSpot], car); //save a copy
 
 
-	carpark.size--;
-
-	printf("%s: Car %s has arrived.\n", theTime(), car);
+	printf("%s: Car %s has arrived.\t\t(%i spots remaining)\n", theTime(), car, --carpark.size);
 
 
 	//end logiz
@@ -308,13 +306,10 @@ void remove_car()
 		removeCar = rand_i(0, CAR_PARK_SIZE-1);		//pick a carpark
 	} while (carpark.buffer[removeCar] == 0);    //is it empty?
 
-	printf("%s: Car %s has left.\n", theTime(), carpark.buffer[removeCar]);
+	printf("%s: Car %s has left.\t\t(%i spots remaining) \n", theTime(), carpark.buffer[removeCar], ++carpark.size);
 
 	free(carpark.buffer[removeCar]);
 	carpark.buffer[removeCar] = 0;
-
-
-	carpark.size++;
 
 
 	pthread_mutex_unlock(&carpark.mutex);
