@@ -125,26 +125,13 @@ int rand_i(int min, int max)
 
 char *new_car() //generate a new name for a car
 {
-	char* str = malloc(12); //size of car string
+	char* str = malloc(12); // size of car string
 	int i; //counter
-
-
-	//how a man makes a string
-
-	str[0] = (char) rand_i('A','Z'); //random letter
-	str[1] = (char) rand_i('A','Z');
-	str[2] = ' ';
-	str[3] = (char) rand_i('1','9'); //first digit must not be a zero
-
-	for(i = 4; i < 11; i++)
-		str[i] = (char) rand_i('0','9');
-
-	str[11] = '\0';
+	int n = sprintf(str, "%c%c %d",
+		rand_i('A', 'Z'), rand_i('A', 'Z'), rand_i(10000000, 99999999));
+	assert(n = 11);
 
 	//You liked that? didn't you?
-
-
-
 	return str;
 
 }
@@ -157,7 +144,7 @@ char* theTime()
 	char* t = ctime(&x);
 
 	t[strlen(t)-1] = ' '; //replace new line with space
-	
+
 	return t;
 }
 
@@ -216,8 +203,7 @@ void *arrival(void *arg)
 		char* carName = new_car();
 
 		add_car(carName);
-
-
+		free(carName);
 	}
 
 }
@@ -270,24 +256,15 @@ void add_car(char *car)
 	pthread_mutex_lock(&carpark.mutex);
 
 	//actual logic
-
-
 	do
 	{
 		availableSpot = rand_i(0, CAR_PARK_SIZE-1);			//pick a carpark
-	} while (carpark.buffer[availableSpot] != 0);    //is it full?
+	} while (carpark.buffer[availableSpot] != NULL);    //is it full?
 
-	carpark.buffer[availableSpot] = malloc(strlen(car) + 1);
-
-	strcpy(carpark.buffer[availableSpot], car); //save a copy
-
-
+	carpark.buffer[availableSpot] = strdup(car);
 	printf("%s: Car %s has arrived.\t(%i free)\n", theTime(), car, --carpark.size);
 
-
 	//end logiz
-
-
 	pthread_mutex_unlock(&carpark.mutex);
 	sem_post(&carpark.full); //release full
 }
