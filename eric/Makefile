@@ -4,7 +4,7 @@ CFLAGS = -Wall
 all: carpark.exe
 
 carpark.exe: carpark.o
-	$(CC) $^ -o $@ -lpthread
+	$(CC) $^ -o $@ -lpthread -lm
 
 carpark.o: assignment1.c
 	$(CC) $< -c -o $@

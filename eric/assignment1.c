@@ -122,16 +122,10 @@ int main(int argc, char *argv[])
 
 int rand_i(int min, int max)
 {
-	double denom = (RAND_MAX+1.0);
-	double numer = (double)(max-min+1)*rand();
-
-	int range = (int) (numer / denom);
-
-	int ans = min + range;
-
-	assert(ans >= min && ans <= max);
-
-	return ans;
+	double roll = rand() / (RAND_MAX + 1.0);
+	int range = max + 1 - min;
+	int result = min + floor(roll * range);
+	assert(result >= min && result <= max);
 }
 
 
