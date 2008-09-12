@@ -18,7 +18,7 @@
 #define CAR_PARK_SIZE 10
 
 /* prob of arrival of car */
-#define ARRIVAL_PERCENT_ACTION 80
+#define ARRIVAL_PERCENT_ACTION 60
 
 /* prob of departure of car */
 #define DEPARTURE_PERCENT_ACTION 40
@@ -115,8 +115,6 @@ int main(int argc, char *argv[])
 	///hmmmm, now don't exit. lol.
 	//wait for 'em all to finish
 	pthread_join(tid, NULL);
-	pthread_join(tid2, NULL);
-	pthread_join(tid3, NULL);
 
 	return 0;
 }
@@ -317,7 +315,7 @@ void remove_car()
 		removeCar = rand_i(0, CAR_PARK_SIZE-1);		//pick a carpark
 	} while (carpark.buffer[removeCar] == 0);    //is it empty?
 
-	printf("%s Car %s has left.\n", theTime(), carpark.buffer[removeCar]);
+	printf("%s: Car %s has left.\n", theTime(), carpark.buffer[removeCar]);
 
 	free(carpark.buffer[removeCar]);
 	carpark.buffer[removeCar] = 0;
