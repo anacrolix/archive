@@ -165,8 +165,8 @@ char* theTime()
 
 	char* t = ctime(&x);
 
-	t[strlen(t)-2] = ' '; //replace new line with space
-
+	t[strlen(t)-1] = ' '; //replace new line with space
+	
 	return t;
 }
 
