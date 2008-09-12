@@ -3,7 +3,7 @@ all: carpark.exe
 carpark.exe: carpark.o
 	cc carpark.o -o carpark.exe -lpthread
 
-carpark.o:
+carpark.o: assignment1.c
 	cc assignment1.c -c -o carpark.o
 
 clean:
