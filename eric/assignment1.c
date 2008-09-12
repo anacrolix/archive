@@ -26,17 +26,16 @@
 #define TIME_OUT_SLEEP 1500
 
 
-
 typedef struct {
-    char *buffer[CAR_PARK_SIZE];    // stores carpark cars
-    int  keep_running;		    // set false to exit threads
-    int  size;			    // car parks left
+	char *buffer[CAR_PARK_SIZE];	///< stores carpark cars
+	int  keep_running;		///< set false to exit threads
+	int  size;			///< car parks left
 	sem_t empty;
 	sem_t full;
 	pthread_mutex_t mutex;
-} carpark;
+} CarPark;
 
-carpark CarPark; //our global carpark
+CarPark carpark; ///< our global carpark
 
 void *monitor(void *arg);
 void *arrival(void *arg);
@@ -45,13 +44,13 @@ void add_car(char *car);
 void remove_car();
 void show_cars();
 char *new_car();
-char* theTime();
+char *theTime();
 char grabChar();
 int rand_i(int min, int max);
-int sleep_m(unsigned long milisec);
+int sleep_ms(unsigned long milisec);
 
 
-int sleep_m(unsigned long milisec)
+int sleep_ms(unsigned long milisec)
 {
     struct timespec req={0};
     time_t sec=(int)(milisec/1000);
@@ -69,25 +68,24 @@ int main(int argc, char *argv[])
 {
 	srand(time(NULL));
 
-	CarPark.size = CAR_PARK_SIZE; //it's empty
-	CarPark.keep_running = 1; //let it ruunn
+	carpark.size = CAR_PARK_SIZE; //it's empty
+	carpark.keep_running = 1; //let it ruunn
 
 	//Initialize the the locks
-	pthread_mutex_init(&CarPark.mutex, NULL);
-	sem_init(&CarPark.empty, 0, CAR_PARK_SIZE);
-	sem_init(&CarPark.full, 0, 0);
+	pthread_mutex_init(&carpark.mutex, NULL);
+	sem_init(&carpark.empty, 0, CAR_PARK_SIZE);
+	sem_init(&carpark.full, 0, 0);
 
 	//Create the monitor thread (listens to the keyboard and does printing)..
 	pthread_t tid;
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 
-	if(	pthread_create(&tid, &attr, monitor, NULL) )
-    {
-        printf("Error creating monitor thread.. :' (");
-        abort();
-
-    }
+	if (pthread_create(&tid, &attr, monitor, NULL))
+	{
+		printf("Error creating monitor thread.. :' (");
+		abort();
+	}
 
 
 	//Create the arrival thread
@@ -134,7 +132,6 @@ int rand_i(int min, int max)
 	assert(ans >= min && ans <= max);
 
 	return ans;
-
 }
 
 
@@ -207,9 +204,9 @@ void show_cars()
 
 	for(i = 0; i < CAR_PARK_SIZE; i++)
 	{
-		if(CarPark.buffer[i])
+		if(carpark.buffer[i])
 		{
-			printf("Car %i :: %s -- parked in spot: %i\n", ++counter, CarPark.buffer[i], i);
+			printf("Car %i :: %s -- parked in spot: %i\n", ++counter, carpark.buffer[i], i);
 		}
 	}
 	printf("-----------\n");
@@ -222,9 +219,9 @@ void *arrival(void *arg)
 {
 	int r;
 
-	while(CarPark.keep_running)
+	while(carpark.keep_running)
 	{
-		sleep_m(TIME_OUT_SLEEP);			 //bed time!
+		sleep_ms(TIME_OUT_SLEEP);			 //bed time!
 
 		if(rand_i(1,100) > ARRIVAL_PERCENT_ACTION)
 			continue; //haha, you fail. Go back and try again. lol.
@@ -242,9 +239,9 @@ void *arrival(void *arg)
 void *departure(void *arg)
 {
 
-	while(CarPark.keep_running)
+	while(carpark.keep_running)
 	{
-		sleep_m(TIME_OUT_SLEEP);
+		sleep_ms(TIME_OUT_SLEEP);
 
 		if(rand_i(1,100) > DEPARTURE_PERCENT_ACTION)
 			continue; //go back and try again
@@ -271,7 +268,7 @@ void *monitor(void *arg)
 			printf("<---- Quitting Program ---->\n");
 
 
-			CarPark.keep_running = 0;
+			carpark.keep_running = 0;
 			break;
 
 		}
@@ -283,8 +280,8 @@ void add_car(char *car)
 {
 	int availableSpot; //which carpark we'll park in
 
-	sem_wait(&CarPark.empty); //aquire empty
-	pthread_mutex_lock(&CarPark.mutex);
+	sem_wait(&carpark.empty); //aquire empty
+	pthread_mutex_lock(&carpark.mutex);
 
 	//actual logic
 
@@ -292,14 +289,14 @@ void add_car(char *car)
 	do
 	{
 		availableSpot = rand_i(0, CAR_PARK_SIZE-1);			//pick a carpark
-	} while (CarPark.buffer[availableSpot] != 0);    //is it full?
+	} while (carpark.buffer[availableSpot] != 0);    //is it full?
 
-	CarPark.buffer[availableSpot] = malloc(strlen(car) + 1);
+	carpark.buffer[availableSpot] = malloc(strlen(car) + 1);
 
-	strcpy(CarPark.buffer[availableSpot], car); //save a copy
+	strcpy(carpark.buffer[availableSpot], car); //save a copy
 
 
-	CarPark.size--;
+	carpark.size--;
 
 	printf("%s: Car %s has arrived.\n", theTime(), car);
 
@@ -307,34 +304,34 @@ void add_car(char *car)
 	//end logiz
 
 
-	pthread_mutex_unlock(&CarPark.mutex);
-	sem_post(&CarPark.full); //release full
+	pthread_mutex_unlock(&carpark.mutex);
+	sem_post(&carpark.full); //release full
 }
 
 void remove_car()
 {
 	int removeCar; //which car we'll remove
 
-	sem_wait(&CarPark.full); //aquire it
-	pthread_mutex_lock(&CarPark.mutex);
+	sem_wait(&carpark.full); //aquire it
+	pthread_mutex_lock(&carpark.mutex);
 
 	//h'ok, this is easy
 
 	do
 	{
 		removeCar = rand_i(0, CAR_PARK_SIZE-1);		//pick a carpark
-	} while (CarPark.buffer[removeCar] == 0);    //is it empty?
+	} while (carpark.buffer[removeCar] == 0);    //is it empty?
 
-	printf("%s Car %s has left.\n", theTime(), CarPark.buffer[removeCar]);
+	printf("%s Car %s has left.\n", theTime(), carpark.buffer[removeCar]);
 
-	free(CarPark.buffer[removeCar]);
-	CarPark.buffer[removeCar] = 0;
-
-
-	CarPark.size++;
+	free(carpark.buffer[removeCar]);
+	carpark.buffer[removeCar] = 0;
 
 
-	pthread_mutex_unlock(&CarPark.mutex);
-	sem_post(&CarPark.empty); //release empty
+	carpark.size++;
+
+
+	pthread_mutex_unlock(&carpark.mutex);
+	sem_post(&carpark.empty); //release empty
 
 }
