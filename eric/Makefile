@@ -1,3 +1,6 @@
+CC = gcc
+CFLAGS = -Wall
+
 all: carpark.exe
 
 carpark.exe: carpark.o
