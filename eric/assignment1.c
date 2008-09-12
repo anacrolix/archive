@@ -23,7 +23,7 @@
 /* prob of departure of car */
 #define DEPARTURE_PERCENT_ACTION 40
 
-/* miliseconds to sleep between arrivals/departures */
+/* milliseconds to sleep between arrivals/departures */
 #define TIME_OUT_SLEEP 1500
 
 
