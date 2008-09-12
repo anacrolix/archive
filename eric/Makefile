@@ -7,4 +7,4 @@ carpark.o: assignment1.c
 	$(CC) $< -c -o $@
 
 clean:
-	$(RM) -f *.o carpark.exe
+	-$(RM) *.o carpark.exe
