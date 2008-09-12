@@ -1,10 +1,10 @@
 all: carpark.exe
 
 carpark.exe: carpark.o
-	cc carpark.o -o carpark.exe -lpthread
+	$(CC) $^ -o $@ -lpthread
 
 carpark.o: assignment1.c
-	cc assignment1.c -c -o carpark.o
+	$(CC) $< -c -o $@
 
 clean:
-	rm -f *.o carpark.exe
+	$(RM) -f *.o carpark.exe
