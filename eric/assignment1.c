@@ -1,18 +1,16 @@
+#include <sys/time.h>
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <math.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <string.h>
-#include <errno.h>
-#include <ctype.h>
-#include <semaphore.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
-#include <assert.h>
-#include <math.h>
-
 
 /* max number of cars the carpark can hold */
 #define CAR_PARK_SIZE 10
@@ -25,7 +23,6 @@
 
 /* milliseconds to sleep between arrivals/departures */
 #define TIME_OUT_SLEEP 1500
-
 
 typedef struct {
 	char *buffer[CAR_PARK_SIZE];	///< stores carpark cars
@@ -50,20 +47,16 @@ char grabChar();
 int rand_i(int min, int max);
 int sleep_ms(unsigned long milisec);
 
-
-int sleep_ms(unsigned long milisec)
+int sleep_ms(unsigned long ms)
 {
-    struct timespec req={0};
-    time_t sec=(int)(milisec/1000);
-    milisec=milisec-(sec*1000);
-    req.tv_sec=sec;
-    req.tv_nsec=milisec*1000000L;
-    while(nanosleep(&req,&req)==-1)
-         continue;
-    return 1;
+	struct timespec req = {0};
+	time_t sec = ms / 1000;
+	ms = ms - (sec * 1000);
+	req.tv_sec = sec;
+	req.tv_nsec = ms * 1e6L;
+	while (nanosleep(&req, &req) == -1);
+	return 1;
 }
-
-
 
 int main(int argc, char *argv[])
 {
