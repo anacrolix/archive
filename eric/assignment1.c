@@ -282,7 +282,7 @@ void add_car(char *car)
 	strcpy(carpark.buffer[availableSpot], car); //save a copy
 
 
-	printf("%s: Car %s has arrived.\t\t(%i spots remaining)\n", theTime(), car, --carpark.size);
+	printf("%s: Car %s has arrived.\t(%i free)\n", theTime(), car, --carpark.size);
 
 
 	//end logiz
@@ -306,7 +306,7 @@ void remove_car()
 		removeCar = rand_i(0, CAR_PARK_SIZE-1);		//pick a carpark
 	} while (carpark.buffer[removeCar] == 0);    //is it empty?
 
-	printf("%s: Car %s has left.\t\t(%i spots remaining) \n", theTime(), carpark.buffer[removeCar], ++carpark.size);
+	printf("%s: Car %s has left.\t(%i free) \n", theTime(), carpark.buffer[removeCar], ++carpark.size);
 
 	free(carpark.buffer[removeCar]);
 	carpark.buffer[removeCar] = 0;
