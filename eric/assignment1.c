@@ -22,7 +22,7 @@
 #define DEPARTURE_PERCENT_ACTION 40
 
 /* milliseconds to sleep between arrivals/departures */
-#define TIME_OUT_SLEEP 1500
+#define TIME_OUT_SLEEP 800
 
 typedef struct {
 	char *buffer[CAR_PARK_SIZE];	///< stores carpark cars
