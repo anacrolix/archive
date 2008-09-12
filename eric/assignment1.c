@@ -11,6 +11,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <assert.h>
+#include <math.h>
 
 
 /* max number of cars the carpark can hold */
@@ -122,9 +123,9 @@ int main(int argc, char *argv[])
 
 int rand_i(int min, int max)
 {
-	double roll = rand() / (RAND_MAX + 1.0);
-	int range = max + 1 - min;
-	int result = min + floor(roll * range);
+	double roll = rand() / (RAND_MAX + 1.0); // [0.0, 1.0)
+	int range = max + 1 - min; // [min, max + 1]
+	int result = min + floor(roll * range); //
 	assert(result >= min && result <= max);
 }
 
