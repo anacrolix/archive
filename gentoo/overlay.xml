@@ -2,10 +2,10 @@
 <layman>
   <overlays>
     <overlay type="svn"
-	     src="http://stupidape.dyndns.org/svn/gentoo"
+	     src="https://stupidape.dyndns.org/svn/gentoo"
 	     contact="anacrolix@gmail.com"
 	     name="stupidape">
-      <link>http://stupidape.dyndns.org/</link>
+      <link>https://stupidape.dyndns.org/</link>
       <description>
       Contains my ebuilds and portage modifications.
       </description>
