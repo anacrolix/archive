@@ -1,9 +1,10 @@
+FSTOOLS = truncate mkfs.vvsfs
 obj-m := vvsfs.o
 
-default: vvsfs
+all: $(FSTOOLS) vvsfs
 
 vvsfs:
 	$(MAKE) -C /usr/src/linux SUBDIRS=$(PWD) modules
 
 clean:
-	$(RM) *.{o,ko}
+	$(RM) *.o $(FSTOOLS) vvsfs.ko
