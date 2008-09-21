@@ -49,7 +49,7 @@ static struct super_operations vvsfs_ops;
 
 static void vvsfs_put_super(struct super_block *sb)
 {
-	debug("vvsfs_put_super()");
+	debug("vvsfs_put_super()\n");
 	return;
 }
 
@@ -197,44 +197,48 @@ static int vvsfs_empty_inode(struct super_block *sb)
 	return -1;
 }
 
-/** vvsfs_new_inode - find and construct a new inode. */
-struct inode *vvsfs_new_inode(const struct inode *dir)
+/**
+Find a spare sector and construct a new inode.
+*/
+struct inode *vvsfs_new_inode(
+	const struct inode *dir, int mode)
 {
 	struct vvsfs_inode block;
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;
 	int inum;
 
-	debug("vvsfs_new_inode(dir ino: %lu)\n",
-		dir->i_ino);
+	debug("vvsfs_new_inode(dir ino: %lu, mode: %o)\n",
+		dir->i_ino, mode);
 
 	/* create a new inode in this super block */
-	if (!dir || !(inode = new_inode(sb)))
-		return NULL;
+	if (!(inode = new_inode(sb)))
+		return ERR_PTR(-ENOMEM);
 
 	/* find a spare inode in the vvsfs */
 	inum = vvsfs_empty_inode(sb);
 	if (inum == -1) {
-		printk("vvsfs: all inodes taken\n");
-		return NULL;
+		printk("vvsfs_new_inode(): all inodes taken\n");
+		return ERR_PTR(-ENOSPC);
 	}
 
 	/* write out the inode */
 	block.is_empty = false;
 	block.size = 0;
-	block.is_directory = false;
+	block.is_directory = S_ISDIR(mode);
 	vvsfs_writeblock(sb, inum, &block);
 
 	inode->i_sb = sb;
 	inode->i_flags = 0;
 	inode->i_ino = inum;
+	//inode->i_blocks = 0;
 	inode->i_nlink = 1;
 	inode->i_size = 0;
-	inode->i_uid = 0;
-	inode->i_gid = 0;
-	inode->i_ctime = inode->i_mtime = inode->i_atime = CURRENT_TIME;
-	inode->i_mode = S_IRUGO|S_IWUSR|S_IFREG; // 644 f
-	inode->i_op = NULL;
+	inode->i_uid = current->fsuid;
+	inode->i_gid = current->fsgid;
+	inode->i_ctime = inode->i_mtime = inode->i_atime = CURRENT_TIME_SEC;
+	inode->i_mode = mode; // 644 f
+	//inode->i_op = NULL;
 
 	insert_inode_hash(inode);
 
@@ -242,7 +246,7 @@ struct inode *vvsfs_new_inode(const struct inode *dir)
 }
 
 /**
-vvsfs_create - create a new file in a directory
+Creates a new file in a directory.
 called from namei.c:vfs_create()
 */
 static int vvsfs_create(
@@ -264,20 +268,19 @@ static int vvsfs_create(
 
 	/* ensure there is enough space available for another entry */
 	check(sizeof(dir_block.data) == MAXFILESIZE);
-	if (dir_block.size + sizeof(*dent) > sizeof(dir_block.data))
+	if (dir_block.size + sizeof(*dent) > sizeof(dir_block.data)) {
+		debug("vvsfs_create(): can't fit more dentries on this inode\n");
 		return -ENOSPC; // correct error?
+	}
 
-	/* get an vfs inode */
-	if (!dir) return -1; // this doesn't look right
-
-	inode = vvsfs_new_inode(dir);
-	if (!inode)
-		return -ENOSPC;
+	inode = vvsfs_new_inode(dir, mode);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	/* vvsfs'ify it */
 	inode->i_op = &vvsfs_file_inode_operations;
 	inode->i_fop = &vvsfs_file_operations;
-	inode->i_mode = mode;
+	//inode->i_mode = mode;
 
 	/* copy the dentry into the dir inode */
 	dent = (struct vvsfs_dir_entry *)
@@ -446,6 +449,7 @@ static int vvsfs_permission(
 {
 	debug("vvsfs_permission(ino: %lu, mask: %x, name: %s, mode: %o)\n",
 		inode->i_ino, mask, (nd?nd->last.name:0), inode->i_mode);
+	check(nd);
 	check(!(mask & ~0xf));
 	check(S_ISREG(inode->i_mode));
 	return 0;
