@@ -4,9 +4,9 @@ mntdir="testmountpoint"
 loopdev="testvvsfs.img"
 
 cleanup () {
-	sudo umount $mntdir
+	sudo umount "$mntdir"
 	sudo rmmod vvsfs
-	rm -rvf $mntdir
+	rmdir -v "$mntdir"
 }
 
 if [ "$1" == "down" ]; then
