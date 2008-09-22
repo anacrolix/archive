@@ -8,62 +8,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <unistd.h>
 #include "vvsfs.h"
 
 char *device_name;
 int device;
 
-static void die(char *mess) {
-  fprintf(stderr,"Exit : %s\n",mess);
-  exit(1);
+static void die(char *mess)
+{
+	fprintf(stderr,"Exit : %s\n",mess);
+	exit(1);
 }
 
-static void usage(void) {
-   die("Usage : mkfs.vvsfs <device name>)");
+static void usage(void)
+{
+	die("Usage : mkfs.vvsfs <device name>)");
 }
 
-int main(int argc, char ** argv) {
-  int k;
+int main(int argc, char ** argv)
+{
+	if (argc != 2) usage();
 
-   if (argc != 2) usage();
+	// open the device for reading and writing
+	device_name = argv[1];
+	device = open(device_name, O_RDWR);
 
-  // open the device for reading and writing
-  device_name = argv[1];
-  device = open(device_name,O_RDWR);
+	off_t pos=0;
+	struct vvsfs_inode inode;
 
+	int i;
+	for (i = 0; i < NUMBLOCKS; i++) {  // write each of the blocks
+		printf("writing : %d\n",i);
+		if (i == 0) {  // the first block is an empty directory
+			inode.flags = VVSFS_IF_DIR;
+		} else {
+			inode.flags = VVSFS_IF_EMPTY;
+		}
+		inode.size = 0;
+		for (int k = 0; k < MAXFILESIZE; k++)
+			inode.data[k] = 0;
+		// move the file pointer to the correct block
+		if (pos != lseek(device, pos, SEEK_SET))
+			die("seek set failed");
+		// write the block
+		if (sizeof(struct vvsfs_inode) != write(device, &inode, sizeof(struct vvsfs_inode)))
+			die("inode write failed");
 
-  off_t pos=0;
-  struct vvsfs_inode inode;
+		pos += sizeof(struct vvsfs_inode);
 
+	}
 
-  int i;
-  for (i = 0; i < NUMBLOCKS; i++) {  // write each of the blocks
-    printf("writing : %d\n",i);
-    if (i == 0) {  // the first block is an empty directory
-      inode.is_empty = 0;
-      inode.is_directory = 1;
-    } else {
-      inode.is_empty = 1;
-      inode.is_directory = 0;
-    }
-    inode.size = 0;
-    for (k = 0;k< MAXFILESIZE;k++) inode.data[k] = 0;
-
-
-    if (pos != lseek(device,pos,SEEK_SET)) // move the file pointer to the correct block
-      die("seek set failed");
-    if (sizeof(struct vvsfs_inode) !=
-	write(device,&inode,sizeof(struct vvsfs_inode))) // write the block
-      die("inode write failed");
-
-
-    pos += sizeof(struct vvsfs_inode);
-
-  }
-
-
-
-  close(device);
-  return 0;
+	close(device);
+	return 0;
 }
 
