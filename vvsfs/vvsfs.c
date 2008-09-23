@@ -491,19 +491,43 @@ static ssize_t vvsfs_file_read(
 	return count;
 }
 
+/**
+Returns non-zero if the requested permission bits are present
+*/
+static inline int has_perm(
+	int mask, short unsigned mode)
+{
+	debug("vvsfs: has_perm(mask: %o, mode: %o)\n",
+		mask, mode);
+	check(!(mask & ~07));
+	mask &= 07;
+	if ((mode & mask) == mask)
+		return 1;
+	else
+		return 0;
+}
+
 static int vvsfs_permission(
 	struct inode *inode, int mask, struct nameidata *nd)
 {
 	debug("vvsfs_permission(ino: %lu, mask: %x, name: %s, mode: %o)\n",
 		inode->i_ino, mask, (nd?nd->last.name:0), inode->i_mode);
 	check(nd);
-	check(!(mask & ~0xf));
+	check(!(mask & ~07));
 	check(S_ISREG(inode->i_mode));
-	return 0;
-#if 0
-deny:
+	if (inode->i_uid == current->fsuid) {
+		if (has_perm(mask, inode->i_mode >> 6))
+			goto allow;
+	}
+	if (in_group_p(inode->i_gid)) {
+		if (has_perm(mask, inode->i_mode >> 3))
+			goto allow;
+	}
+	if (has_perm(mask, inode->i_mode))
+		goto allow;
 	return -EACCES;
-#endif
+allow:
+	return 0;
 }
 
 static struct file_operations vvsfs_file_operations = {
