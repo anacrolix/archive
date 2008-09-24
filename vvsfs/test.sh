@@ -1,12 +1,13 @@
 #!/bin/bash
 
-mntdir="testmountpoint"
-loopdev="testvvsfs.img"
+mntdir="mountdir"
+loopdev="testblock"
 
 cleanup () {
-	sudo umount "$mntdir"
-	sudo rmmod vvsfs
+	sudo umount -v "$mntdir"
+	sudo rmmod -v vvsfs
 	rmdir -v "$mntdir"
+	rm -v "$loopdev"
 }
 
 if [ "$1" == "down" ]; then
@@ -18,16 +19,16 @@ dd if=/dev/zero of="$loopdev" bs=512 count=100
 ./mkfs.vvsfs "$loopdev"
 mkdir "$mntdir"
 sudo insmod vvsfs.ko
-sudo mount -o loop "$loopdev" "$mntdir"
+sudo mount -vo loop -t vvsfs "$loopdev" "$mntdir"
 if [ "$1" == "up" ]; then
 	exit 0
 fi
-cd "$mntdir"
-for fn in a b c d e; do
+[ -d "$mntdir" ] && cd "$mntdir"
+for fn in a b c d e ; do
 	echo $fn > $fn
 done
 for z in 1 2 3; do
-	for fn in *; do
+	for fn in * ; do
 		cp -v $fn "${fn}${fn}"
 	done
 done
