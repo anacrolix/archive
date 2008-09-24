@@ -214,7 +214,7 @@ static struct dentry * vvsfs_lookup(
 
 			inode = vvsfs_iget(dir->i_sb, dent->inode_number);
 			if (IS_ERR(inode))
-				return ERR_CAST(inode);
+				return inode; // want ERR_CAST
 #if 0
 			d_add(dentry, inode);
 			return NULL;
@@ -549,10 +549,10 @@ static struct inode_operations vvsfs_dir_inode_operations = {
 	unlink:		vvsfs_unlink,
 };
 
+#if 0
 // vvsfs_read_inode - read an inode from the block device
 static void vvsfs_read_inode(struct inode *i)
 {
-#if 0
 	struct vvsfs_inode filedata;
 
 	if (DEBUG) {
@@ -584,8 +584,8 @@ static void vvsfs_read_inode(struct inode *i)
 		i->i_op = &vvsfs_file_inode_operations;
 		i->i_fop = &vvsfs_file_operations;
 	}
-#endif
 }
+#endif
 
 /**
 Initializes a newly mounting vvsfs device.
