@@ -27,8 +27,8 @@ struct addrinfo *ai;
 
 bool do_options(int *, char ***);
 void do_addrinfo();
-void do_client(int);
-void do_server(int);
+void do_client();
+void do_server();
 
 int main(int argc, char *argv[])
 {
@@ -37,15 +37,12 @@ int main(int argc, char *argv[])
 
 	do_addrinfo();
 
-	int sockfd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-	assert(sockfd != -1 && sockfd >= 0);
-
 	switch (mode) {
 	case CLIENT:
-		do_client(sockfd);
+		do_client();
 		break;
 	case SERVER:
-		do_server(sockfd);
+		do_server();
 		break;
 	}
 
@@ -131,18 +128,18 @@ void recv_file(int recvfd)
 	char path[0x100] = {'\0'};
 	long next = 0;
 	while (true) {
-		ssize_t ssz = recv(
-			recvfd, &path[next],
-			sizeof(path) - next - 1, // leave room for \0
-			0);
-		if (ssz == 0) continue; // try again
-		else if (ssz == -1) {
+		assert(next < sizeof(path));
+		ssize_t ssz = recv(recvfd, &path[next], 1, 0);
+		assert(ssz >= -1 && ssz <= 1);
+		if (ssz == -1) {
 			perror("recv");
 			return;
+		} else if (ssz == 0) {
+			continue;
+		} else if (ssz == 1) {
+			if (path[next] == '\0') break;
+			next++;
 		}
-		if (strlen(&path[next]) == ssz - 1)
-			break; // the last byte was \0
-		next += ssz;
 	}
 	printf("recv'd filename: \"%s\"\n", path);
 	FILE *fp = fopen(path, "wx"); // write-only, open exclusively
@@ -156,15 +153,17 @@ void recv_file(int recvfd)
 		if (ssz == -1) {
 			perror("recv");
 			goto out_fp;
-		}
+		} else if (ssz == 0) break;
 		verify(ssz == fwrite(buf, 1, ssz, fp));
 	}
 out_fp:
+	printf("received %ld bytes\n", ftell(fp));
 	verify(!fclose(fp));
 }
 
-void do_server(int sockfd)
+void do_server()
 {
+	int sockfd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	int optval = 1;
 	verify(!setsockopt(
 		sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)));
@@ -180,36 +179,45 @@ void do_server(int sockfd)
 			remaddr.ss_family, get_sockaddr_sinaddr(&remaddr),
 			s, sizeof(s)));
 		printf("accepted %s\n", s);
+		verify(!shutdown(SHUT_WR));
 		recv_file(newfd);
+		verify(!shutdown(newfd, SHUT_RDWR));
 		verify(!close(newfd));
 	}
 }
 
-void send_file(int sockfd, char *fname)
+bool send_file(char *filename)
 {
+	int sock, c;
 	char s[INET6_ADDRSTRLEN];
-	inet_ntop(ai->ai_family, get_sockaddr_sinaddr(ai->ai_addr), s, sizeof(s));
-	printf("connecting to %s\n", s);
-	int d = connect(sockfd, ai->ai_addr, ai->ai_addrlen);
-	assert(!d);
-	d = send(sockfd, fname, strlen(fname) + 1, 0);
-	assert(d == strlen(fname) + 1);
-	printf("sent %d bytes\n", d);
-	FILE *fp = fopen(fname, "r");
-	assert(fp);
-	int c;
+	FILE *fp;
+
+	verify(-1 != (sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol)));
+	verify(s == inet_ntop(ai->ai_family, get_sockaddr_sinaddr(ai->ai_addr), s, sizeof(s)));
+	fprintf(stderr, "connecting to %s\n", s);
+	verify(-1 != connect(sock, ai->ai_addr, ai->ai_addrlen));
+	verify(!shutdown(sock, SHUT_RD));
+	verify(strlen(filename)+1 == send(sock, filename, strlen(filename)+1, 0));
+	fprintf(stderr, "sent filename (%lu bytes)\n", strlen(filename)+1);
+	verify(fp = fopen(filename, "r"));
 	while ((c = fgetc(fp)) != EOF) {
-		d = send(sockfd, &c, 1, 0);
-		if (d != 1) {
-			perror("send()");
-		}
+		char b = c;
+		ssize_t ssz = send(sock, &b, 1, MSG_NOSIGNAL);
+		if (ssz == 1) continue;
+		perror("send");
+		printf("send returned %ld\n", ssz);
+		goto out;
 	}
+	verify(!ferror(fp) && feof(fp));
+out:
+	printf("sent %ld bytes\n", ftell(fp));
+	verify(!close(sock));
 }
 
-void do_client(int sockfd)
+void do_client()
 {
 	assert(*files);
-	for (int i = 0; files[i]; i++) {
-		send_file(sockfd, files[i]);
-	}
+	char **filename = files;
+	assert(filename);
+	do send_file(*filename); while (*++filename);
 }
