@@ -1,0 +1,341 @@
+diff -rup amarok-1.90/src/browsers/servicebrowser/ampache/CMakeLists.txt amarok-1.90-ryan/src/browsers/servicebrowser/ampache/CMakeLists.txt
+--- amarok-1.90/src/browsers/servicebrowser/ampache/CMakeLists.txt	2008-08-20 09:15:04.000000000 +1000
++++ amarok-1.90-ryan/src/browsers/servicebrowser/ampache/CMakeLists.txt	2008-09-26 23:54:24.000000000 +1000
+@@ -25,7 +25,7 @@
+ 
+ 
+         kde4_add_plugin(amarok_service_ampache ${amarok_service_ampache_PART_SRCS})
+-        target_link_libraries(amarok_service_ampache amaroklib ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
++        target_link_libraries(amarok_service_ampache amaroklib amarokpud ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
+ 
+ 
+         install(TARGETS amarok_service_ampache DESTINATION ${PLUGIN_INSTALL_DIR} )
+diff -rup amarok-1.90/src/browsers/servicebrowser/jamendo/CMakeLists.txt amarok-1.90-ryan/src/browsers/servicebrowser/jamendo/CMakeLists.txt
+--- amarok-1.90/src/browsers/servicebrowser/jamendo/CMakeLists.txt	2008-08-20 09:15:04.000000000 +1000
++++ amarok-1.90-ryan/src/browsers/servicebrowser/jamendo/CMakeLists.txt	2008-09-26 23:52:56.000000000 +1000
+@@ -23,7 +23,7 @@
+         )
+ 
+         kde4_add_plugin(amarok_service_jamendo ${amarok_service_jamendo_PART_SRCS})
+-        target_link_libraries(amarok_service_jamendo amaroklib ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
++        target_link_libraries(amarok_service_jamendo amaroklib amarokpud ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
+ 
+ 
+         install(TARGETS amarok_service_jamendo DESTINATION ${PLUGIN_INSTALL_DIR} )
+diff -rup amarok-1.90/src/browsers/servicebrowser/lastfm/CMakeLists.txt amarok-1.90-ryan/src/browsers/servicebrowser/lastfm/CMakeLists.txt
+--- amarok-1.90/src/browsers/servicebrowser/lastfm/CMakeLists.txt	2008-08-20 09:15:06.000000000 +1000
++++ amarok-1.90-ryan/src/browsers/servicebrowser/lastfm/CMakeLists.txt	2008-09-26 23:57:29.000000000 +1000
+@@ -99,7 +99,7 @@
+         add_definitions(-DUNICORN_DLLEXPORT_PRO -DMOOSE_DLLEXPORT_PRO -DQT_XML_LIB)
+ 
+         kde4_add_plugin(amarok_service_lastfm ${amarok_service_lastfm_PART_SRCS})
+-        target_link_libraries(amarok_service_lastfm amaroklib ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
++        target_link_libraries(amarok_service_lastfm amaroklib amarokpud ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
+         if (APPLE)
+           target_link_libraries(amarok_service_lastfm /System/Library/Frameworks/SystemConfiguration.framework)
+         endif (APPLE)
+diff -rup amarok-1.90/src/browsers/servicebrowser/magnatunestore/CMakeLists.txt amarok-1.90-ryan/src/browsers/servicebrowser/magnatunestore/CMakeLists.txt
+--- amarok-1.90/src/browsers/servicebrowser/magnatunestore/CMakeLists.txt	2008-08-20 09:15:04.000000000 +1000
++++ amarok-1.90-ryan/src/browsers/servicebrowser/magnatunestore/CMakeLists.txt	2008-09-26 23:51:55.000000000 +1000
+@@ -39,7 +39,7 @@
+         )
+ 
+         kde4_add_plugin(amarok_service_magnatunestore ${amarok_service_magnatune_PART_SRCS})
+-        target_link_libraries(amarok_service_magnatunestore amaroklib ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
++        target_link_libraries(amarok_service_magnatunestore amaroklib amarokpud ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
+ 
+ 
+         install(TARGETS amarok_service_magnatunestore DESTINATION ${PLUGIN_INSTALL_DIR} )
+diff -rup amarok-1.90/src/browsers/servicebrowser/opmldirectory/CMakeLists.txt amarok-1.90-ryan/src/browsers/servicebrowser/opmldirectory/CMakeLists.txt
+--- amarok-1.90/src/browsers/servicebrowser/opmldirectory/CMakeLists.txt	2008-08-20 09:15:04.000000000 +1000
++++ amarok-1.90-ryan/src/browsers/servicebrowser/opmldirectory/CMakeLists.txt	2008-09-26 23:58:32.000000000 +1000
+@@ -23,7 +23,7 @@
+         )
+ 
+         kde4_add_plugin(amarok_service_opmldirectory ${amarok_service_opmldirectory_PART_SRCS})
+-        target_link_libraries(amarok_service_opmldirectory amaroklib ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
++        target_link_libraries(amarok_service_opmldirectory amaroklib amarokpud ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
+ 
+ 
+         install(TARGETS amarok_service_opmldirectory DESTINATION ${PLUGIN_INSTALL_DIR} )
+diff -rup amarok-1.90/src/browsers/servicebrowser/shoutcast/CMakeLists.txt amarok-1.90-ryan/src/browsers/servicebrowser/shoutcast/CMakeLists.txt
+--- amarok-1.90/src/browsers/servicebrowser/shoutcast/CMakeLists.txt	2008-08-20 09:15:06.000000000 +1000
++++ amarok-1.90-ryan/src/browsers/servicebrowser/shoutcast/CMakeLists.txt	2008-09-26 23:55:12.000000000 +1000
+@@ -23,7 +23,7 @@
+ 
+ 
+         kde4_add_plugin(amarok_service_shoutcast ${amarok_service_shoutcast_PART_SRCS})
+-        target_link_libraries(amarok_service_shoutcast amaroklib ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
++        target_link_libraries(amarok_service_shoutcast amaroklib amarokpud ${KDE4_KDECORE_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES})
+ 
+ 
+         install(TARGETS amarok_service_shoutcast DESTINATION ${PLUGIN_INSTALL_DIR} )
+diff -rup amarok-1.90/src/CMakeLists.txt amarok-1.90-ryan/src/CMakeLists.txt
+--- amarok-1.90/src/CMakeLists.txt	2008-08-20 09:15:26.000000000 +1000
++++ amarok-1.90-ryan/src/CMakeLists.txt	2008-09-27 01:05:54.000000000 +1000
+@@ -541,9 +541,11 @@ target_link_libraries(amaroklib
+     ${KDE4_KFILE_LIBS}
+     ${KDE4_THREADWEAVER_LIBRARIES}
+     ${KDE4_KNEWSTUFF2_LIBS}
++    ${KDE4_SOLID_LIBS}
+     ${QT_QTOPENGL_LIBRARY}
+     ${OPENGL_gl_LIBRARY}
+     ${OPENGL_glu_LIBRARY}
++    ${QT_QTWEBKIT_LIBRARY}
+     ${QT_QTSCRIPT_LIBRARY}
+     ${KDE4_PHONON_LIBRARY}
+     ${CMAKE_THREAD_LIBS_INIT}
+Only in amarok-1.90-ryan/src: .CMakeLists.txt.swp
+diff -rup amarok-1.90/src/collection/daap/CMakeLists.txt amarok-1.90-ryan/src/collection/daap/CMakeLists.txt
+--- amarok-1.90/src/collection/daap/CMakeLists.txt	2008-08-20 09:15:09.000000000 +1000
++++ amarok-1.90-ryan/src/collection/daap/CMakeLists.txt	2008-09-26 23:59:44.000000000 +1000
+@@ -22,7 +22,7 @@ set(amarok_collection-daapcollection_PAR
+ 
+ kde4_add_plugin(amarok_collection-daapcollection WITH_PREFIX ${amarok_collection-daapcollection_PART_SRCS})
+ 
+-target_link_libraries(amarok_collection-daapcollection amaroklib ${KDE4_THREADWEAVER_LIBRARIES} ${KDE4_KDNSSD_LIBS})
++target_link_libraries(amarok_collection-daapcollection amaroklib ${KDE4_THREADWEAVER_LIBRARIES} ${KDE4_KDNSSD_LIBS} ${QT_QTNETWORK_LIBRARY})
+ 
+ if(APPLE)
+ 	SET_TARGET_PROPERTIES(amarok_collection-daapcollection PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+diff -rup amarok-1.90/src/collection/ipodcollection/CMakeLists.txt amarok-1.90-ryan/src/collection/ipodcollection/CMakeLists.txt
+--- amarok-1.90/src/collection/ipodcollection/CMakeLists.txt	2008-08-20 09:15:09.000000000 +1000
++++ amarok-1.90-ryan/src/collection/ipodcollection/CMakeLists.txt	2008-09-27 00:02:12.000000000 +1000
+@@ -28,7 +28,7 @@ if (IPOD_FOUND AND GDK_FOUND)
+ 	handler/IpodHandler.cpp)	
+ 	kde4_add_plugin(amarok_collection-ipodcollection WITH_PREFIX ${amarok_collection-ipodcollection_PART_SRCS})
+ 
+-	target_link_libraries(amarok_collection-ipodcollection amaroklib ${KDE4_THREADWEAVER_LIBRARIES} ${GLIB2_LIBRARIES} ${GDK_LIBRARIES} ${IPOD_LIBRARIES} )
++	target_link_libraries(amarok_collection-ipodcollection amaroklib amarokpud ${KDE4_KIO_LIBS} ${KDE4_KDEUI_LIBS} ${KDE4_THREADWEAVER_LIBRARIES} ${GLIB2_LIBRARIES} ${GDK_LIBRARIES} ${IPOD_LIBRARIES} )
+ 
+ 	install(TARGETS amarok_collection-ipodcollection DESTINATION ${PLUGIN_INSTALL_DIR} )
+ 
+diff -rup amarok-1.90/src/collection/nepomukcollection/CMakeLists.txt amarok-1.90-ryan/src/collection/nepomukcollection/CMakeLists.txt
+--- amarok-1.90/src/collection/nepomukcollection/CMakeLists.txt	2008-08-20 09:15:08.000000000 +1000
++++ amarok-1.90-ryan/src/collection/nepomukcollection/CMakeLists.txt	2008-09-27 00:03:47.000000000 +1000
+@@ -36,7 +36,10 @@ kde4_add_plugin(amarok_collection-nepomu
+ 
+ target_link_libraries(amarok_collection-nepomukcollection 
+     amaroklib 
++    amarokpud
+     ${KDE4_THREADWEAVER_LIBRARIES} 
++    ${KDE4_KIO_LIBS}
++    ${KDE4_KDEUI_LIBS}
+     ${NEPOMUK_LIBRARIES}
+     ${SOPRANO_LIBRARIES})
+ 
+diff -rup amarok-1.90/src/collection/sqlcollection/CMakeLists.txt amarok-1.90-ryan/src/collection/sqlcollection/CMakeLists.txt
+--- amarok-1.90/src/collection/sqlcollection/CMakeLists.txt	2008-08-20 09:15:09.000000000 +1000
++++ amarok-1.90-ryan/src/collection/sqlcollection/CMakeLists.txt	2008-09-27 01:22:42.000000000 +1000
+@@ -55,11 +55,15 @@ kde4_add_ui_files(amarok_collection-sqlc
+ 
+ kde4_add_plugin(amarok_collection-sqlcollection WITH_PREFIX ${amarok_collection-sqlcollection_PART_SRCS})
+ 
+-target_link_libraries(amarok_collection-sqlcollection amaroklib
+-${KDE4_KDECORE_LIBS} ${KDE4_THREADWEAVER_LIBRARIES}
++target_link_libraries(amarok_collection-sqlcollection amaroklib amarokpud
++${KDE4_KDEUI_LIBS} ${KDE4_KIO_LIBS} ${KDE4_THREADWEAVER_LIBRARIES}
+ ### ${MYSQL_EMBEDDED_LIBRARIES} crypt ssl
+ )
+ 
++if(USE_SYSTEM_SQLITE)
++	target_link_libraries(amarok_collection-sqlcollection ${SQLITE_LIBRARIES})
++endif(USE_SYSTEM_SQLITE)
++
+ if(APPLE)
+ 	SET_TARGET_PROPERTIES(amarok_collection-sqlcollection PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+diff -rup amarok-1.90/src/context/applets/albums/CMakeLists.txt amarok-1.90-ryan/src/context/applets/albums/CMakeLists.txt
+--- amarok-1.90/src/context/applets/albums/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/albums/CMakeLists.txt	2008-09-27 00:08:17.000000000 +1000
+@@ -9,7 +9,7 @@ kde4_add_plugin(amarok_context_applet_al
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_albums PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_albums amaroklib ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_albums amaroklib amarokplasma ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_albums DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-albums.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/cloud/CMakeLists.txt amarok-1.90-ryan/src/context/applets/cloud/CMakeLists.txt
+--- amarok-1.90/src/context/applets/cloud/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/cloud/CMakeLists.txt	2008-09-27 00:10:50.000000000 +1000
+@@ -9,7 +9,7 @@ kde4_add_plugin(amarok_context_applet_cl
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_cloud PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_cloud amaroklib ${QT_QTWEBKIT_LIBRARY} ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_cloud amaroklib amarokplasma ${QT_QTWEBKIT_LIBRARY} ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_cloud DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-cloud.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/currenttrack/CMakeLists.txt amarok-1.90-ryan/src/context/applets/currenttrack/CMakeLists.txt
+--- amarok-1.90/src/context/applets/currenttrack/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/currenttrack/CMakeLists.txt	2008-09-27 00:08:51.000000000 +1000
+@@ -9,7 +9,7 @@ kde4_add_plugin(amarok_context_applet_cu
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_currenttrack PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_currenttrack amaroklib ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_currenttrack amaroklib amarokplasma ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_currenttrack DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-currenttrack.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/lastfmevents/CMakeLists.txt amarok-1.90-ryan/src/context/applets/lastfmevents/CMakeLists.txt
+--- amarok-1.90/src/context/applets/lastfmevents/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/lastfmevents/CMakeLists.txt	2008-09-27 00:07:29.000000000 +1000
+@@ -11,7 +11,7 @@ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_lastfmevents PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+ 
+-target_link_libraries(amarok_context_applet_lastfmevents amaroklib ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_lastfmevents amaroklib amarokplasma ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_lastfmevents DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-lastfmevents.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/lyrics/CMakeLists.txt amarok-1.90-ryan/src/context/applets/lyrics/CMakeLists.txt
+--- amarok-1.90/src/context/applets/lyrics/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/lyrics/CMakeLists.txt	2008-09-27 00:09:17.000000000 +1000
+@@ -9,7 +9,7 @@ kde4_add_plugin(amarok_context_applet_ly
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_lyrics PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_lyrics amaroklib ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_lyrics amaroklib amarokplasma ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_lyrics DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-lyrics.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/mediadevices/CMakeLists.txt amarok-1.90-ryan/src/context/applets/mediadevices/CMakeLists.txt
+--- amarok-1.90/src/context/applets/mediadevices/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/mediadevices/CMakeLists.txt	2008-09-27 00:13:00.000000000 +1000
+@@ -9,7 +9,7 @@ kde4_add_plugin(amarok_context_applet_me
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_mediadevices PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_mediadevices amaroklib ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_mediadevices amaroklib amarokplasma ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_mediadevices DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-mediadevices.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/serviceinfo/CMakeLists.txt amarok-1.90-ryan/src/context/applets/serviceinfo/CMakeLists.txt
+--- amarok-1.90/src/context/applets/serviceinfo/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/serviceinfo/CMakeLists.txt	2008-09-27 00:09:39.000000000 +1000
+@@ -10,7 +10,7 @@ kde4_add_plugin(amarok_context_applet_se
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_serviceinfo PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_serviceinfo amaroklib ${QT_QTWEBKIT_LIBRARY} ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_serviceinfo amaroklib amarokplasma ${QT_QTWEBKIT_LIBRARY} ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_serviceinfo DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-serviceinfo.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/video/CMakeLists.txt amarok-1.90-ryan/src/context/applets/video/CMakeLists.txt
+--- amarok-1.90/src/context/applets/video/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/video/CMakeLists.txt	2008-09-27 00:12:27.000000000 +1000
+@@ -10,7 +10,9 @@ kde4_add_plugin(amarok_context_applet_vi
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_video PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_video amaroklib )
++target_link_libraries(amarok_context_applet_video amaroklib amarokplasma ${KDE4_KDECORE_LIBS}
++    ${QT_QTGUI_LIBRARY}
++    ${KDE4_PHONON_LIBRARY})
+ 
+ install(TARGETS amarok_context_applet_video DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-video.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/applets/wikipedia/CMakeLists.txt amarok-1.90-ryan/src/context/applets/wikipedia/CMakeLists.txt
+--- amarok-1.90/src/context/applets/wikipedia/CMakeLists.txt	2008-08-20 09:15:17.000000000 +1000
++++ amarok-1.90-ryan/src/context/applets/wikipedia/CMakeLists.txt	2008-09-27 00:10:23.000000000 +1000
+@@ -9,7 +9,7 @@ kde4_add_plugin(amarok_context_applet_wi
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_context_applet_wikipedia PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_context_applet_wikipedia amaroklib ${QT_QTWEBKIT_LIBRARY} ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_context_applet_wikipedia amaroklib amarokplasma ${QT_QTWEBKIT_LIBRARY} ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_context_applet_wikipedia DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-context-applet-wikipedia.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/containments/CMakeLists.txt amarok-1.90-ryan/src/context/containments/CMakeLists.txt
+--- amarok-1.90/src/context/containments/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/containments/CMakeLists.txt	2008-09-27 00:17:38.000000000 +1000
+@@ -11,7 +11,7 @@ kde4_add_plugin(amarok_containment_conte
+ if(APPLE)
+    SET_TARGET_PROPERTIES(amarok_containment_context PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+ endif(APPLE)
+-target_link_libraries(amarok_containment_context amaroklib ${KDE4_KIO_LIBS})
++target_link_libraries(amarok_containment_context amaroklib amarokplasma ${KDE4_KIO_LIBS})
+ 
+ install(TARGETS amarok_containment_context DESTINATION ${PLUGIN_INSTALL_DIR})
+ install(FILES amarok-containment-context.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+diff -rup amarok-1.90/src/context/engines/cloud/CMakeLists.txt amarok-1.90-ryan/src/context/engines/cloud/CMakeLists.txt
+--- amarok-1.90/src/context/engines/cloud/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/engines/cloud/CMakeLists.txt	2008-09-27 00:17:18.000000000 +1000
+@@ -9,7 +9,7 @@ set( cloud_engine_SRCS
+ )
+ 
+ kde4_add_plugin(amarok_data_engine_cloud ${cloud_engine_SRCS})
+-target_link_libraries( amarok_data_engine_cloud amaroklib ${KDE4_LIBS} )
++target_link_libraries( amarok_data_engine_cloud amaroklib  amarokplasma ${KDE4_KIO_LIBS} ${KDE4_LIBS} )
+ 
+ install( TARGETS amarok_data_engine_cloud DESTINATION ${PLUGIN_INSTALL_DIR} )
+ install( FILES amarok-data-engine-cloud.desktop DESTINATION ${SERVICES_INSTALL_DIR} )
+diff -rup amarok-1.90/src/context/engines/current/CMakeLists.txt amarok-1.90-ryan/src/context/engines/current/CMakeLists.txt
+--- amarok-1.90/src/context/engines/current/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/engines/current/CMakeLists.txt	2008-09-27 00:16:07.000000000 +1000
+@@ -8,7 +8,7 @@ set( current_engine_SRCS
+ )
+ 
+ kde4_add_plugin(amarok_data_engine_current ${current_engine_SRCS})
+-target_link_libraries( amarok_data_engine_current amaroklib ${KDE4_LIBS} )
++target_link_libraries( amarok_data_engine_current amaroklib amarokplasma ${KDE4_KIO_LIBS} ${KDE4_LIBS} )
+ 
+ install( TARGETS amarok_data_engine_current DESTINATION ${PLUGIN_INSTALL_DIR} )
+ install( FILES amarok-data-engine-current.desktop DESTINATION ${SERVICES_INSTALL_DIR} )
+diff -rup amarok-1.90/src/context/engines/lastfm/CMakeLists.txt amarok-1.90-ryan/src/context/engines/lastfm/CMakeLists.txt
+--- amarok-1.90/src/context/engines/lastfm/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/engines/lastfm/CMakeLists.txt	2008-09-27 00:13:52.000000000 +1000
+@@ -9,7 +9,7 @@ set( lastfm_engine_SRCS
+ )
+ 
+ kde4_add_plugin(amarok_data_engine_lastfm ${lastfm_engine_SRCS})
+-target_link_libraries( amarok_data_engine_lastfm amaroklib ${KDE4_LIBS} )
++target_link_libraries( amarok_data_engine_lastfm amaroklib amarokplasma ${KDE4_KIO_LIBS} ${KDE4_LIBS} )
+ 
+ install( TARGETS amarok_data_engine_lastfm DESTINATION ${PLUGIN_INSTALL_DIR} )
+ install( FILES amarok-data-engine-lastfm.desktop DESTINATION ${SERVICES_INSTALL_DIR} )
+diff -rup amarok-1.90/src/context/engines/lyrics/CMakeLists.txt amarok-1.90-ryan/src/context/engines/lyrics/CMakeLists.txt
+--- amarok-1.90/src/context/engines/lyrics/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/engines/lyrics/CMakeLists.txt	2008-09-27 00:15:10.000000000 +1000
+@@ -9,7 +9,7 @@ set( lyrics_engine_SRCS
+ )
+ 
+ kde4_add_plugin(amarok_data_engine_lyrics ${lyrics_engine_SRCS})
+-target_link_libraries( amarok_data_engine_lyrics amaroklib ${KDE4_LIBS} )
++target_link_libraries( amarok_data_engine_lyrics amaroklib amarokplasma ${KDE4_KIO_LIBS} ${KDE4_LIBS} )
+ 
+ install( TARGETS amarok_data_engine_lyrics DESTINATION ${PLUGIN_INSTALL_DIR} )
+ install( FILES amarok-data-engine-lyrics.desktop DESTINATION ${SERVICES_INSTALL_DIR} )
+diff -rup amarok-1.90/src/context/engines/service/CMakeLists.txt amarok-1.90-ryan/src/context/engines/service/CMakeLists.txt
+--- amarok-1.90/src/context/engines/service/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/engines/service/CMakeLists.txt	2008-09-27 00:16:04.000000000 +1000
+@@ -9,7 +9,7 @@ set( service_engine_SRCS
+ )
+ 
+ kde4_add_plugin(amarok_data_engine_service ${service_engine_SRCS})
+-target_link_libraries( amarok_data_engine_service amaroklib ${KDE4_LIBS} )
++target_link_libraries( amarok_data_engine_service amaroklib amarokplasma ${KDE4_KIO_LIBS} ${KDE4_LIBS} )
+ 
+ install( TARGETS amarok_data_engine_service DESTINATION ${PLUGIN_INSTALL_DIR} )
+ install( FILES amarok-data-engine-service.desktop DESTINATION ${SERVICES_INSTALL_DIR} )
+diff -rup amarok-1.90/src/context/engines/wikipedia/CMakeLists.txt amarok-1.90-ryan/src/context/engines/wikipedia/CMakeLists.txt
+--- amarok-1.90/src/context/engines/wikipedia/CMakeLists.txt	2008-08-20 09:15:16.000000000 +1000
++++ amarok-1.90-ryan/src/context/engines/wikipedia/CMakeLists.txt	2008-09-27 00:14:39.000000000 +1000
+@@ -8,7 +8,7 @@ set( wikipedia_engine_SRCS
+ )
+ 
+ kde4_add_plugin(amarok_data_engine_wikipedia ${wikipedia_engine_SRCS})
+-target_link_libraries( amarok_data_engine_wikipedia amaroklib ${KDE4_LIBS} )
++target_link_libraries( amarok_data_engine_wikipedia amaroklib amarokplasma ${KDE4_KIO_LIBS} )
+ 
+ install( TARGETS amarok_data_engine_wikipedia DESTINATION ${PLUGIN_INSTALL_DIR} )
+ install( FILES amarok-data-engine-wikipedia.desktop DESTINATION ${SERVICES_INSTALL_DIR} )
