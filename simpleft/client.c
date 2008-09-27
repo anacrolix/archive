@@ -1,30 +1,6 @@
 #include "client.h"
 #include "include.h"
 
-static bool send_bytes(int const sock, void const *buf, size_t len)
-{
-	struct pollfd pfd = { .fd = sock, .events = POLLOUT };
-	while (len > 0) {
-		if (-1 == poll(&pfd, 1, -1)) {
-			perror("poll");
-			return false;
-		}
-		if (pfd.revents & POLLHUP) {
-			fprintf(stderr, "receiver hung up\n");
-			return false;
-		}
-		if (!(pfd.revents & POLLOUT)) continue;
-		ssize_t sent = send(sock, buf, len, 0);
-		if (sent == -1) {
-			perror("send");
-			return false;
-		}
-		buf += sent;
-		len -= sent;
-	}
-	return true;
-}
-
 static bool send_file(int sock, char const *filename)
 {
 	bool rv = false;
@@ -91,10 +67,12 @@ static int new_client_sock(struct addrinfo *ai)
 		perror("connect");
 		goto out_socket;
 	}
+#if 0
 	if (-1 == shutdown(sock, SHUT_RD)) {
 		perror("shutdown");
 		goto out_socket;
 	}
+#endif
 	return sock;
 out_socket:
 	verify(!close(sock));
@@ -109,7 +87,15 @@ void do_client(char const *host, char const *port, char const **files)
 	for (char const **file = files; *file; file++) {
 		if (sock == -1) sock = new_client_sock(ai);
 		if (sock == -1) goto out_addrinfo;
-		if (!send_file(sock, *file)) {
+		if (send_file(sock, *file)) {
+			char msg;
+			ssize_t got = recv(sock, &msg, 1, 0);
+			if (got == -1) {
+				perror("recv");
+				goto next_file;
+			}
+			if (msg) continue;
+next_file:
 			verify(!close(sock));
 			sock = -1;
 		}

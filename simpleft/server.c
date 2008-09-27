@@ -104,7 +104,8 @@ static bool recv_file(int recvfd)
 	rv = read_into_file(recvfd, size, filename);
 fail_free:
 	free(filename);
-	return rv;
+	char ack = (rv) ? 1 : 0;
+	return send_bytes(recvfd, &ack, 1) && rv;
 }
 
 static struct addrinfo *
@@ -155,9 +156,11 @@ void do_server(char const *port)
 			perror("accept");
 			continue;
 		}
+#if 0
 		if (-1 == shutdown(newfd, SHUT_WR)) {
 			perror("shutdown");
 		}
+#endif
 		while (recv_file(newfd));
 		if (-1 == close(newfd)) {
 			perror("close");
