@@ -1,4 +1,4 @@
-CFLAGS = -Wall `pkg-config --cflags gstreamer-0.10`
+CFLAGS = -Wall `pkg-config --cflags gstreamer-0.10` -g
 LDFLAGS = -lcurses `pkg-config --libs gstreamer-0.10`
 
 curstar: main.o
