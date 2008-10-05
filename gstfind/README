@@ -1,0 +1,5 @@
+Ubuntu 8.04.1:
+	sudo apt-get install subversion libgstreamer0.10-dev
+Gentoo:
+	emerge -na gstreamer subversion
+
