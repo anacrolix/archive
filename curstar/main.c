@@ -54,11 +54,18 @@ gpointer audio_thread_func(gpointer _data)
 
 	/* create the playbin pipeline */
 	data->pipe = gst_element_factory_make("playbin", NULL);
+	
+	/* choose and set an audio sink */
+	GstElement *sink = gst_element_factory_make("gconfaudiosink", NULL);
+	if (!sink) sink = gst_element_factory_make("autoaudiosink", NULL);
+	if (!sink) sink = gst_element_factory_make("alsasink", NULL);
+	g_assert(sink);	
+	g_object_set(data->pipe, "audio-sink", sink);
 
 	data->loop = g_main_loop_new(NULL, FALSE);
 
 	/* watch for pipeline events */
-	GstBus *bus = gst_pipeline_get_bus(data->pipe);
+	GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(data->pipe));
 	gst_bus_add_watch(bus, bus_watch, data);
 	gst_object_unref(bus);
 
@@ -185,7 +192,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 2) {
 		/* TODO: will argv[1] work if gstreamer is passed args? */
-		fprintf(stderr, "Usage: %s <AUDIO_FILE>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
