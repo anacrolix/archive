@@ -57,6 +57,9 @@ gpointer audio_thread_func(gpointer _data)
 
 	/* create the playbin pipeline */
 	data->pipe = gst_element_factory_make("playbin", NULL);
+	g_return_val_if_fail(data->pipe, FALSE);
+	
+	gpointer retval = FALSE;
 	
 	/* choose and set an audio sink */
 	gchar const *sink_factories[] = {
@@ -65,9 +68,12 @@ gpointer audio_thread_func(gpointer _data)
 	GstElement *sink;	
 	for (sf_name = sink_factories; *sf_name && !sink; sf_name++);
 		sink = gst_element_factory_make(*sf_name, NULL);
-	g_assert(sink);
-	g_object_set(data->pipe, "audio-sink", sink, NULL);
+	if (!sink) {
+		g_warn_if_reached();
+		goto fail_sink;
+	}
 	data->sink = g_strdup(*sf_name);
+	g_object_set(data->pipe, "audio-sink", sink, "video-sink", NULL, NULL);
 
 	data->loop = g_main_loop_new(NULL, FALSE);
 
@@ -77,12 +83,14 @@ gpointer audio_thread_func(gpointer _data)
 	gst_object_unref(bus);
 
 	g_main_loop_run(data->loop);
-
+	retval = (gpointer)TRUE;
+	
 	/* stop and destroy the pipeline */
+fail_sink:
 	gst_element_set_state(data->pipe, GST_STATE_NULL);
 	gst_object_unref(data->pipe);
 
-	return (gpointer)TRUE;
+	return retval;
 }
 
 static void print_song_line(
