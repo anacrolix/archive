@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <gst/gst.h>
+#include <libgnomevfs/gnome-vfs.h>
 
 #define E9 1000000000LL
 
@@ -29,6 +30,7 @@ gboolean bus_watch(
 
 	switch (GST_MESSAGE_TYPE(message)) {
 	case GST_MESSAGE_ERROR: {
+		/* print the error */
 		GError *error;
 		gst_message_parse_error(message, &error, NULL);
 		g_printerr("%s: %s\n", msgtype, error->message);
@@ -38,10 +40,11 @@ gboolean bus_watch(
 		return FALSE;
 	}
 	case GST_MESSAGE_TAG: {
+		/* merge in new tags */
 		GstTagList *tag_list;
 		gst_message_parse_tag(message, &tag_list);
 		gst_tag_list_insert(data->tags, tag_list, GST_TAG_MERGE_REPLACE);
-		gst_tag_list_foreach(tag_list, tags_foreach, NULL);
+		//gst_tag_list_foreach(tag_list, tags_foreach, NULL);
 		gst_tag_list_free(tag_list);
 		break;
 	}
@@ -218,14 +221,17 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
 		return EXIT_FAILURE;
 	}
+		
 
 	/* shares variables between gst and curses threads */
 	struct gst_data data = {
-		.uri = argv[1],
+		.uri = gnome_vfs_make_uri_from_input(argv[1]),
 		.loop = NULL,
 		.pipe = NULL,
 		.tags = gst_tag_list_new(),
 	};
+	
+	g_printerr("%s\n", data.uri);
 
 	/* start the gst thread */
 	GThread *gst_thread = g_thread_create(
@@ -245,5 +251,9 @@ int main(int argc, char *argv[])
 	endwin();
 	g_main_loop_quit(data.loop);
 	g_thread_join(gst_thread);
+	
+	g_free(data.uri);
+	gst_tag_list_free(data.tags);
+	
 	return EXIT_SUCCESS;
 }
