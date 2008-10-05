@@ -36,8 +36,7 @@ gboolean bus_watch(
 		g_printerr("%s: %s\n", msgtype, error->message);
 		g_error_free(error);
 		//g_main_loop_quit(data->main_loop);
-		g_printerr("\n");
-		return FALSE;
+		break;
 	}
 	case GST_MESSAGE_TAG: {
 		/* merge in new tags */
@@ -87,6 +86,8 @@ gpointer audio_thread_func(gpointer _data)
 
 	g_main_loop_run(data->loop);
 	retval = (gpointer)TRUE;
+	
+	g_free(data->sink);
 	
 	/* stop and destroy the pipeline */
 fail_sink:
@@ -142,7 +143,9 @@ void print_song(
 	print_song_line(win, cols, "%s", s);
 	
 	/* print uri */
-	print_song_line(win, cols, "%s", data->uri);
+	char *intelligible = gnome_vfs_unescape_string_for_display(data->uri);
+	print_song_line(win, cols, "%s", intelligible);
+	g_free(intelligible);
 
 	/* print song tags */
 	gchar *artist = NULL, *album = NULL, *title = NULL;
@@ -154,13 +157,19 @@ void print_song(
 
 	/* print song position/duration */
 	GstFormat format = GST_FORMAT_TIME;
-	gint64 position, duration;
-	gst_element_query_position(data->pipe, &format, &position);
-	gst_element_query_duration(data->pipe, &format, &duration);
-	print_song_line(
-		win, cols, "%lld:%02lld / %lld:%02lld",
-		position / (60*E9), position / E9 % 60,
-		duration / (60*E9), duration / E9 % 60);
+	gint64 position = 0, duration = 0;
+	if (gst_element_query_position(data->pipe, &format, &position) &&
+		format == GST_FORMAT_TIME &&
+		gst_element_query_duration(data->pipe, &format, &duration) &&
+		format == GST_FORMAT_TIME)
+	{
+		print_song_line(
+			win, cols, "%lld:%02lld / %lld:%02lld",
+			position / (60*E9), position / E9 % 60,
+			duration / (60*E9), duration / E9 % 60);
+	} else {
+		print_song_line(win, cols, "ERROR QUERYING POSITION/DURATION");
+	}
 
 	wrefresh(win);
 }
@@ -241,7 +250,7 @@ int main(int argc, char *argv[])
 	initscr();
 
 	box(stdscr, ACS_VLINE, ACS_HLINE);
-	curs_set(0);
+	curs_set(0); /* this will break on unclean shutdown */
 	intro_screen();
 
 	g_object_set(data.pipe, "uri", data.uri, NULL);
@@ -257,3 +266,4 @@ int main(int argc, char *argv[])
 	
 	return EXIT_SUCCESS;
 }
+
