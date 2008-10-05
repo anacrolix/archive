@@ -1,0 +1,3 @@
+Ubuntu 8.04.1:
+	sudo apt-get install libgstreamer0.10-dev libgnomevfs2-dev libncurses5-dev
+

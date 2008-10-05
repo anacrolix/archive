@@ -9,4 +9,4 @@ curstar: main.o
 
 clean:
 	$(RM) -fv *.o curstar
-	
+
