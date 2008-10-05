@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <curses.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <gst/gst.h>
@@ -10,6 +12,7 @@ struct gst_data {
 	gchar *uri;
 	GstTagList *tags;
 	GstElement *pipe;
+	gchar *sink;
 };
 
 void tags_foreach(
@@ -56,11 +59,15 @@ gpointer audio_thread_func(gpointer _data)
 	data->pipe = gst_element_factory_make("playbin", NULL);
 	
 	/* choose and set an audio sink */
-	GstElement *sink = gst_element_factory_make("gconfaudiosink", NULL);
-	if (!sink) sink = gst_element_factory_make("autoaudiosink", NULL);
-	if (!sink) sink = gst_element_factory_make("alsasink", NULL);
-	g_assert(sink);	
-	g_object_set(data->pipe, "audio-sink", sink);
+	gchar const *sink_factories[] = {
+		"gconfaudiosink", "autoaudiosink", "alsasink", NULL};
+	gchar const **sf_name;
+	GstElement *sink;	
+	for (sf_name = sink_factories; *sf_name && !sink; sf_name++);
+		sink = gst_element_factory_make(*sf_name, NULL);
+	g_assert(sink);
+	g_object_set(data->pipe, "audio-sink", sink, NULL);
+	data->sink = g_strdup(*sf_name);
 
 	data->loop = g_main_loop_new(NULL, FALSE);
 
@@ -105,6 +112,10 @@ static void print_song_line(
 void print_song(
 	struct gst_data *data, WINDOW *win, int rows, int cols)
 {
+	/* print audio sink name */
+	mvwprintw(win, 0, 0, "audio-sink: %s", data->sink);
+	wclrtoeol(win);
+
 	wmove(win, rows / 2 - 3, 0);
 
 	/* print state */
@@ -118,7 +129,7 @@ void print_song(
 		default: s = NULL;
 	}
 	print_song_line(win, cols, "%s", s);
-
+	
 	/* print uri */
 	print_song_line(win, cols, "%s", data->uri);
 
@@ -187,6 +198,10 @@ void intro_screen()
 
 int main(int argc, char *argv[])
 {
+	/* redirect stderr so it doesn't shit all over the console */
+	if (isatty(fileno(stderr)))
+		assert(freopen("errlog", "w", stderr));		
+	
 	/* initialize gstreamer */
 	gst_init(&argc, &argv);
 
