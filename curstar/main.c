@@ -31,8 +31,9 @@ arrow keys change the volume.
 typedef enum { UP, DOWN, QUERY } VolumeChange;
 
 struct gst_data {
+	GList *file_list;
+	gint current_file_index;
 	GMainLoop *loop;
-	gchar *uri;
 	GstTagList *tags;
 	GstElement *pipe;
 	gchar *sink;
@@ -211,6 +212,44 @@ done:
 	return 100 * volume;
 }
 
+static GstStateChangeReturn set_track(struct gst_data *data, guint number)
+{
+	gchar *abs_file_path = g_list_nth_data(data->file_list, number);
+	g_assert(abs_file_path);
+	gchar *uri = g_strconcat("file://", abs_file_path, NULL);
+
+	gst_element_set_state(data->pipe, GST_STATE_READY);
+	g_object_set(data->pipe, "uri", uri, NULL);
+
+	GstStateChangeReturn sc_ret = gst_element_set_state(
+			data->pipe, GST_STATE_PAUSED);
+	data->current_file_index = number;
+	if (sc_ret == GST_STATE_CHANGE_FAILURE) {
+		/* don't try this at home */
+		while (!data->error) g_thread_yield();
+		g_print("Invalid URI: %s\n", data->error->message);
+	}
+	return sc_ret;
+}
+
+static GstStateChangeReturn next_track(struct gst_data *data)
+{
+	guint n = data->current_file_index + 1;
+	if (g_list_nth(data->file_list, n))
+		return set_track(data, n);
+	else
+		return set_track(data, 0);
+}
+
+static GstStateChangeReturn prev_track(struct gst_data *data)
+{
+	guint n = data->current_file_index - 1;
+	if (g_list_nth(data->file_list, n))
+		return set_track(data, n);
+	else
+		return set_track(data, g_list_length(data->file_list));
+}
+
 void print_song(
 	struct gst_data *data, WINDOW *win, int rows, int cols)
 {
@@ -236,9 +275,9 @@ void print_song(
 	}
 
 	/* print uri */
-	char *intelligible = g_uri_unescape_string(data->uri, NULL);
-	print_song_line(win, cols, "%s", intelligible);
-	g_free(intelligible);
+	char *song_path = g_list_nth_data(data->file_list, data->current_file_index);
+	print_song_line(win, cols, "%s", song_path);
+	//g_free(song_path);
 
 	/* print song tags */
 	gchar *artist = NULL, *album = NULL, *title = NULL;
@@ -282,25 +321,31 @@ void main_menu(struct gst_data *data)
 	while (TRUE) {
 		int ch = wgetch(playwin);
 		switch (ch) {
-		case ' ': {
-			GstState state;
-			gst_element_get_state(
-				data->pipe, &state, NULL, 0LL);
-			state = (state == GST_STATE_PAUSED) ? GST_STATE_PLAYING : GST_STATE_PAUSED;
-			gst_element_set_state(data->pipe, state);
+			case ' ': {
+				GstState state;
+				gst_element_get_state(
+						data->pipe, &state, NULL, 0LL);
+				state = (state == GST_STATE_PAUSED)
+						? GST_STATE_PLAYING : GST_STATE_PAUSED;
+				gst_element_set_state(data->pipe, state);
+			}
 			break;
-		}
-		case 'q':
+			case 'q':
 			goto quit;
-		case KEY_UP:
-			change_volume(data->pipe, UP);
+			case KEY_UP:
+				change_volume(data->pipe, UP);
 			break;
-		case KEY_DOWN: {
-			change_volume(data->pipe, DOWN);
+			case KEY_DOWN:
+				change_volume(data->pipe, DOWN);
 			break;
-		}
-		default:
+			case KEY_RIGHT:
+				next_track(data);
 			break;
+			case KEY_LEFT:
+				prev_track(data);
+			break;
+			default:
+				break;
 		}
 		print_song(data, playwin, playwin_rows, playwin_cols);
 	}
@@ -315,6 +360,10 @@ void intro_screen()
 	refresh();
 	sleep(1);
 }
+
+/*
+ * g_uri_escape_string() could be of use here...
+ */
 
 static gchar *input_to_uri(char *input)
 {
@@ -333,11 +382,46 @@ static gchar *input_to_uri(char *input)
 		if (input[0] == '/') {
 			return g_strconcat("file://", input, NULL);
 		} else {
-			char wd[PATH_MAX];
-			g_assert(getcwd(wd, PATH_MAX));
-			return g_strconcat("file://", wd, "/", input, NULL);
+			gchar *wd = g_get_current_dir();
+			gchar *uri = g_strconcat("file://", wd, "/", input, NULL);
+			g_free(wd);
+			return uri;
 		}
 	}
+}
+
+#if 0
+static void print_usage()
+{
+	/* g_get_prgname */
+}
+#endif
+
+static GList *search_audio_files(gchar const *path, GList *files)
+{
+	//GError *err;
+	GDir *dir = g_dir_open(path, 0, NULL);
+	if (!dir) {
+		/* found a file, just add for now */
+		gchar *abs_path;
+		if (g_path_is_absolute(path)) {
+			abs_path = g_strdup(path);
+		} else {
+			gchar *work_dir = g_get_current_dir();
+			abs_path = g_build_filename(work_dir, path, NULL);
+			g_free(work_dir);
+		}
+		files = g_list_prepend(files, abs_path);
+	} else {
+		gchar const *name;
+		while ((name = g_dir_read_name(dir))) {
+			gchar *new_path = g_build_filename(path, name, NULL);
+			files = search_audio_files(new_path, files);
+			g_free(new_path);
+		}
+		g_dir_close(dir);
+	}
+	return files;
 }
 
 int main(int argc, char *argv[])
@@ -351,13 +435,14 @@ int main(int argc, char *argv[])
 
 	if (argc != 2) {
 		/* TODO: will argv[1] work if gstreamer is passed args? */
-		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <URI>\n", g_get_prgname());
 		return EXIT_FAILURE;
 	}
 
 	/* shares variables between gst and curses threads */
 	struct gst_data data = {
-		.uri = input_to_uri(argv[1]),
+		.file_list = search_audio_files(argv[1], NULL),
+		.current_file_index = 0,
 		.loop = NULL,
 		.pipe = NULL,
 		.tags = gst_tag_list_new(),
@@ -366,7 +451,7 @@ int main(int argc, char *argv[])
 		.error = NULL,
 	};
 
-	g_printerr("%s\n", data.uri);
+	//g_printerr("%s\n", data.uri);
 
 	/* start the gst thread */
 	GThread *gst_thread = g_thread_create(
@@ -378,16 +463,8 @@ int main(int argc, char *argv[])
 		g_cond_wait(data.cond, data.mutex);
 	g_mutex_unlock(data.mutex);
 
-	g_object_set(data.pipe, "uri", data.uri, NULL);
-	GstStateChangeReturn sc_ret = gst_element_set_state(
-		data.pipe, GST_STATE_PAUSED);
-
-	if (sc_ret == GST_STATE_CHANGE_FAILURE) {
-		/* don't try this at home */
-		while (!data.error) g_thread_yield();
-		g_print("Invalid URI: %s\n", data.error->message);
+	if (set_track(&data, 0) == GST_STATE_CHANGE_FAILURE)
 		goto fail_audio;
-	}
 
 	/* initialize curses */
 	initscr();
@@ -404,7 +481,10 @@ fail_audio:
 	g_main_loop_quit(data.loop);
 	g_thread_join(gst_thread);
 
-	g_free(data.uri);
+	while (data.file_list) {
+		g_free(data.file_list->data);
+		data.file_list = g_list_delete_link(data.file_list, data.file_list);
+	}
 	gst_tag_list_free(data.tags);
 	g_cond_free(data.cond);
 	g_mutex_free(data.mutex);
