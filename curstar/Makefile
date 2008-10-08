@@ -1,5 +1,5 @@
-PCLIBS = gstreamer-0.10 gnome-vfs-2.0
-CFLAGS = -Wall `pkg-config --cflags $(PCLIBS)` -g -std=c99 -D_XOPEN_SOURCE
+PCLIBS = gstreamer-0.10
+CFLAGS = -Wall `pkg-config --cflags $(PCLIBS)` -g -std=c99 -D_XOPEN_SOURCE=500
 LDFLAGS = -lcurses `pkg-config --libs $(PCLIBS)`
 
 all: curstar

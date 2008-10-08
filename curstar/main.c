@@ -2,6 +2,7 @@
 A ncurses/gstreamer single-file audio player.
 
 Developers: Eruanno (October 2008)
+Code Review: Vaughan
 Testing: Winter, Erikina
 
 Required libs: ncurses, glibc, gnomevfs, gstreamer
@@ -24,7 +25,6 @@ arrow keys change the volume.
 #include <strings.h>
 #include <unistd.h>
 #include <gst/gst.h>
-#include <libgnomevfs/gnome-vfs.h>
 
 #define E9 1000000000LL
 
@@ -236,7 +236,7 @@ void print_song(
 	}
 
 	/* print uri */
-	char *intelligible = gnome_vfs_unescape_string_for_display(data->uri);
+	char *intelligible = g_uri_unescape_string(data->uri, NULL);
 	print_song_line(win, cols, "%s", intelligible);
 	g_free(intelligible);
 
