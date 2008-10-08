@@ -3,7 +3,7 @@ A ncurses/gstreamer single-file audio player.
 
 Developers: Eruanno (October 2008)
 Code Review: Vaughan
-Testing: Winter, Erikina
+Testing: Winter, Erikina, JDK/Endgame
 
 Required libs: ncurses, glibc, gnomevfs, gstreamer
 Gst-plugins: "playbin" element from gstreamer-plugins-base
@@ -55,7 +55,13 @@ void gst_data_set_init(struct gst_data *data)
 void tags_foreach(
 	GstTagList const *list, gchar const *tag, gpointer user)
 {
-	g_printerr("%s\n", gst_tag_get_nick(tag));
+	gchar *value = NULL;
+	if (gst_tag_get_type(tag) == G_TYPE_STRING &&
+			gst_tag_list_get_string(list, tag, &value))
+	{
+		g_printerr("%s: %s\n", gst_tag_get_nick(tag), value);
+		g_free(value);
+	}
 }
 
 gboolean bus_watch(
@@ -65,24 +71,25 @@ gboolean bus_watch(
 	gchar const *msgtype = GST_MESSAGE_TYPE_NAME(message);
 
 	switch (GST_MESSAGE_TYPE(message)) {
-	case GST_MESSAGE_ERROR: {
-		/* print the error */
+	case GST_MESSAGE_ERROR:
+		/* free the old error */
 		if (data->error) g_error_free(data->error);
+		/* get the new error */
 		gst_message_parse_error(message, &data->error, NULL);
 		g_printerr("%s: %s\n", msgtype, data->error->message);
-		break;
-	}
+	break;
 	case GST_MESSAGE_TAG: {
 		/* merge in new tags */
 		GstTagList *tag_list;
 		gst_message_parse_tag(message, &tag_list);
+		gst_tag_list_foreach(tag_list, tags_foreach, NULL);
 		gst_tag_list_insert(data->tags, tag_list, GST_TAG_MERGE_REPLACE);
 		//gst_tag_list_foreach(tag_list, tags_foreach, NULL);
 		gst_tag_list_free(tag_list);
-		break;
 	}
+	break;
 	default:
-		break;
+	break;
 	}
 	return TRUE;
 }
@@ -216,11 +223,12 @@ static GstStateChangeReturn set_track(struct gst_data *data, guint number)
 {
 	/* convert abs file path to valid uri for playbin */
 	gchar *abs_file_path = g_list_nth_data(data->file_list, number);
-	g_assert(abs_file_path);
+	if (!abs_file_path) return GST_STATE_CHANGE_FAILURE;
 	gchar *uri = g_strconcat("file://", abs_file_path, NULL);
 
 	/* get the desired play state after track change */
-	GstState pending_state = GST_STATE_TARGET(data->pipe);
+	GstState target_state =
+			MAX(GST_STATE_TARGET(data->pipe), GST_STATE_PAUSED);
 
 	/* stop the current pipeline and set new track */
 	gst_element_set_state(data->pipe, GST_STATE_READY);
@@ -228,13 +236,15 @@ static GstStateChangeReturn set_track(struct gst_data *data, guint number)
 
 	/* resume previous pipeline state */
 	GstStateChangeReturn sc_ret = gst_element_set_state(
-			data->pipe, pending_state);
+			data->pipe, target_state);
+
 	data->current_file_index = number;
 
 	if (sc_ret == GST_STATE_CHANGE_FAILURE) {
 		/* don't try this at home */
 		while (!data->error) g_thread_yield();
-		g_printerr("Error changing track: %s\n", data->error->message);
+		g_printerr("Error changing track to %s: %s\n",
+				uri, data->error->message);
 	}
 	return sc_ret;
 }
@@ -368,10 +378,7 @@ void intro_screen()
 	sleep(1);
 }
 
-/*
- * g_uri_escape_string() could be of use here...
- */
-
+/* converts relative or absolute input path to uri */
 static gchar *input_to_uri(char *input)
 {
 	char const
@@ -397,13 +404,11 @@ static gchar *input_to_uri(char *input)
 	}
 }
 
-#if 0
-static void print_usage()
-{
-	/* g_get_prgname */
-}
-#endif
+/*
+Recursively finds files and builds a double-linked list of their absolute paths.
 
+TODO: Verify each addition is playable audio media.
+*/
 static GList *search_audio_files(gchar const *path, GList *files)
 {
 	//GError *err;
@@ -448,7 +453,7 @@ int main(int argc, char *argv[])
 
 	/* shares variables between gst and curses threads */
 	struct gst_data data = {
-		.file_list = search_audio_files(argv[1], NULL),
+		.file_list = g_list_reverse(search_audio_files(argv[1], NULL)),
 		.current_file_index = 0,
 		.loop = NULL,
 		.pipe = NULL,
@@ -471,7 +476,7 @@ int main(int argc, char *argv[])
 	g_mutex_unlock(data.mutex);
 
 	if (set_track(&data, 0) == GST_STATE_CHANGE_FAILURE) {
-		g_print("Error changing track: %s\n", data.error->message);
+		g_print("Provided media was unplayable: %s\n", data.error->message);
 		goto fail_audio;
 	}
 
