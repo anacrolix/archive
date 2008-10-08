@@ -17,9 +17,11 @@ arrow keys change the volume.
 */
 
 #include <assert.h>
+#include <ctype.h>
 #include <curses.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <gst/gst.h>
 #include <libgnomevfs/gnome-vfs.h>
@@ -95,16 +97,18 @@ gpointer audio_thread_func(gpointer _data)
 		g_warn_if_reached();
 		return FALSE;
 	}
-		
+
 	gpointer retval = FALSE;
-	
+
 	/* choose and set an audio sink */
 	gchar const *sink_factories[] = {
 		"gconfaudiosink", "autoaudiosink", "alsasink", NULL};
-	gchar const **sf_name;
-	GstElement *sink;	
-	for (sf_name = sink_factories; *sf_name && !sink; sf_name++);
+	gchar const **sf_name = sink_factories;
+	GstElement *sink = NULL;
+	do {
 		sink = gst_element_factory_make(*sf_name, NULL);
+	} while (!sink && *++sf_name);
+
 	if (!sink) {
 		gst_data_set_init(data);
 		g_warn_if_reached();
@@ -123,9 +127,9 @@ gpointer audio_thread_func(gpointer _data)
 
 	g_main_loop_run(data->loop);
 	retval = (gpointer)TRUE;
-	
+
 	g_free(data->sink);
-	
+
 	/* stop and destroy the pipeline */
 fail_sink:
 	gst_element_set_state(data->pipe, GST_STATE_NULL);
@@ -195,8 +199,8 @@ gdouble change_volume(GstElement *playbin, VolumeChange vc)
 		volume += 0.1;
 		if (volume > 1.0) volume = 1.0;
 		break;
-	case DOWN: 
-		volume -= 0.1; 
+	case DOWN:
+		volume -= 0.1;
 		if (volume < 0.0) volume = 0.0;
 		break;
 	case QUERY:
@@ -221,7 +225,7 @@ void print_song(
 	/* print state */
 	GstState state = GST_STATE(data->pipe);
 	GstState pending = GST_STATE_PENDING(data->pipe);
-		
+
 	if (pending != GST_STATE_VOID_PENDING) {
 		g_assert(state != pending);
 		print_song_line(
@@ -230,7 +234,7 @@ void print_song(
 	} else {
 		print_song_line(win, cols, "%s", gst_state_to_string(state));
 	}
-	
+
 	/* print uri */
 	char *intelligible = gnome_vfs_unescape_string_for_display(data->uri);
 	print_song_line(win, cols, "%s", intelligible);
@@ -290,7 +294,7 @@ void main_menu(struct gst_data *data)
 			goto quit;
 		case KEY_UP:
 			change_volume(data->pipe, UP);
-			break;			
+			break;
 		case KEY_DOWN: {
 			change_volume(data->pipe, DOWN);
 			break;
@@ -312,12 +316,36 @@ void intro_screen()
 	sleep(1);
 }
 
+static gchar *input_to_uri(char *input)
+{
+	char const
+		PROT_OP[] = "://",
+		FILE_SCHEME[] = "file:///";
+	/* try for valid file uri */
+	if (!strncasecmp(input, FILE_SCHEME, strlen(FILE_SCHEME)))
+		return strdup(input);
+	/* find scheme operator */
+	char const *op = input;
+	while (isalpha(*op)) op++;
+	if (!strncmp(op, PROT_OP, strlen(PROT_OP))) {
+		return strdup(input);
+	} else {
+		if (input[0] == '/') {
+			return g_strconcat("file://", input, NULL);
+		} else {
+			char wd[PATH_MAX];
+			g_assert(getcwd(wd, PATH_MAX));
+			return g_strconcat("file://", wd, "/", input, NULL);
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	/* redirect stderr so it doesn't shit all over the console */
 	if (isatty(fileno(stderr)))
-		assert(freopen("errlog", "w", stderr));		
-	
+		assert(freopen("errlog", "w", stderr));
+
 	/* initialize gstreamer */
 	gst_init(&argc, &argv);
 
@@ -325,11 +353,11 @@ int main(int argc, char *argv[])
 		/* TODO: will argv[1] work if gstreamer is passed args? */
 		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
 		return EXIT_FAILURE;
-	}		
+	}
 
 	/* shares variables between gst and curses threads */
 	struct gst_data data = {
-		.uri = gnome_vfs_make_uri_from_input(argv[1]),
+		.uri = input_to_uri(argv[1]),
 		.loop = NULL,
 		.pipe = NULL,
 		.tags = gst_tag_list_new(),
@@ -337,7 +365,7 @@ int main(int argc, char *argv[])
 		.cond = g_cond_new(),
 		.error = NULL,
 	};
-	
+
 	g_printerr("%s\n", data.uri);
 
 	/* start the gst thread */
@@ -353,7 +381,7 @@ int main(int argc, char *argv[])
 	g_object_set(data.pipe, "uri", data.uri, NULL);
 	GstStateChangeReturn sc_ret = gst_element_set_state(
 		data.pipe, GST_STATE_PAUSED);
-	
+
 	if (sc_ret == GST_STATE_CHANGE_FAILURE) {
 		/* don't try this at home */
 		while (!data.error) g_thread_yield();
@@ -375,13 +403,13 @@ int main(int argc, char *argv[])
 fail_audio:
 	g_main_loop_quit(data.loop);
 	g_thread_join(gst_thread);
-	
+
 	g_free(data.uri);
 	gst_tag_list_free(data.tags);
 	g_cond_free(data.cond);
 	g_mutex_free(data.mutex);
 	if (data.error) g_error_free(data.error);
-	
+
 	return EXIT_SUCCESS;
 }
 
