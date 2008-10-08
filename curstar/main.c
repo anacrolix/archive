@@ -214,20 +214,27 @@ done:
 
 static GstStateChangeReturn set_track(struct gst_data *data, guint number)
 {
+	/* convert abs file path to valid uri for playbin */
 	gchar *abs_file_path = g_list_nth_data(data->file_list, number);
 	g_assert(abs_file_path);
 	gchar *uri = g_strconcat("file://", abs_file_path, NULL);
 
+	/* get the desired play state after track change */
+	GstState pending_state = GST_STATE_TARGET(data->pipe);
+
+	/* stop the current pipeline and set new track */
 	gst_element_set_state(data->pipe, GST_STATE_READY);
 	g_object_set(data->pipe, "uri", uri, NULL);
 
+	/* resume previous pipeline state */
 	GstStateChangeReturn sc_ret = gst_element_set_state(
-			data->pipe, GST_STATE_PAUSED);
+			data->pipe, pending_state);
 	data->current_file_index = number;
+
 	if (sc_ret == GST_STATE_CHANGE_FAILURE) {
 		/* don't try this at home */
 		while (!data->error) g_thread_yield();
-		g_print("Invalid URI: %s\n", data->error->message);
+		g_printerr("Error changing track: %s\n", data->error->message);
 	}
 	return sc_ret;
 }
@@ -247,7 +254,7 @@ static GstStateChangeReturn prev_track(struct gst_data *data)
 	if (g_list_nth(data->file_list, n))
 		return set_track(data, n);
 	else
-		return set_track(data, g_list_length(data->file_list));
+		return set_track(data, g_list_length(data->file_list) - 1);
 }
 
 void print_song(
@@ -463,8 +470,10 @@ int main(int argc, char *argv[])
 		g_cond_wait(data.cond, data.mutex);
 	g_mutex_unlock(data.mutex);
 
-	if (set_track(&data, 0) == GST_STATE_CHANGE_FAILURE)
+	if (set_track(&data, 0) == GST_STATE_CHANGE_FAILURE) {
+		g_print("Error changing track: %s\n", data.error->message);
 		goto fail_audio;
+	}
 
 	/* initialize curses */
 	initscr();
