@@ -16,6 +16,7 @@ struct audio_player {
 };
 
 static gboolean set_state_blocking(AudioPlayer ap, GstState state);
+static char const *gst_state_to_string(GstState state);
 
 /* constructor/destructors */
 
@@ -38,6 +39,7 @@ static gboolean bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 			gst_message_parse_error(msg, &e, NULL);
 			g_printerr("%s: %s: %s\n", ap->uri, GST_MESSAGE_TYPE_NAME(msg), e->message);
 			g_error_free(e);
+			set_state_blocking(ap, GST_STATE_NULL);
 		}
 		break;
 		case GST_MESSAGE_TAG: {
@@ -48,6 +50,18 @@ static gboolean bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 			gst_tag_list_free(tl);
 		}
 		break;
+#if 0
+		case GST_MESSAGE_STATE_CHANGED: {
+			GstState oldstate, newstate, pending;
+			gst_message_parse_state_changed(msg, &oldstate, &newstate, &pending);
+			g_printerr("%s: %s: %s->%s->%s\n", ap->uri,
+					GST_MESSAGE_TYPE_NAME(msg),
+					gst_state_to_string(oldstate),
+					gst_state_to_string(newstate),
+					gst_state_to_string(pending));
+		}
+		break;
+#endif
 		default:
 		break;
 	}
@@ -135,6 +149,7 @@ void ap_free(AudioPlayer ap)
 	//g_main_loop_quit(ap->loop);
 	g_idle_add(idle_loop_quit, ap->loop);
 	g_thread_join(ap->thread);
+	gst_object_unref(ap->pipe);
 	gst_tag_list_free(ap->tags);
 	/* uri's string is destroyed with this list */
 	free_playlist(ap->list);
@@ -146,7 +161,8 @@ void ap_free(AudioPlayer ap)
 static char const *gst_state_to_string(GstState state)
 {
 	switch (state) {
-		case GST_STATE_NULL: return "Initializing";
+		case GST_STATE_VOID_PENDING: return "No change";
+		case GST_STATE_NULL: return "Stopped";
 		case GST_STATE_READY: return "Ready";
 		case GST_STATE_PAUSED: return "Paused";
 		case GST_STATE_PLAYING: return "Playing";
@@ -197,6 +213,21 @@ gchar const *ap_current_uri(AudioPlayer ap)
 	return ap->uri;
 }
 
+gchar *ap_get_tag(AudioPlayer ap, gchar const *tag)
+{
+	gchar *value;
+	gboolean exists;
+	switch (gst_tag_get_type(tag)) {
+		case G_TYPE_STRING:
+			exists = gst_tag_list_get_string(ap->tags, tag, &value);
+		break;
+		default:
+			g_return_val_if_reached(NULL);
+	}
+	if (exists) return value;
+	else return NULL;
+}
+
 /* state changing functions */
 
 static void ap_volume_adjust(AudioPlayer ap, gdouble adj)
@@ -227,12 +258,16 @@ static gboolean set_state_blocking(AudioPlayer ap, GstState state)
 		case GST_STATE_CHANGE_FAILURE:
 		return FALSE;
 		case GST_STATE_CHANGE_ASYNC: {
-			while (GST_STATE_CHANGE_ASYNC == (sc_ret = gst_element_get_state(
-					ap->pipe, NULL, NULL, GST_CLOCK_TIME_NONE)));
-			switch (sc_ret) {
-				case GST_STATE_CHANGE_FAILURE: return FALSE;
-				default: return TRUE;
-			}
+			GstState curstate;
+			do {
+				sc_ret = gst_element_get_state(
+						ap->pipe, &curstate, NULL, GST_CLOCK_TIME_NONE);
+			} while (sc_ret == GST_STATE_CHANGE_ASYNC);
+			if (sc_ret != GST_STATE_CHANGE_FAILURE &&
+					curstate == state)
+				return TRUE;
+			else
+				return FALSE;
 		}
 		default:
 		return TRUE;

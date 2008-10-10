@@ -50,10 +50,13 @@ static void print_song_line(
 
 void print_song(AudioPlayer ap, WINDOW *win, int rows, int cols)
 {
+	wmove(win, 0, 0);
+	/* print uri */
+	wprintw(win, "%s\n", ap_current_uri(ap));
 	/* print audio sink name */
-	mvwprintw(win, 0, 0, "audio-sink: %s", ap_sink_factory_name(ap));
-	wclrtoeol(win);
-	mvwprintw(win, 1, 0, "volume: %3.0f%%", ap_current_volume(ap));
+	wprintw(win, /*0, 0,*/ "audio-sink: %s\n", ap_sink_factory_name(ap));
+	//wclrtoeol(win);
+	wprintw(win, /*1, 0,*/ "volume: %3.0f%%\n", ap_current_volume(ap));
 	wclrtoeol(win);
 
 	wmove(win, rows / 2 - 3, 0);
@@ -61,18 +64,15 @@ void print_song(AudioPlayer ap, WINDOW *win, int rows, int cols)
 	/* print state */
 	print_song_line(win, cols, "%s", ap_state_to_string(ap));
 
-	/* print uri */
-	print_song_line(win, cols, "%s", ap_current_uri(ap));
-
 	/* print song tags */
-#if 0
-	gchar *artist = NULL, *album = NULL, *title = NULL;
-	gst_tag_list_get_string(data->tags, GST_TAG_ARTIST, &artist);
-	gst_tag_list_get_string(data->tags, GST_TAG_ALBUM, &album);
-	gst_tag_list_get_string(data->tags, GST_TAG_TITLE, &title);
+	gchar *artist = ap_get_tag(ap, "artist");
+	gchar *album = ap_get_tag(ap, "album");
+	gchar *title = ap_get_tag(ap, "title");
 	print_song_line(win, cols, "%s / %s / %s", artist, album, title);
 	g_free(artist); g_free(album); g_free(title);
 
+
+#if 0
 	/* print song position/duration */
 	GstFormat format = GST_FORMAT_TIME;
 	gint64 position = 0, duration = 0;

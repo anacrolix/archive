@@ -16,6 +16,7 @@ gchar const *ap_current_uri(AudioPlayer ap);
 gchar const *ap_state_to_string(AudioPlayer ap);
 gchar const *ap_sink_factory_name(AudioPlayer ap);
 gdouble ap_current_volume(AudioPlayer ap);
+gchar *ap_get_tag(AudioPlayer ap, gchar const *tag);
 
 /* state changing functions */
 
