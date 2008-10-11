@@ -93,12 +93,12 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 			/* write the error to stderr */
 			GError *e;
 			gst_message_parse_error(msg, &e, NULL);
-			#if 0
+#if 0
 			g_printerr("%s: %s: %s\n",
 					current_uri(),
 					GST_MESSAGE_TYPE_NAME(msg),
 					e->message);
-			#endif
+#endif
 			g_error_free(e);
 			next_track();
 		}
@@ -107,8 +107,10 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 			/* merge in new tags */
 			GstTagList *tl;
 			gst_message_parse_tag(msg, &tl);
+#if 0
 			g_debug("uri: %s", current_uri());
 			gst_tag_list_foreach(tl, index_test, NULL);
+#endif
 			gst_tag_list_insert(tags_, tl, GST_TAG_MERGE_REPLACE);
 			gst_tag_list_free(tl);
 		}
@@ -170,6 +172,7 @@ create_pipeline()
 void init_audio()
 {
 	playbin_pipe = create_pipeline();
+	tags_ = gst_tag_list_new();
 }
 
 void play_audio()
@@ -179,7 +182,14 @@ void play_audio()
 
 	/* stop the pipeline */
 	scr = gst_element_set_state(playbin_pipe, GST_STATE_NULL);
-	g_assert(scr == GST_STATE_CHANGE_SUCCESS);
+	if (scr == GST_STATE_CHANGE_ASYNC) {
+		GstState state;
+		do {
+			scr = gst_element_get_state(
+					playbin_pipe, &state, NULL, GST_CLOCK_TIME_NONE);
+		} while (scr == GST_STATE_CHANGE_ASYNC);
+	}
+	g_assert(scr != GST_STATE_CHANGE_FAILURE);
 
 	uri = g_list_nth_data(music_uri_list, current_track);
 
@@ -201,6 +211,8 @@ void set_track(gint number)
 	if (number >= trackc) number = 0;
 	else if (number < 0) number = trackc - 1;
 	current_track = number;
+	gst_tag_list_free(tags_);
+	tags_ = gst_tag_list_new();
 	play_audio();
 }
 

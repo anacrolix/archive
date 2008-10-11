@@ -37,7 +37,7 @@ on_select_music(GtkMenuItem *menu_item, gpointer data)
 		gchar *filename = gtk_file_chooser_get_filename(
 				GTK_FILE_CHOOSER(dialog));
 		gtk_widget_destroy(dialog);
-		g_debug("selected: %s\n", filename);
+		g_debug("selected: %s", filename);
 		set_music_directory(filename);
 		g_free(filename);
 	} else {
@@ -67,10 +67,10 @@ create_status_icon()
 {
 	g_assert(!status_icon);
 
-	status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_CDROM);
+	status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_MEDIA_PLAY);
 
 	gtk_status_icon_set_visible(status_icon, TRUE);
-	g_debug("embedded: %s\n",
+	g_debug("embedded: %s",
 			gtk_status_icon_is_embedded(status_icon) ? "yes" : "no");
 
 	gtk_status_icon_set_tooltip(status_icon, "Miniplay");
