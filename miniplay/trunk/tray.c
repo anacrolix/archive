@@ -54,9 +54,7 @@ on_select_music(GtkMenuItem *menu_item, gpointer data)
 	}
 
 	/* set the default music folder */
-	gtk_file_chooser_select_filename(GTK_FILE_CHOOSER(dialog), default_path);
-	gtk_file_chooser_set_do_overwrite_confirmation(
-			GTK_FILE_CHOOSER(dialog), FALSE);
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), default_path);
  	g_free(default_path);
 
 	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {

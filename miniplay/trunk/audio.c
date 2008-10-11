@@ -176,10 +176,9 @@ void init_audio()
 	tags_ = gst_tag_list_new();
 }
 
-void play_audio()
+static void halt_pipeline()
 {
 	GstStateChangeReturn scr;
-	gchar const *uri;
 
 	/* stop the pipeline */
 	scr = gst_element_set_state(playbin_pipe, GST_STATE_NULL);
@@ -199,14 +198,19 @@ void play_audio()
 	if (GST_STATE(playbin_pipe) > GST_STATE_READY)
 		g_printerr("playbin pipeline state may be too active for track change\n");
 #endif
+}
 
+void play_audio()
+{
+	/* stop current track */
+	halt_pipeline();
 
-	uri = g_list_nth_data(music_uri_list, current_track);
-
+	/* kick off the new one */
+	gchar const *uri = g_list_nth_data(music_uri_list, current_track);
 	if (uri) {
 		/* set the new track */
 		g_object_set(playbin_pipe, "uri", uri, NULL);
-		scr = gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
+		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
 	} else {
 		/* invalid track number */
 		current_track = -1;
@@ -245,7 +249,24 @@ void prev_track()
 
 void delete_track()
 {
+	halt_pipeline();
 
+	/* "steal" pointer */
+	int track = current_track;
+	gchar *uri = g_list_nth_data(music_uri_list, track);
+	music_uri_list = g_list_delete_link(
+			music_uri_list, g_list_nth(music_uri_list, track));
+
+	GError *error;
+	GFile *file = g_file_new_for_uri(uri);
+	if (g_file_trash(file, NULL, &error)) {
+		// d'oh
+		//g_error_free(error);
+	}
+
+	g_free(uri);
+
+	play_audio();
 }
 
 void play_pause()
