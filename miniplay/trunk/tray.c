@@ -3,10 +3,20 @@
 GtkWidget *popup_menu = NULL;
 GtkStatusIcon *status_icon = NULL;
 
-void blink_tray(gboolean blink)
+
+void pause_icon(void)
 {
-	gtk_status_icon_set_blinking(status_icon, blink);
+	g_debug("Changing to pause icon..");
+	gtk_status_icon_set_from_file (status_icon, "pause-icon.svg");
 }
+
+void play_icon(void)
+{
+	g_debug("Changing to play icon..");
+	gtk_status_icon_set_from_file(status_icon, "play-icon.svg");
+}
+
+
 
 static void
 on_next_track(GtkMenuItem *menu_item, gpointer data)
@@ -94,8 +104,9 @@ create_status_icon()
 {
 	g_assert(!status_icon);
 
-	status_icon = gtk_status_icon_new_from_file(
-			"jean_victor_balin_double_note_two.svg");
+	status_icon = gtk_status_icon_new();
+	
+	gtk_status_icon_set_from_file (status_icon, "pause-icon.svg");
 
 	gtk_status_icon_set_tooltip(status_icon, "Miniplay");
 
@@ -178,6 +189,6 @@ create_popup_menu()
 
 void init_tray()
 {
-	create_popup_menu();
 	create_status_icon();
+	create_popup_menu();
 }

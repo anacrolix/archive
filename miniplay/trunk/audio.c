@@ -1,5 +1,4 @@
 #include "miniplay.h"
-#include <gst/gst.h>
 
 GstElement *playbin_pipe = NULL;
 GList *music_uri_list = NULL;
@@ -72,6 +71,8 @@ set_music_directory(gchar *path)
 		current_track = 0;
 		g_object_set(playbin_pipe, "uri", g_list_nth_data(music_uri_list, 0), NULL);
 		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
+		play_icon();
+		
 	} else {
 		current_track = -1;
 		g_object_set(playbin_pipe, "uri", NULL, NULL);
@@ -118,9 +119,10 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 		}
 		break;
 		case GST_MESSAGE_STATE_CHANGED: {
-			GstState state;
-			gst_message_parse_state_changed(msg, NULL, &state, NULL);
-			blink_tray(state == GST_STATE_PAUSED);
+			//GstState state;
+			//gst_message_parse_state_changed(msg, NULL, &state, NULL);
+			////do nothing
+			////this signal is almost useless anyway
 		}
 		break;
 		case GST_MESSAGE_EOS:
@@ -213,6 +215,7 @@ void play_audio()
 		/* set the new track */
 		g_object_set(playbin_pipe, "uri", uri, NULL);
 		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
+		play_icon();
 	} else {
 		/* invalid track number */
 		current_track = -1;
@@ -251,6 +254,7 @@ void prev_track()
 
 void delete_track()
 {
+	#if 1
 	/* "steal" pointer */
 	int track = current_track;
 	gchar *uri = current_uri();
@@ -275,15 +279,21 @@ void delete_track()
 		g_free(uri);
 		play_audio();
 	}
-
+	#endif
 }
 
 void play_pause()
 {
 	GstState target;
 	if (GST_STATE(playbin_pipe) == GST_STATE_PLAYING)
+	{
+		pause_icon();
 		target = GST_STATE_PAUSED;
+	}
 	else
+	{
+		play_icon();
 		target = GST_STATE_PLAYING;
+	}
 	gst_element_set_state(playbin_pipe, target);
 }

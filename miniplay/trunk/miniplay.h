@@ -11,4 +11,5 @@ void prev_track();
 void delete_track();
 void play_pause();
 
-void blink_tray(gboolean blink);
+void pause_icon();
+void play_icon();
