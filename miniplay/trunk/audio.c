@@ -146,7 +146,7 @@ make_audio_sink()
 		sink = gst_element_factory_make(*sfn, NULL);
 	} while (!sink && *++sfn);
 
-	g_debug("selected audio sink: %s", *sfn);
+	g_debug("audio sink: %s", *sfn);
 	return sink;
 }
 
@@ -183,6 +183,8 @@ void play_audio()
 
 	/* stop the pipeline */
 	scr = gst_element_set_state(playbin_pipe, GST_STATE_NULL);
+#if 0
+	/* blocking on state change probably isn't a good idea */
 	if (scr == GST_STATE_CHANGE_ASYNC) {
 		GstState state;
 		do {
@@ -190,7 +192,14 @@ void play_audio()
 					playbin_pipe, &state, NULL, GST_CLOCK_TIME_NONE);
 		} while (scr == GST_STATE_CHANGE_ASYNC);
 	}
-	g_assert(scr != GST_STATE_CHANGE_FAILURE);
+#else
+	/* i'm not sure that failure matters... */
+	if (scr != GST_STATE_CHANGE_ASYNC)
+		g_printerr("stopping the pipeline returned async state\n");
+	if (GST_STATE(playbin_pipe) > GST_STATE_READY)
+		g_printerr("playbin pipeline state may be too active for track change\n");
+#endif
+
 
 	uri = g_list_nth_data(music_uri_list, current_track);
 

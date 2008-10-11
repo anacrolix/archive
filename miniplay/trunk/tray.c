@@ -132,6 +132,9 @@ create_popup_menu()
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_prev_track), NULL);
 
+	menu_item = gtk_separator_menu_item_new();
+	gtk_menu_append(popup_menu, menu_item);
+
 	menu_item = gtk_image_menu_item_new_with_label("Select music...");
 	gtk_image_menu_item_set_image(
 			GTK_IMAGE_MENU_ITEM(menu_item),
@@ -147,6 +150,9 @@ create_popup_menu()
 	g_signal_connect(G_OBJECT(menu_item), "toggled",
 			G_CALLBACK(on_toggle_shuffle), NULL);
 	gtk_check_menu_item_toggled(GTK_CHECK_MENU_ITEM(menu_item));
+
+	menu_item = gtk_separator_menu_item_new();
+	gtk_menu_append(popup_menu, menu_item);
 
 	menu_item = gtk_image_menu_item_new_from_stock(
 			GTK_STOCK_QUIT, NULL);
