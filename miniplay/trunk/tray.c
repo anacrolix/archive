@@ -3,7 +3,6 @@
 GtkWidget *popup_menu = NULL;
 GtkStatusIcon *status_icon = NULL;
 
-
 void pause_icon(void)
 {
 	g_debug("Changing to pause icon..");
@@ -15,8 +14,6 @@ void play_icon(void)
 	g_debug("Changing to play icon..");
 	gtk_status_icon_set_from_file(status_icon, "play-icon.svg");
 }
-
-
 
 static void
 on_next_track(GtkMenuItem *menu_item, gpointer data)
@@ -105,21 +102,10 @@ create_status_icon()
 	g_assert(!status_icon);
 
 	status_icon = gtk_status_icon_new();
-	
-	gtk_status_icon_set_from_file (status_icon, "pause-icon.svg");
+
+	gtk_status_icon_set_from_file(status_icon, "pause-icon.svg");
 
 	gtk_status_icon_set_tooltip(status_icon, "Miniplay");
-
-	g_signal_connect(G_OBJECT(status_icon), "popup-menu",
-			G_CALLBACK(popup_menu_handler), NULL);
-
-	/* status icon click implementation */
-	g_signal_connect(G_OBJECT(status_icon), "activate",
-			G_CALLBACK(activate_handler), NULL);
-
-	gtk_status_icon_set_visible(status_icon, TRUE);
-	g_debug("embedded: %s",
-			gtk_status_icon_is_embedded(status_icon) ? "yes" : "no");
 }
 
 static void
@@ -152,11 +138,13 @@ create_popup_menu()
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
 
+#ifndef OLDGIO
 	menu_item = gtk_image_menu_item_new_from_stock(
 			GTK_STOCK_DELETE, NULL);
 	gtk_menu_append(popup_menu, menu_item);
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_delete_track), NULL);
+#endif
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
@@ -187,8 +175,24 @@ create_popup_menu()
 			G_CALLBACK(gtk_main_quit), NULL);
 }
 
+static void
+connect_tray_signals()
+{
+	g_signal_connect(G_OBJECT(status_icon), "popup-menu",
+			G_CALLBACK(popup_menu_handler), NULL);
+
+	/* status icon click implementation */
+	g_signal_connect(G_OBJECT(status_icon), "activate",
+			G_CALLBACK(activate_handler), NULL);
+
+	gtk_status_icon_set_visible(status_icon, TRUE);
+	g_debug("embedded: %s",
+			gtk_status_icon_is_embedded(status_icon) ? "yes" : "no");
+}
+
 void init_tray()
 {
 	create_status_icon();
 	create_popup_menu();
+	connect_tray_signals();
 }

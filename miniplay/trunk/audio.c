@@ -6,6 +6,8 @@ gint current_track = -1;
 GstTagList *tags_ = NULL;
 gboolean shuffle_;
 
+static void halt_pipeline();
+
 void set_shuffle(gboolean shuffle)
 {
 	shuffle_ = shuffle;
@@ -62,7 +64,7 @@ set_music_directory(gchar *path)
 	list = g_list_reverse(list);
 
 	/* halt current play */
-	g_assert(gst_element_set_state(playbin_pipe, GST_STATE_NULL) == GST_STATE_CHANGE_SUCCESS);
+	halt_pipeline();
 
 	free_music_list();
 	music_uri_list = list;
@@ -71,9 +73,8 @@ set_music_directory(gchar *path)
 		current_track = 0;
 		g_object_set(playbin_pipe, "uri", g_list_nth_data(music_uri_list, 0), NULL);
 		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
-		play_icon();
-		
-	} else {
+	}
+	else {
 		current_track = -1;
 		g_object_set(playbin_pipe, "uri", NULL, NULL);
 	}
@@ -119,10 +120,10 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 		}
 		break;
 		case GST_MESSAGE_STATE_CHANGED: {
-			//GstState state;
-			//gst_message_parse_state_changed(msg, NULL, &state, NULL);
-			////do nothing
-			////this signal is almost useless anyway
+			GstState state;
+			gst_message_parse_state_changed(msg, NULL, &state, NULL);
+			if (state == GST_STATE_PLAYING) play_icon();
+			else pause_icon();
 		}
 		break;
 		case GST_MESSAGE_EOS:
@@ -215,7 +216,6 @@ void play_audio()
 		/* set the new track */
 		g_object_set(playbin_pipe, "uri", uri, NULL);
 		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
-		play_icon();
 	} else {
 		/* invalid track number */
 		current_track = -1;
@@ -254,7 +254,6 @@ void prev_track()
 
 void delete_track()
 {
-	#if 1
 	/* "steal" pointer */
 	int track = current_track;
 	gchar *uri = current_uri();
@@ -271,29 +270,23 @@ void delete_track()
 		music_uri_list = g_list_delete_link(
 				music_uri_list, g_list_nth(music_uri_list, track));
 		GError *error;
+#ifndef OLDGIO
 		GFile *file = g_file_new_for_uri(uri);
 		if (g_file_trash(file, NULL, &error)) {
 			// d'oh
 			//g_error_free(error);
 		}
+#endif
 		g_free(uri);
 		play_audio();
 	}
-	#endif
 }
 
 void play_pause()
 {
-	GstState target;
-	if (GST_STATE(playbin_pipe) == GST_STATE_PLAYING)
-	{
-		pause_icon();
-		target = GST_STATE_PAUSED;
-	}
-	else
-	{
-		play_icon();
-		target = GST_STATE_PLAYING;
-	}
+	GstState target =
+			(GST_STATE(playbin_pipe) == GST_STATE_PLAYING) ?
+			GST_STATE_PAUSED : GST_STATE_PLAYING;
+
 	gst_element_set_state(playbin_pipe, target);
 }
