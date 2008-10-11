@@ -84,6 +84,12 @@ create_status_icon()
 }
 
 static void
+on_toggle_shuffle(GtkCheckMenuItem *cmi, gpointer user)
+{
+	set_shuffle(gtk_check_menu_item_get_active(cmi));
+}
+
+static void
 create_popup_menu()
 {
 	g_assert(!popup_menu);
@@ -111,6 +117,13 @@ create_popup_menu()
 	gtk_menu_append(popup_menu, menu_item);
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_select_music), NULL);
+
+	menu_item = gtk_check_menu_item_new_with_label("Shuffle");
+	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menu_item), TRUE);
+	gtk_menu_append(popup_menu, menu_item);
+	g_signal_connect(G_OBJECT(menu_item), "toggled",
+			G_CALLBACK(on_toggle_shuffle), NULL);
+	gtk_check_menu_item_toggled(GTK_CHECK_MENU_ITEM(menu_item));
 
 	menu_item = gtk_image_menu_item_new_from_stock(
 			GTK_STOCK_QUIT, NULL);

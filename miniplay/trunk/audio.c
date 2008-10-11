@@ -5,6 +5,12 @@ GstElement *playbin_pipe = NULL;
 GList *music_uri_list = NULL;
 gint current_track = -1;
 GstTagList *tags_ = NULL;
+gboolean shuffle_;
+
+void set_shuffle(gboolean shuffle)
+{
+	shuffle_ = shuffle;
+}
 
 static gchar const *
 current_uri()
@@ -200,7 +206,14 @@ void set_track(gint number)
 
 void next_track()
 {
-	set_track(current_track + 1);
+	gint next;
+	if (shuffle_) {
+		next = g_random_int_range(0, g_list_length(music_uri_list));
+	} else {
+		next = current_track + 1;
+	}
+	g_debug("setting track number %d", next);
+	set_track(next);
 }
 
 void prev_track()
