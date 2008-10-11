@@ -194,7 +194,7 @@ void play_audio()
 	}
 #else
 	/* i'm not sure that failure matters... */
-	if (scr != GST_STATE_CHANGE_ASYNC)
+	if (scr == GST_STATE_CHANGE_ASYNC)
 		g_printerr("stopping the pipeline returned async state\n");
 	if (GST_STATE(playbin_pipe) > GST_STATE_READY)
 		g_printerr("playbin pipeline state may be too active for track change\n");
@@ -241,6 +241,11 @@ void next_track()
 void prev_track()
 {
 	set_track(current_track - 1);
+}
+
+void delete_track()
+{
+
 }
 
 void play_pause()

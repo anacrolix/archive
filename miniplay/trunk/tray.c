@@ -21,6 +21,12 @@ on_prev_track(GtkMenuItem *menu_item, gpointer data)
 }
 
 static void
+on_delete_track(GtkMenuItem *menu_item, gpointer data)
+{
+	delete_track();
+}
+
+static void
 on_select_music(GtkMenuItem *menu_item, gpointer data)
 {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(
@@ -29,11 +35,11 @@ on_select_music(GtkMenuItem *menu_item, gpointer data)
 			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 			NULL);
-	
+
 	gchar *defaultPath = g_build_filename(g_get_home_dir(), "Music"); //does this leak from get_home_dir?
 
 	if(!g_file_test(defaultPath , G_FILE_TEST_IS_DIR))
-	{ 
+	{
 		g_free(defaultPath);
 		defaultPath = g_get_home_dir();
 	}
@@ -42,15 +48,15 @@ on_select_music(GtkMenuItem *menu_item, gpointer data)
 	gtk_file_chooser_set_current_folder (
 		GTK_FILE_CHOOSER (dialog),
 		defaultPath);
- 	
- 	
+
+
  	g_free(defaultPath);
-		
-			
+
+
 	gtk_file_chooser_set_action(
 			GTK_FILE_CHOOSER(dialog),
 			GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
-			
+
 
 
 
@@ -131,6 +137,12 @@ create_popup_menu()
 	gtk_menu_append(popup_menu, menu_item);
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_prev_track), NULL);
+
+	menu_item = gtk_image_menu_item_new_from_stock(
+			GTK_STOCK_DELETE, NULL);
+	gtk_menu_append(popup_menu, menu_item);
+	g_signal_connect(G_OBJECT(menu_item), "activate",
+			G_CALLBACK(on_delete_track), NULL);
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);

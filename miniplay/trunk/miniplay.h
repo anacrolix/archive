@@ -8,6 +8,7 @@ void set_music_directory(gchar *path);
 void set_shuffle(gboolean shuffle);
 void next_track();
 void prev_track();
+void delete_track();
 void play_pause();
 
 void blink_tray(gboolean blink);
