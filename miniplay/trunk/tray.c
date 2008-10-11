@@ -31,44 +31,45 @@ on_select_music(GtkMenuItem *menu_item, gpointer data)
 {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(
 			"Select music directory", NULL,
-			GTK_FILE_CHOOSER_ACTION_OPEN,
+			GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
 			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 			NULL);
 
-	gchar *defaultPath = g_build_filename(g_get_home_dir(), "Music", NULL);
+	/* choose a default music directory and apply it */
+	gchar const *music_dirs[] = {"Music", "music"};
+	gchar *default_path;
 
-	if(g_file_test(defaultPath , G_FILE_TEST_IS_DIR))
-	{
-		gtk_file_chooser_set_current_folder (
-			GTK_FILE_CHOOSER (dialog),
-			defaultPath);
+	for (gchar const **md = music_dirs; *md; md++) {
+		/* get a full path */
+		if (g_path_is_absolute(*md))
+			default_path = g_strdup(*md);
+		else
+			default_path = g_build_filename(g_get_home_dir(), *md, NULL);
+
+		/* if it's a directory we're done */
+		if (g_file_test(default_path, G_FILE_TEST_IS_DIR))
+			break;
+		g_free(default_path);
 	}
-	else
-	{ 
-		gtk_file_chooser_set_current_folder (
-			GTK_FILE_CHOOSER (dialog),
-			g_get_home_dir());
-	}
-	
- 	g_free(defaultPath);
 
-
-	gtk_file_chooser_set_action(
-			GTK_FILE_CHOOSER(dialog),
-			GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
-
-
-
+	/* set the default music folder */
+	gtk_file_chooser_select_filename(GTK_FILE_CHOOSER(dialog), default_path);
+	gtk_file_chooser_set_do_overwrite_confirmation(
+			GTK_FILE_CHOOSER(dialog), FALSE);
+ 	g_free(default_path);
 
 	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		/* retrieve the selected folder before destroying the dialog */
 		gchar *filename = gtk_file_chooser_get_filename(
 				GTK_FILE_CHOOSER(dialog));
 		gtk_widget_destroy(dialog);
 		g_debug("selected: %s", filename);
+		/* parse the music folder */
 		set_music_directory(filename);
 		g_free(filename);
 	} else {
+		/* blow this mofo outta the sky */
 		gtk_widget_destroy(dialog);
 	}
 }
@@ -98,10 +99,6 @@ create_status_icon()
 	status_icon = gtk_status_icon_new_from_file(
 			"jean_victor_balin_double_note_two.svg");
 
-	gtk_status_icon_set_visible(status_icon, TRUE);
-	g_debug("embedded: %s",
-			gtk_status_icon_is_embedded(status_icon) ? "yes" : "no");
-
 	gtk_status_icon_set_tooltip(status_icon, "Miniplay");
 
 	g_signal_connect(G_OBJECT(status_icon), "popup-menu",
@@ -110,6 +107,10 @@ create_status_icon()
 	/* status icon click implementation */
 	g_signal_connect(G_OBJECT(status_icon), "activate",
 			G_CALLBACK(activate_handler), NULL);
+
+	gtk_status_icon_set_visible(status_icon, TRUE);
+	g_debug("embedded: %s",
+			gtk_status_icon_is_embedded(status_icon) ? "yes" : "no");
 }
 
 static void
@@ -176,6 +177,6 @@ create_popup_menu()
 
 void init_tray()
 {
-	create_status_icon();
 	create_popup_menu();
+	create_status_icon();
 }
