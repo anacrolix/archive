@@ -67,7 +67,8 @@ create_status_icon()
 {
 	g_assert(!status_icon);
 
-	status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_MEDIA_PLAY);
+	status_icon = gtk_status_icon_new_from_file(
+			"jean_victor_balin_double_note_two.svg");
 
 	gtk_status_icon_set_visible(status_icon, TRUE);
 	g_debug("embedded: %s",

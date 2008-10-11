@@ -9,4 +9,4 @@ clean:
 	$(RM) *.o miniplay
 
 miniplay: main.o audio.o tray.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS) $(CFLAGS)
