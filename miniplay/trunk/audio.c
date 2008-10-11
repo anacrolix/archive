@@ -12,7 +12,7 @@ void set_shuffle(gboolean shuffle)
 	shuffle_ = shuffle;
 }
 
-static gchar const *
+static gchar *
 current_uri()
 {
 	return g_list_nth_data(music_uri_list, current_track);
@@ -78,11 +78,13 @@ set_music_directory(gchar *path)
 	}
 }
 
+#if 0
 static void
 index_test(GstTagList const *list, gchar const *tag, gpointer user)
 {
 	g_debug("%s: %s", tag, g_type_name(gst_tag_get_type(tag)));
 }
+#endif
 
 /** receive and process messages on the playbin bus */
 static gboolean
@@ -206,7 +208,7 @@ void play_audio()
 	halt_pipeline();
 
 	/* kick off the new one */
-	gchar const *uri = g_list_nth_data(music_uri_list, current_track);
+	gchar const *uri = current_uri();
 	if (uri) {
 		/* set the new track */
 		g_object_set(playbin_pipe, "uri", uri, NULL);
@@ -249,24 +251,31 @@ void prev_track()
 
 void delete_track()
 {
-	halt_pipeline();
-
 	/* "steal" pointer */
 	int track = current_track;
-	gchar *uri = g_list_nth_data(music_uri_list, track);
-	music_uri_list = g_list_delete_link(
-			music_uri_list, g_list_nth(music_uri_list, track));
+	gchar *uri = current_uri();
 
-	GError *error;
-	GFile *file = g_file_new_for_uri(uri);
-	if (g_file_trash(file, NULL, &error)) {
-		// d'oh
-		//g_error_free(error);
+	GtkWidget *msgdlg = gtk_message_dialog_new(
+			NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
+			"Move file to the trash?\n%s", uri);
+
+	gint response = gtk_dialog_run(GTK_DIALOG(msgdlg));
+	gtk_widget_destroy(msgdlg);
+
+	if (response == GTK_RESPONSE_YES) {
+		halt_pipeline();
+		music_uri_list = g_list_delete_link(
+				music_uri_list, g_list_nth(music_uri_list, track));
+		GError *error;
+		GFile *file = g_file_new_for_uri(uri);
+		if (g_file_trash(file, NULL, &error)) {
+			// d'oh
+			//g_error_free(error);
+		}
+		g_free(uri);
+		play_audio();
 	}
 
-	g_free(uri);
-
-	play_audio();
 }
 
 void play_pause()
