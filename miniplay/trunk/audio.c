@@ -1,10 +1,16 @@
-#include "audio.h"
+#include "miniplay.h"
 #include <gst/gst.h>
 
 GstElement *playbin_pipe = NULL;
 GList *music_uri_list = NULL;
 gint current_track = -1;
-GstState desired_state;
+GstTagList *tags_ = NULL;
+
+static gchar const *
+current_uri()
+{
+	return g_list_nth_data(music_uri_list, current_track);
+}
 
 static GList *
 build_music_list(GList *list, gchar *path)
@@ -34,54 +40,6 @@ build_music_list(GList *list, gchar *path)
 	return list;
 }
 
-#if 0
-static gboolean
-wait_for_state(GstState state)
-{
-	GstStateChangeReturn sc_ret;
-	sc_ret = gst_element_set_state(playbin_pipe, state);
-	switch (sc_ret) {
-		case GST_STATE_CHANGE_FAILURE:
-		return FALSE;
-		case GST_STATE_CHANGE_ASYNC: {
-			GstState curstate;
-			do {
-				sc_ret = gst_element_get_state(
-						ap->pipe, &curstate, NULL, GST_CLOCK_TIME_NONE);
-			} while (sc_ret == GST_STATE_CHANGE_ASYNC);
-			if (sc_ret != GST_STATE_CHANGE_FAILURE &&
-					curstate == state)
-				return TRUE;
-			else
-				return FALSE;
-		}
-		default:
-		return TRUE;
-	}
-}
-
-
-
-gboolean ap_set_track(AudioPlayer ap, gint tracknr)
-{
-	/* get the desired play state after track change */
-	GstState target = MAX(GST_STATE_TARGET(ap->pipe), GST_STATE_PAUSED);
-
-	/* stop the current pipeline and set new track */
-	if (!set_state_blocking(ap, GST_STATE_NULL)) return FALSE;
-
-	/* prepare status vars */
-	ap->index = tracknr;
-	ap->uri = g_list_nth_data(ap->list, tracknr);
-	gst_tag_list_free(ap->tags);
-	ap->tags = gst_tag_list_new();
-	g_object_set(ap->pipe, "uri", ap->uri, NULL);
-
-	/* resume previous pipeline state */
-	return set_state_blocking(ap, target);
-}
-#endif
-
 static void
 free_music_list()
 {
@@ -99,7 +57,6 @@ set_music_directory(gchar *path)
 	list = g_list_reverse(list);
 
 	/* halt current play */
-	desired_state = GST_STATE_NULL;
 	g_assert(gst_element_set_state(playbin_pipe, GST_STATE_NULL) == GST_STATE_CHANGE_SUCCESS);
 
 	free_music_list();
@@ -108,7 +65,6 @@ set_music_directory(gchar *path)
 	if (g_list_length(music_uri_list) > 0) {
 		current_track = 0;
 		g_object_set(playbin_pipe, "uri", g_list_nth_data(music_uri_list, 0), NULL);
-		desired_state = GST_STATE_PLAYING;
 		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
 	} else {
 		current_track = -1;
@@ -116,47 +72,53 @@ set_music_directory(gchar *path)
 	}
 }
 
+static void
+index_test(GstTagList const *list, gchar const *tag, gpointer user)
+{
+	g_debug("%s: %s", tag, g_type_name(gst_tag_get_type(tag)));
+}
+
 /** receive and process messages on the playbin bus */
 static gboolean
 bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 {
-#if 0
-	(void)bus;
-
 	switch (GST_MESSAGE_TYPE(msg)) {
 		case GST_MESSAGE_ERROR: {
 			/* write the error to stderr */
 			GError *e;
 			gst_message_parse_error(msg, &e, NULL);
-			g_printerr("%s: %s: %s\n", ap->uri, GST_MESSAGE_TYPE_NAME(msg), e->message);
+			#if 0
+			g_printerr("%s: %s: %s\n",
+					current_uri(),
+					GST_MESSAGE_TYPE_NAME(msg),
+					e->message);
+			#endif
 			g_error_free(e);
-			set_state_blocking(ap, GST_STATE_NULL);
+			next_track();
 		}
 		break;
 		case GST_MESSAGE_TAG: {
 			/* merge in new tags */
 			GstTagList *tl;
 			gst_message_parse_tag(msg, &tl);
-			gst_tag_list_insert(ap->tags, tl, GST_TAG_MERGE_REPLACE);
+			g_debug("uri: %s", current_uri());
+			gst_tag_list_foreach(tl, index_test, NULL);
+			gst_tag_list_insert(tags_, tl, GST_TAG_MERGE_REPLACE);
 			gst_tag_list_free(tl);
 		}
 		break;
-#if 0
 		case GST_MESSAGE_STATE_CHANGED: {
-			GstState oldstate, newstate, pending;
-			gst_message_parse_state_changed(msg, &oldstate, &newstate, &pending);
-			g_printerr("%s: %s: %s->%s->%s\n", ap->uri,
-					GST_MESSAGE_TYPE_NAME(msg),
-					gst_state_to_string(oldstate),
-					gst_state_to_string(newstate),
-					gst_state_to_string(pending));
+			GstState state;
+			gst_message_parse_state_changed(msg, NULL, &state, NULL);
+			blink_tray(state == GST_STATE_PLAYING);
 		}
 		break;
-#endif
+		case GST_MESSAGE_EOS:
+			next_track();
+		break;
 		default:
 		break;
 	}
-#endif
 	/* continue watching the bus */
 	return TRUE;
 }
@@ -194,7 +156,7 @@ create_pipeline()
 	/* set the audio sink */
 	GstElement *sink = make_audio_sink();
 	g_assert(sink);
-	g_object_set(pipe, "audio-sink", sink, "video-sink", NULL, NULL);
+	g_object_set(pipe, "audio-sink", sink, "video-sink", NULL, "vis-plugin", NULL, NULL);
 
 	return pipe;
 }
@@ -202,4 +164,56 @@ create_pipeline()
 void init_audio()
 {
 	playbin_pipe = create_pipeline();
+}
+
+void play_audio()
+{
+	GstStateChangeReturn scr;
+	gchar const *uri;
+
+	/* stop the pipeline */
+	scr = gst_element_set_state(playbin_pipe, GST_STATE_NULL);
+	g_assert(scr == GST_STATE_CHANGE_SUCCESS);
+
+	uri = g_list_nth_data(music_uri_list, current_track);
+
+	if (uri) {
+		/* set the new track */
+		g_object_set(playbin_pipe, "uri", uri, NULL);
+		scr = gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
+	} else {
+		/* invalid track number */
+		current_track = -1;
+		g_object_set(playbin_pipe, "uri", NULL, NULL);
+		g_printerr("Track number out of range\n");
+	}
+}
+
+void set_track(gint number)
+{
+	gint trackc = g_list_length(music_uri_list);
+	if (number >= trackc) number = 0;
+	else if (number < 0) number = trackc - 1;
+	current_track = number;
+	play_audio();
+}
+
+void next_track()
+{
+	set_track(current_track + 1);
+}
+
+void prev_track()
+{
+	set_track(current_track - 1);
+}
+
+void play_pause()
+{
+	GstState target;
+	if (GST_STATE(playbin_pipe) == GST_STATE_PLAYING)
+		target = GST_STATE_PAUSED;
+	else
+		target = GST_STATE_PLAYING;
+	gst_element_set_state(playbin_pipe, target);
 }
