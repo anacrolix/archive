@@ -1,0 +1,4 @@
+* several dialogs need to be modal, but there is no top level window to set as parent
+* the delete button is dangerously close to the next/previous buttons?
+* an explicity play/pause toggle is needed in the context window
+* an about box should be added

@@ -1,0 +1,12 @@
+October 2008
+
+Initial Development and Lead:
+	Eruanno <anacrolix@gmail.com>
+Main Developers:
+	Erikina <erikina@gmail.com>
+
+Libraries:
+	GLib
+	GTK+
+	GIO
+	GStreamer
