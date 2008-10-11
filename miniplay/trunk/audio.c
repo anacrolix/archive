@@ -146,6 +146,7 @@ make_audio_sink()
 		sink = gst_element_factory_make(*sfn, NULL);
 	} while (!sink && *++sfn);
 
+	g_debug("selected audio sink: %s", *sfn);
 	return sink;
 }
 
