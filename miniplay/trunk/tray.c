@@ -1,18 +1,34 @@
-#include <gtk/gtk.h>
+#include "miniplay.h"
 
-static GtkWidget *popup_menu = NULL;
-static GtkStatusIcon *status_icon = NULL;
+GtkWidget *popup_menu = NULL;
+GtkStatusIcon *status_icon = NULL;
 
 static void
-on_blink_change(GtkStatusIcon *widget, gpointer data)
+on_select_music(GtkMenuItem *menu_item, gpointer data)
 {
-	gboolean blink = GPOINTER_TO_UINT(data);
-	g_debug("Set blinking %s", (blink) ? "on" : "off");
-	gtk_status_icon_set_blinking(GTK_STATUS_ICON(status_icon), blink);
+	GtkWidget *dialog = gtk_file_chooser_dialog_new(
+			"Select music directory", NULL,
+			GTK_FILE_CHOOSER_ACTION_OPEN,
+			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+			NULL);
+	gtk_file_chooser_set_action(
+			GTK_FILE_CHOOSER(dialog),
+			GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
+
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		gchar *filename = gtk_file_chooser_get_filename(
+				GTK_FILE_CHOOSER(dialog));
+		g_debug("selected: %s\n", filename);
+		set_music_directory(filename);
+		g_free(filename);
+	}
+
+	gtk_widget_destroy(dialog);
 }
 
 static void
-popup_menu_callback(
+popup_menu_handler(
 		GtkStatusIcon *status_icon, guint button,
 		guint activate_time, gpointer user_data)
 {
@@ -22,50 +38,48 @@ popup_menu_callback(
 			button, activate_time);
 }
 
-
-void create_popup_menu()
-{
-	g_assert(!popup_menu);
-	popup_menu = gtk_menu_new();
-
-	GtkWidget *item;
-
-	item = gtk_menu_item_new_with_label("Let's blink!");
-	gtk_menu_append(popup_menu, item);
-	g_signal_connect(G_OBJECT(item), "activate",
-			G_CALLBACK(on_blink_change), GUINT_TO_POINTER(TRUE));
-
-	item = gtk_menu_item_new_with_label("Let's stop blinking!");
-	gtk_menu_append(popup_menu, item);
-	g_signal_connect (G_OBJECT(item), "activate",
-			G_CALLBACK(on_blink_change), GUINT_TO_POINTER(FALSE));
-
-	item = gtk_menu_item_new_with_label("Quit");
-	gtk_menu_append(popup_menu, item);
-	g_signal_connect (G_OBJECT(item), "activate",
-			G_CALLBACK(gtk_main_quit), NULL);
-}
-
-void create_status_icon()
+static void
+create_status_icon()
 {
 	g_assert(!status_icon);
+
 	status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_ADD);
+
 	gtk_status_icon_set_visible(status_icon, TRUE);
-	//g_debug(gtk_status_icon_is_embedded(gsi));
-	gtk_status_icon_set_tooltip(status_icon, "STUB TOOLTIP");
-	create_popup_menu();
+	g_debug("embedded: %s\n",
+			gtk_status_icon_is_embedded(status_icon) ? "yes" : "no");
+
+	gtk_status_icon_set_tooltip(status_icon, "Miniplay");
+
 	g_signal_connect(G_OBJECT(status_icon), "popup-menu",
-			G_CALLBACK(popup_menu_callback), NULL);
+			G_CALLBACK(popup_menu_handler), NULL);
+	/* status icon click implementation */
 	//g_signal_connect(G_OBJECT(status_icon), "activate",
 	//		G_CALLBACK(activate_callback), NULL);
 }
 
-gint main(gint argc, gchar *argv[])
+static void
+create_popup_menu()
 {
-	gtk_init(&argc, &argv);
+	g_assert(!popup_menu);
 
+	popup_menu = gtk_menu_new();
+
+	GtkWidget *menu_item;
+
+	menu_item = gtk_menu_item_new_with_label("Music Directory...");
+	gtk_menu_append(popup_menu, menu_item);
+	g_signal_connect(G_OBJECT(menu_item), "activate",
+			G_CALLBACK(on_select_music), NULL);
+
+	menu_item = gtk_menu_item_new_with_label("Quit");
+	gtk_menu_append(popup_menu, menu_item);
+	g_signal_connect(G_OBJECT(menu_item), "activate",
+			G_CALLBACK(gtk_main_quit), NULL);
+}
+
+void init_tray()
+{
 	create_status_icon();
-
-	gtk_main();
-	return 0;
+	create_popup_menu();
 }
