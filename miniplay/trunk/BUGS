@@ -2,3 +2,13 @@
 * the delete button is dangerously close to the next/previous buttons?
 * an explicity play/pause toggle is needed in the context window
 * an about box should be added
+* non-audio media types are not entirely quashed, and image windows popup and
+	cause failures in halting the pipeline
+* volume control needed
+* tags for songs in a libnotify style popup, or in the tooltips
+* need to add some screenshots
+* select music folder initialization doens't select the default folder properly
+* better icon
+* compile instructions for several distros
+* stream select option (editdialog style)
+* correct previous when shuffle is on
