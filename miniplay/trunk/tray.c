@@ -36,20 +36,21 @@ on_select_music(GtkMenuItem *menu_item, gpointer data)
 			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 			NULL);
 
-	gchar *defaultPath = g_build_filename(g_get_home_dir(), "Music"); //does this leak from get_home_dir?
+	gchar *defaultPath = g_build_filename(g_get_home_dir(), "Music", NULL);
 
-	if(!g_file_test(defaultPath , G_FILE_TEST_IS_DIR))
+	if(g_file_test(defaultPath , G_FILE_TEST_IS_DIR))
 	{
-		g_free(defaultPath);
-		defaultPath = g_get_home_dir();
+		gtk_file_chooser_set_current_folder (
+			GTK_FILE_CHOOSER (dialog),
+			defaultPath);
 	}
-
-
-	gtk_file_chooser_set_current_folder (
-		GTK_FILE_CHOOSER (dialog),
-		defaultPath);
-
-
+	else
+	{ 
+		gtk_file_chooser_set_current_folder (
+			GTK_FILE_CHOOSER (dialog),
+			g_get_home_dir());
+	}
+	
  	g_free(defaultPath);
 
 
