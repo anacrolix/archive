@@ -110,13 +110,14 @@ create_popup_menu()
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_prev_track), NULL);
 
-	menu_item = gtk_image_menu_item_new_with_label("Music Directory...");
+	menu_item = gtk_image_menu_item_new_with_label("Select music...");
 	gtk_image_menu_item_set_image(
 			GTK_IMAGE_MENU_ITEM(menu_item),
 			gtk_image_new_from_stock(GTK_STOCK_OPEN, GTK_ICON_SIZE_MENU));
 	gtk_menu_append(popup_menu, menu_item);
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_select_music), NULL);
+	gtk_menu_item_activate(GTK_MENU_ITEM(menu_item));
 
 	menu_item = gtk_check_menu_item_new_with_label("Shuffle");
 	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menu_item), TRUE);

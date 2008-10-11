@@ -118,7 +118,7 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 		case GST_MESSAGE_STATE_CHANGED: {
 			GstState state;
 			gst_message_parse_state_changed(msg, NULL, &state, NULL);
-			blink_tray(state == GST_STATE_PLAYING);
+			blink_tray(state == GST_STATE_PAUSED);
 		}
 		break;
 		case GST_MESSAGE_EOS:
