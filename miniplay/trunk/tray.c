@@ -127,16 +127,19 @@ create_popup_menu()
 	GtkWidget *menu_item;
 
 	menu_item = gtk_image_menu_item_new_from_stock(
+			GTK_STOCK_MEDIA_PREVIOUS, NULL);
+	gtk_menu_append(popup_menu, menu_item);
+	g_signal_connect(G_OBJECT(menu_item), "activate",
+			G_CALLBACK(on_prev_track), NULL);
+
+	menu_item = gtk_image_menu_item_new_from_stock(
 			GTK_STOCK_MEDIA_NEXT, NULL);
 	gtk_menu_append(popup_menu, menu_item);
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_next_track), NULL);
 
-	menu_item = gtk_image_menu_item_new_from_stock(
-			GTK_STOCK_MEDIA_PREVIOUS, NULL);
+	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
-	g_signal_connect(G_OBJECT(menu_item), "activate",
-			G_CALLBACK(on_prev_track), NULL);
 
 	menu_item = gtk_image_menu_item_new_from_stock(
 			GTK_STOCK_DELETE, NULL);
