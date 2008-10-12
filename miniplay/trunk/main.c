@@ -6,6 +6,8 @@ gint main(gint argc, gchar *argv[])
 	gst_init(&argc, &argv);
 	init_audio();
 	init_tray();
+	select_music();
+	connect_tray_signals();
 	gtk_main();
 	return 0;
 }

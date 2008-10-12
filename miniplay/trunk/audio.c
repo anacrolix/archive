@@ -69,15 +69,8 @@ set_music_directory(gchar *path)
 	free_music_list();
 	music_uri_list = list;
 
-	if (g_list_length(music_uri_list) > 0) {
-		current_track = 0;
-		g_object_set(playbin_pipe, "uri", g_list_nth_data(music_uri_list, 0), NULL);
-		gst_element_set_state(playbin_pipe, GST_STATE_PLAYING);
-	}
-	else {
-		current_track = -1;
-		g_object_set(playbin_pipe, "uri", NULL, NULL);
-	}
+	current_track = -1;
+	next_track();
 }
 
 #if 0
@@ -87,6 +80,19 @@ index_test(GstTagList const *list, gchar const *tag, gpointer user)
 	g_debug("%s: %s", tag, g_type_name(gst_tag_get_type(tag)));
 }
 #endif
+
+static gchar const *
+gst_state_to_name(GstState state)
+{
+	switch (state) {
+		case GST_STATE_VOID_PENDING: return "VoidPending";
+		case GST_STATE_NULL: return "Null";
+		case GST_STATE_READY: return "Ready";
+		case GST_STATE_PAUSED: return "Paused";
+		case GST_STATE_PLAYING: return "Playing";
+	}
+	g_return_val_if_reached(NULL);
+}
 
 /** receive and process messages on the playbin bus */
 static gboolean
@@ -120,10 +126,16 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 		}
 		break;
 		case GST_MESSAGE_STATE_CHANGED: {
-			GstState state;
-			gst_message_parse_state_changed(msg, NULL, &state, NULL);
-			if (state == GST_STATE_PLAYING) play_icon();
-			else pause_icon();
+			GstState oldstate, newstate;
+			gst_message_parse_state_changed(msg, &oldstate, &newstate, NULL);
+#if 0
+			g_debug("%s->%s", gst_state_to_name(oldstate),
+					gst_state_to_name(newstate));
+#endif
+			if (oldstate != newstate) {
+				if (newstate == GST_STATE_PLAYING) play_icon();
+				else pause_icon();
+			}
 		}
 		break;
 		case GST_MESSAGE_EOS:
@@ -289,4 +301,9 @@ void play_pause()
 			GST_STATE_PAUSED : GST_STATE_PLAYING;
 
 	gst_element_set_state(playbin_pipe, target);
+}
+
+void set_volume(gdouble vol)
+{
+	g_object_set(playbin_pipe, "volume", vol, NULL);
 }

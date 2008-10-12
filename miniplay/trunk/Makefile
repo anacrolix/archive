@@ -1,5 +1,5 @@
 PCLIBS = gtk+-2.0 gstreamer-0.10 #gio-2.0
-CFLAGS = -g -Wall -std=c99 \
+CFLAGS = -g -Wall -pedantic -Wno-unused-function -std=c99 \
 		`pkg-config --cflags $(PCLIBS)` \
 		$(EXTRA_CFLAGS)
 LDFLAGS = `pkg-config --libs $(PCLIBS)`

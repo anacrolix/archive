@@ -5,6 +5,7 @@
 
 void init_audio();
 void init_tray();
+void connect_tray_signals();
 
 /* audio functions */
 
@@ -14,8 +15,10 @@ void next_track();
 void prev_track();
 void delete_track();
 void play_pause();
+void set_volume(gdouble vol);
 
 /* tray functions */
 
+void select_music();
 void pause_icon();
 void play_icon();
