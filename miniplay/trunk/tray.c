@@ -136,6 +136,26 @@ on_toggle_shuffle(GtkCheckMenuItem *cmi, gpointer user)
 	set_shuffle(gtk_check_menu_item_get_active(cmi));
 }
 
+static void
+on_select_about(GtkCheckMenuItem *cmi, gpointer user)
+{
+	gchar const *authors[] = {
+			"Eruanno <anacrolix@gmail.com>",
+			"Erikina <erikina@gmail.com>",
+			NULL};
+	static GdkPixbuf *logo = NULL;
+	if (!logo) {
+		logo = gdk_pixbuf_new_from_file("play-icon.svg", NULL);
+		g_debug("loaded about icon pixbuf");
+	}
+	gtk_show_about_dialog(NULL,
+			"authors", authors,
+			"version", "0.1_alpha",
+			"comments", "A parsimonious GTK+ audio player.",
+			"logo", logo,
+			NULL);
+}
+
 static GtkWidget *
 new_volume_menu()
 {
@@ -238,6 +258,13 @@ create_popup_menu()
 	/* separator */
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
+
+	/* about */
+	menu_item = gtk_image_menu_item_new_from_stock(
+			GTK_STOCK_ABOUT, NULL);
+	gtk_menu_append(popup_menu, menu_item);
+	g_signal_connect(G_OBJECT(menu_item), "activate",
+			G_CALLBACK(on_select_about), NULL);
 
 	/* quit */
 	menu_item = gtk_image_menu_item_new_from_stock(

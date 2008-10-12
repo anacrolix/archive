@@ -4,6 +4,7 @@ gint main(gint argc, gchar *argv[])
 {
 	gtk_init(&argc, &argv);
 	gst_init(&argc, &argv);
+	g_set_prgname("Miniplayer");
 	init_audio();
 	init_tray();
 	select_music();
