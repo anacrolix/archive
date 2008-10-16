@@ -123,6 +123,7 @@ bus_watch(GstBus *bus, GstMessage *msg, gpointer data)
 #endif
 			gst_tag_list_insert(tags_, tl, GST_TAG_MERGE_REPLACE);
 			gst_tag_list_free(tl);
+			mp_notify_track(tags_);
 		}
 		break;
 		case GST_MESSAGE_STATE_CHANGED: {
@@ -167,6 +168,14 @@ make_audio_sink()
 	return sink;
 }
 
+static GstElement *
+make_fakesink()
+{
+	GstElement *fs = gst_element_factory_make("fakesink", NULL);
+	g_assert(fs);
+	return fs;
+}
+
 /** build a playbin pipeline, assigning bus and sink */
 static GstElement *
 create_pipeline()
@@ -182,7 +191,7 @@ create_pipeline()
 	/* set the audio sink */
 	GstElement *sink = make_audio_sink();
 	g_assert(sink);
-	g_object_set(pipe, "audio-sink", sink, "video-sink", NULL, "vis-plugin", NULL, NULL);
+	g_object_set(pipe, "audio-sink", sink, "video-sink", make_fakesink(), "vis-plugin", NULL, NULL);
 
 	return pipe;
 }

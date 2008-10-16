@@ -3,6 +3,11 @@
 GtkWidget *popup_menu = NULL;
 GtkStatusIcon *status_icon = NULL;
 
+GtkStatusIcon *mp_get_status_icon()
+{
+	return status_icon;
+}
+
 void pause_icon(void)
 {
 	//g_debug("Changing to pause icon");
