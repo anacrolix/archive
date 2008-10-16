@@ -136,18 +136,36 @@ on_toggle_shuffle(GtkCheckMenuItem *cmi, gpointer user)
 	set_shuffle(gtk_check_menu_item_get_active(cmi));
 }
 
+/* this might be generalised further to load resources */
+static GdkPixbuf *
+load_pixbuf_from_file(gchar const *pc1, gchar const *pc2)
+{
+	gchar *path = g_build_filename(pc1, pc2, NULL);
+	g_debug("trying to load pixbuf from %s", path);
+	GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(path, NULL);
+	g_free(path);
+	return pixbuf;
+}
+
 static void
 on_select_about(GtkCheckMenuItem *cmi, gpointer user)
 {
 	gchar const *authors[] = {
-			"Eruanno <anacrolix@gmail.com>",
-			"Erikina <erikina@gmail.com>",
-			NULL};
+		"Eruanno <anacrolix@gmail.com>",
+		"Erikina <erikina@gmail.com>",
+		NULL,
+	};
+
 	static GdkPixbuf *logo = NULL;
-	if (!logo) {
-		logo = gdk_pixbuf_new_from_file("play-icon.svg", NULL);
-		g_debug("loaded about icon pixbuf");
+	for (int i = 0; !logo; i++) {
+		gchar const *dir = g_get_system_data_dirs()[i];
+		if (!dir) dir = "";
+
+		logo = load_pixbuf_from_file(dir, "miniplay/play-icon.svg");
+
+		if (!*dir) break;
 	}
+
 	gtk_show_about_dialog(NULL,
 			"authors", authors,
 			"version", "0.1_alpha",
@@ -166,11 +184,12 @@ new_volume_menu()
 		gboolean active;
 	} vrmi_t;
 	static vrmi_t const VOL_OPTIONS[] = {
-		{"Max", 1.0, FALSE},
-		{"75%", 0.75, FALSE},
-		{"50%", 0.5, FALSE},
-		{"25%", 0.25, TRUE},
-		{"Off", 0.0, FALSE},
+		{"Max", 1.00, FALSE},
+		{"80%", 0.80, FALSE},
+		{"60%", 0.60, FALSE},
+		{"40%", 0.40, TRUE},
+		{"20%", 0.20, FALSE},
+		{"Off", 0.00, FALSE},
 	};
 
 	GtkWidget *menu = gtk_menu_new();
@@ -232,11 +251,11 @@ create_popup_menu()
 	gtk_menu_append(popup_menu, menu_item);
 	g_signal_connect(G_OBJECT(menu_item), "activate",
 			G_CALLBACK(on_delete_track), NULL);
-#endif
 
 	/* separator */
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
+#endif
 
 	/* select music directory */
 	menu_item = gtk_image_menu_item_new_with_label("Select music...");
