@@ -78,7 +78,11 @@ RDEPEND="${DEPEND}"
 #}
 
 src_install() {
-	dobin miniplay
+	make DESTDIR="${D}" install || die "doh"
+}
+
+#src_install() {
+#	dobin miniplay
 	# You must *personally verify* that this trick doesn't install
 	# anything outside of DESTDIR; do this by reading and
 	# understanding the install part of the Makefiles.
@@ -106,4 +110,4 @@ src_install() {
 	# The portage shortcut to the above command is simply:
 	#
 	#einstall || die "einstall failed"
-}
+#}
