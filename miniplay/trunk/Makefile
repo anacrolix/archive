@@ -14,7 +14,8 @@ miniplay: main.o audio.o tray.o notify.o
 	$(CC) -o $@ $^ $(LDFLAGS) $(CFLAGS)
 	
 install:
-	$(INSTALL) -m 755 miniplay $(DESTDIR)/bin
-	$(INSTALL) -m 644 play-icon.svg $(DESTDIR)/share/miniplay
-	$(INSTALL) -m 644 BUGS COMPILE CREDITS $(DESTDIR)/share/doc/miniplay
-
+	mkdir -p $(DESTDIR)usr/{bin,share{,/doc}/miniplay}
+	$(INSTALL) -m 755 -t $(DESTDIR)usr/bin miniplay
+	$(INSTALL) -m 644 -t $(DESTDIR)usr/share/miniplay play-icon.svg
+	$(INSTALL) -m 644 -t $(DESTDIR)usr/share/doc/miniplay \
+			BUGS COMPILE CREDITS
