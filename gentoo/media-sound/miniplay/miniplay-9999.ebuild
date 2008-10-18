@@ -17,8 +17,6 @@ SLOT="0"
 
 KEYWORDS="~x86 ~amd64"
 
-IUSE="hardy"
-
 #RESTRICT="strip"
 
 DEPEND="
@@ -31,10 +29,6 @@ DEPEND="
 
 RDEPEND="${DEPEND}"
 
-# Source directory; the dir where the sources can be found (automatically
-# unpacked) inside ${WORKDIR}.  The default value for S is ${WORKDIR}/${P}
-# If you don't need to change it, leave the S= line out of the ebuild
-# to keep it tidy.
 #S="${WORKDIR}/${P}"
 
 src_compile() {
