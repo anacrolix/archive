@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Miniplay
+GenericName=Parsimonious Audio
+Encoding=UTF-8
+Type=Application
+Terminal=false
+Icon=/usr/share/miniplay/play-icon.svg
+Categories=GTK;AudioVideo;
+Exec=miniplay
