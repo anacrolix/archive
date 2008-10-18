@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-#EAPI=0
+#EAPI=1
 inherit eutils subversion
 DESCRIPTION="A parsimonious audio player in GTK+."
 
@@ -23,9 +23,9 @@ IUSE="hardy"
 
 DEPEND="
 	media-libs/gstreamer
-	>=x11-libs/gtk+-2
-	hardy? ( >=dev-libs/glib-2.18.1 )
-	!hardy? ( dev-libs/glib )
+	media-libs/gst-plugins-base
+	media-plugins/gst-plugins-meta
+	x11-libs/gtk+:2
 	x11-libs/libnotify
 "
 
