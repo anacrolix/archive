@@ -32,13 +32,16 @@
          has been formated using mkfs.vvsfs)
 */
 
-/* remove the 1 when this is no longer used in if() statements */
 /* this should be passed in from the Makefile, but how? */
-#define DEBUG 1
-#ifdef DEBUG
-#define debug(fmt, ...)	(printk(fmt, ##__VA_ARGS__))
+
+#define DEBUG_VVSFS
+
+#ifdef DEBUG_VVSFS
+#define debug(fmt, ...)	do { \
+		printk(KERN_DEBUG "[%s] " fmt "\n", __func__, ##__VA_ARGS__); \
+	} while (0)
 #else
-#define debug(fmt, ...) ((void)0)
+#define debug(fmt, ...) do {} while (0)
 #endif
 
 #define check(x) if (!(x)) { printk("VVSFS CHECK FAILED: %s\n", #x); }
@@ -214,7 +217,7 @@ static struct dentry * vvsfs_lookup(
 
 			inode = vvsfs_iget(dir->i_sb, dent->inode_number);
 			if (IS_ERR(inode))
-				return inode; // want ERR_CAST
+				return ERR_CAST(inode); // want ERR_CAST
 #if 0
 			d_add(dentry, inode);
 			return NULL;
@@ -410,7 +413,7 @@ static ssize_t vvsfs_file_write(
 	struct super_block * sb;
 	char * p;
 
-	if (DEBUG) printk("vvsfs - file write - count : %lu ppos %Ld\n",count,*ppos);
+	debug("count: %lu, pos: %lld", count, *ppos);
 
 	if (!inode) {
 		printk("vvsfs - Problem with file inode\n");
@@ -447,10 +450,6 @@ static ssize_t vvsfs_file_write(
 	inode->i_size = filedata.size;
 
 	vvsfs_writeblock(sb,inode->i_ino,&filedata);
-
-	if (DEBUG)
-		printk("vvsfs - file write done : %lu ppos %Ld\n",
-			count, *ppos);
 
 	return count;
 }
