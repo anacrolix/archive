@@ -1,8 +1,10 @@
 bin_PROGRAMS = miniplay
+
 miniplay_SOURCES = main.c tray.c notify.c audio.c
-miniplay_CPPFLAGS = -I`pkg-config --cflags gtk+-2.0 gstreamer-0.10 libnotify`
+miniplay_CPPFLAGS = $(gtk_CFLAGS) $(gstreamer_CFLAGS) $(libnotify_CFLAGS)
 miniplay_CFLAGS = -std=c99
-miniplay_LDFLAGS = -L`pkg-config --libs gtk+-2.0 gstreamer-0.10 libnotify`
+miniplay_LDFLAGS = $(gtk_LIBS) $(gstreamer_LIBS) $(libnotify_LIBS)
+
 iconsdir = $(datadir)/miniplay
 icons_DATA = play-icon.svg
 menudir = $(datadir)/applications
