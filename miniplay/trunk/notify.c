@@ -9,38 +9,59 @@ void mp_notify_init()
 }
 
 static void
-append_tag_for_notify(
-		GstTagList const *list, gchar const *tag, gpointer user)
+gstr_append(gchar **dest, gchar *src)
 {
-	/* retrieve this tags value */
-	gchar *value;
-	if (	gst_tag_get_type(tag) != G_TYPE_STRING ||
-			!gst_tag_list_get_string(list, tag, &value) ||
-			!value)
-		return;
-
-	/* make a line for the notification */
-	gchar *line = g_strdup_printf("%s: %s", tag, value);
-	g_free(value);
-
-	/* append to the given string */
-	gchar **cur_body = user;
-	gchar *new_body;
-	if (*cur_body) {
-		new_body = g_strjoin("\n", *cur_body, line, NULL);
-		g_free(*cur_body);
+	gchar *temp;
+	if (*dest) {
+		temp = g_strconcat(*dest, src, NULL);
+		g_free(*dest);
 	} else {
-		new_body = g_strdup(line);
+		temp = g_strdup(src);
 	}
-	g_free(line);
-	*cur_body = new_body;
+	*dest = temp;
 }
 
+static void
+gstr_appendfmt(gchar **dest, gchar const *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	gchar *temp = g_strdup_vprintf(fmt, ap);
+	va_end(ap);
+	gstr_append(dest, temp);
+	g_free(temp);
+}
 
 void mp_notify_track(GstTagList const *tags)
 {
+	gchar *title = NULL, *artist = NULL, *album = NULL;
+	gst_tag_list_get_string(tags, GST_TAG_TITLE, &title);
+	gst_tag_list_get_string(tags, GST_TAG_ARTIST, &artist);
+	gst_tag_list_get_string(tags, GST_TAG_ALBUM, &album);
+
+	gchar *summary;
+	if (title) {
+		summary = title;
+		title = NULL;
+	} else {
+		summary = g_strdup("");
+	}
+
 	gchar *body = NULL;
-	gst_tag_list_foreach(tags, append_tag_for_notify, &body);
-	notify_notification_update(notify_, "hi", body, NULL);
+	if (artist) {
+		gstr_appendfmt(&body, "by %s", artist);
+		g_free(artist);
+	}
+	if (album) {
+		gstr_appendfmt(&body, "%sfrom %s", artist?"\n":"", album);
+		g_free(album);
+	}
+	if (!body)
+		body = g_strdup("");
+
+	notify_notification_update(notify_, summary, body, NULL);
 	notify_notification_show(notify_, NULL);
+
+	g_free(body);
+	g_free(summary);
 }
