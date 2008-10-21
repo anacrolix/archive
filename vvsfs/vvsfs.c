@@ -217,7 +217,7 @@ static struct dentry * vvsfs_lookup(
 
 			inode = vvsfs_iget(dir->i_sb, dent->inode_number);
 			if (IS_ERR(inode))
-				return ERR_CAST(inode); // want ERR_CAST
+				return (struct dentry *)inode; // want ERR_CAST
 #if 0
 			d_add(dentry, inode);
 			return NULL;
@@ -413,7 +413,7 @@ static ssize_t vvsfs_file_write(
 	struct super_block * sb;
 	char * p;
 
-	debug("count: %lu, pos: %lld", count, *ppos);
+	debug("count: %zu, pos: %lld", count, *ppos);
 
 	if (!inode) {
 		printk("vvsfs - Problem with file inode\n");
@@ -463,7 +463,7 @@ static ssize_t vvsfs_file_read(
 	struct super_block *sb = inode->i_sb;
 	loff_t offset = *ppos;
 
-	debug("vvsfs_file_read(count: %lu, offset: %lld)\n",
+	debug("vvsfs_file_read(count: %zu, offset: %lld)\n",
 		count, *ppos);
 
 	if (!inode) {
