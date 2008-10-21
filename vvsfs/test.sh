@@ -14,7 +14,9 @@ if [ "$1" == "down" ]; then
 	cleanup
 	exit 0
 fi
-make all || exit 1
+cusdir=/usr/src/linux
+[ -n "$KSRCDIR" ] && cusdir="$KSRCDIR"
+make KSRCDIR="$cusdir" all || exit 1
 dd if=/dev/zero of="$loopdev" bs=512 count=100
 ./mkfs.vvsfs "$loopdev"
 mkdir "$mntdir"
