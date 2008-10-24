@@ -35,6 +35,14 @@ int main(int argc, char** argv)
         exit(1);
     }
 
+	int sockopt = 1;
+    if (setsockopt(
+    		sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt)))
+    	{
+    	perror("setsockopt");
+    	return EXIT_FAILURE;
+	}
+
 /* generate the end point */
     my_addr.sin_family = AF_INET;         /* host byte order */
     my_addr.sin_port = htons(MYPORT);     /* short, network byte order */
