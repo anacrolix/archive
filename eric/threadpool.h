@@ -23,7 +23,10 @@ typedef void (*dispatch_fn)(void *);
  * "threadpool", else it returns NULL.
  */
 threadpool create_threadpool(int num_threads_in_pool);
-
+//based extensively on IBM's
+//thread pool implimentation
+//on developer thingy which
+//was released under GPL
 /**
  * dispatch sends a thread off to do some work.  If
  * all threads in the pool are busy, dispatch will

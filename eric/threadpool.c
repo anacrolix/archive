@@ -1,3 +1,8 @@
+//based extensively on IBM's
+//thread pool implimentation
+//on developer thingy which
+//was released under GPL
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,12 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <arpa/inet.h>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <netinet/in.h> 
+#include <sys/socket.h> 
+#include <sys/wait.h> 
 
 #include "threadpool.h" //threadpool goodness
 
@@ -61,7 +60,7 @@ int main(int argc, char** argv)
 /* repeat: accept, send, close the connection */
 /* for every accepted connection, use a sepetate process or thread to serve it */
     while(1) /* main accept() loop */
-    {
+    {  
         sin_size = sizeof(struct sockaddr_in);
         if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size)) == -1)
         {
@@ -163,7 +162,7 @@ char *getDefinition(char *word)
 				{
 					atCorrectWord = 0;
 				}
-
+				
 				defBuffer[0] = '\0';
 				wordBuffer[0] = '\0';
 				dic_status = DIC_DEFINITION;
@@ -187,7 +186,7 @@ char *getDefinition(char *word)
 			}
 			else
 			{
-				printf("Error: there shouldn't be a newline here");
+				//printf("Error: there shouldn't be a newline here doing word %s and doing def %s :P", wordBuffer, defBuffer);
 				return NULL;
 			}
 		}
