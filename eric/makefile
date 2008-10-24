@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -g -w
+CFLAGS = -Wall -g -D_REENTRANT
 
 all: server.exe client.exe
 
