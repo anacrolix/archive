@@ -1,8 +1,9 @@
-//heada
+#include <stdlib.h>
+
 
 struct Vector_st {
-	unsigned int size;
-	void *elements[];
+    unsigned int size;
+    void *elements[];
 };
 
 typedef struct Vector_st Vector;
@@ -12,4 +13,4 @@ void Vector_DestroyVector(Vector *vectorHandle);
 unsigned int Vector_GetElementCount (Vector *vectorHandle);
 unsigned int Vector_AddElement(Vector *vectorHandle, void * elementPtr);
 unsigned int Vector_RemoveElement (Vector *vectorHandle, unsigned int elementPosition);
-Vector * Vector_GetElement(Vector *vectorHandle, unsigned int elementPosition);
+void *Vector_GetElement(Vector *vectorHandle, unsigned int elementPosition);
