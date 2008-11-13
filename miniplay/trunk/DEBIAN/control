@@ -1,0 +1,10 @@
+Package: miniplay
+Version: 0.01
+Section: sound
+Architecture: i386
+Installed-Size: 300
+Maintainer: Matt Joiner <anacrolix@gmail.com>
+Description: A parsimonious GTK+ audio player
+ Just owns.
+Homepage: http://stupidape.dyndns.org/svn/miniplay
+
