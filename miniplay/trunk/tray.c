@@ -173,7 +173,7 @@ on_select_about(GtkCheckMenuItem *cmi, gpointer user)
 
 	gtk_show_about_dialog(NULL,
 			"authors", authors,
-			"version", "0.1_alpha",
+			"version", PACKAGE_VERSION,
 			"comments", "A parsimonious GTK+ audio player.",
 			"logo", logo,
 			NULL);

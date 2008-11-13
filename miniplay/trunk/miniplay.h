@@ -2,6 +2,7 @@
 #include <gtk/gtk.h>
 #include <gst/gst.h>
 #include <libnotify/notify.h>
+#include "config.h"
 
 /* initialization functions */
 
