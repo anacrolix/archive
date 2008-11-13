@@ -291,13 +291,11 @@ void delete_track()
 		music_uri_list = g_list_delete_link(
 				music_uri_list, g_list_nth(music_uri_list, track));
 		GError *error;
-#ifndef OLDGIO
 		GFile *file = g_file_new_for_uri(uri);
 		if (g_file_trash(file, NULL, &error)) {
 			// d'oh
 			//g_error_free(error);
 		}
-#endif
 		g_free(uri);
 		play_audio();
 	}

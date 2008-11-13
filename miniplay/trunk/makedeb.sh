@@ -12,6 +12,6 @@ if [ "$1" == "install" ]; then
 fi
 
 autoreconf -i
-./configure --prefix=/usr CPPFLAGS=-DOLDGIO
+./configure --prefix=/usr
 make
 fakeroot $0 install

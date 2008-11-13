@@ -8,6 +8,7 @@ AM_INIT_AUTOMAKE([foreign])
 
 AC_PROG_CC
 
+PKG_CHECK_MODULES([gio], [gio-2.0], [:])
 PKG_CHECK_MODULES([gtk], [gtk+-2.0], [:])
 PKG_CHECK_MODULES([gstreamer], [gstreamer-0.10], [:])
 PKG_CHECK_MODULES([libnotify], [libnotify], [:])

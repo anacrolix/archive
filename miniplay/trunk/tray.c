@@ -249,7 +249,6 @@ create_popup_menu()
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
 
-#ifndef OLDGIO
 	/* delete track */
 	menu_item = gtk_image_menu_item_new_from_stock(
 			GTK_STOCK_DELETE, NULL);
@@ -260,7 +259,6 @@ create_popup_menu()
 	/* separator */
 	menu_item = gtk_separator_menu_item_new();
 	gtk_menu_append(popup_menu, menu_item);
-#endif
 
 	/* select music directory */
 	menu_item = gtk_image_menu_item_new_with_label("Select music...");

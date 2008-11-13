@@ -1,3 +1,4 @@
+#include <gio/gio.h>
 #include <gtk/gtk.h>
 #include <gst/gst.h>
 #include <libnotify/notify.h>
