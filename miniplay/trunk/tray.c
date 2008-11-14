@@ -55,6 +55,13 @@ on_set_volume(GtkCheckMenuItem *menu_item, gpointer user)
 
 gboolean select_music(gpointer data)
 {
+	static GStaticMutex mutex = G_STATIC_MUTEX_INIT;
+	
+	if (g_static_mutex_trylock(&mutex) == FALSE) {
+		g_debug("select_music() already in use");
+		return TRUE;
+	}
+	
 	gtk_status_icon_set_blinking(status_icon, TRUE);
 
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(
@@ -103,6 +110,8 @@ gboolean select_music(gpointer data)
 
 	g_free(filename);
 	gtk_status_icon_set_blinking(status_icon, FALSE);
+	
+	g_static_mutex_unlock(&mutex);
 	
 	return FALSE;
 }
