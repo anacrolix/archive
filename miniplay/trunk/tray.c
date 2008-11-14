@@ -51,6 +51,7 @@ on_set_volume(GtkCheckMenuItem *menu_item, gpointer user)
 	gdouble *vol = user;
 	g_debug("setting volume to %f", *vol);
 	set_volume(*vol);
+	mp_conf_set_volume(*vol);
 }
 
 gboolean select_music(gpointer data)
@@ -71,42 +72,25 @@ gboolean select_music(gpointer data)
 			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 			NULL);
 
-	/* choose a default music directory and apply it */
-	gchar const *music_dirs[] = {"Music", "music"};
-	gchar *default_path = NULL;
-
-	for (gchar const **md = music_dirs; *md; md++) {
-		/* get a full path */
-		if (g_path_is_absolute(*md))
-			default_path = g_strdup(*md);
-		else
-			default_path = g_build_filename(g_get_home_dir(), *md, NULL);
-
-		/* if it's a directory we're done */
-		if (g_file_test(default_path, G_FILE_TEST_IS_DIR))
-			break;
-		g_free(default_path);
-		default_path = NULL;
-	}
-
 	/* set the default music folder */
-	if (default_path) {
-		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), default_path);
-		g_free(default_path);
-		default_path = NULL;
-	}
+	if (mp_conf_get_music_dir())
+		gtk_file_chooser_set_filename(
+				GTK_FILE_CHOOSER(dialog), mp_conf_get_music_dir());
 
 	/* display selection dialog */
 	g_debug("running select music dialog");
 	gint response = gtk_dialog_run(GTK_DIALOG(dialog));
 	g_debug("returned from select music dialog");
 
-	gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+	gchar *filename = gtk_file_chooser_get_filename(
+			GTK_FILE_CHOOSER(dialog));
 	gtk_widget_destroy(dialog);
 	g_debug("selected: %s", filename);
 
-	if (response == GTK_RESPONSE_ACCEPT)
+	if (response == GTK_RESPONSE_ACCEPT) {
 		set_music_directory(filename);
+		mp_conf_set_music_dir(filename);
+	}
 
 	g_free(filename);
 	gtk_status_icon_set_blinking(status_icon, FALSE);
@@ -203,15 +187,14 @@ new_volume_menu()
 	typedef struct {
 		gchar const *label;
 		gdouble value;
-		gboolean active;
 	} vrmi_t;
 	static vrmi_t const VOL_OPTIONS[] = {
-		{"Max", 1.00, FALSE},
-		{"80%", 0.80, FALSE},
-		{"60%", 0.60, FALSE},
-		{"40%", 0.40, TRUE},
-		{"20%", 0.20, FALSE},
-		{"Off", 0.00, FALSE},
+		{"Max", 1.00},
+		{"80%", 0.80},
+		{"60%", 0.60},
+		{"40%", 0.40},
+		{"20%", 0.20},
+		{"Off", 0.00},
 	};
 
 	GtkWidget *menu = gtk_menu_new();
@@ -227,7 +210,7 @@ new_volume_menu()
 		gtk_menu_append(menu, item);
 		g_signal_connect(G_OBJECT(item), "toggled",
 				G_CALLBACK(on_set_volume), (gpointer)&vo->value);
-		if (vo->active)
+		if (mp_conf_get_volume() == vo->value)
 			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
 	}
 

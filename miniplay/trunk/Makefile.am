@@ -1,6 +1,6 @@
 bin_PROGRAMS = miniplay
 
-miniplay_SOURCES = main.c tray.c notify.c audio.c
+miniplay_SOURCES = main.c tray.c notify.c audio.c conf.c
 miniplay_CPPFLAGS = $(gtk_CFLAGS) $(gstreamer_CFLAGS) \
 	$(libnotify_CFLAGS) $(gio_CFLAGS)
 miniplay_CFLAGS = -std=c99
