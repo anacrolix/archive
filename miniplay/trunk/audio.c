@@ -247,7 +247,10 @@ void play_audio()
 
 void set_track(gint number)
 {
-	current_track = number % g_list_length(music_uri_list);\
+	if(g_list_length(music_uri_list) == 0)
+		current_track = -1;
+	else
+		current_track = number % g_list_length(music_uri_list);
 	g_debug("set track to %d after told to set to %d", current_track, number);
 	gst_tag_list_free(tags_);
 	tags_ = gst_tag_list_new();
