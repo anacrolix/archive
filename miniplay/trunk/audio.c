@@ -247,9 +247,6 @@ void play_audio()
 
 void set_track(gint number)
 {
-	gint trackc = g_list_length(music_uri_list);
-	if (number >= trackc) number = 0;
-	else if (number < 0) number = trackc - 1;
 	current_track = number;
 	gst_tag_list_free(tags_);
 	tags_ = gst_tag_list_new();
@@ -262,7 +259,7 @@ void next_track()
 	if (shuffle_) {
 		next = g_random_int_range(0, g_list_length(music_uri_list));
 	} else {
-		next = current_track + 1;
+		next = (current_track + 1) % g_list_length(music_uri_list);
 	}
 	g_debug("setting track number %d", next);
 	set_track(next);
@@ -270,7 +267,7 @@ void next_track()
 
 void prev_track()
 {
-	set_track(current_track - 1);
+	set_track((current_track - 1) % g_list_length(music_uri_list));
 }
 
 void delete_track()
