@@ -248,8 +248,9 @@ void play_audio()
 void set_track(gint number)
 {
 	gint trackc = g_list_length(music_uri_list);
-	if (number >= trackc) number = 0;
+	if (number >= trackc)number = 0;
 	else if (number < 0) number = trackc - 1;
+	g_debug("setting track number to %d", number);
 	current_track = number;
 	gst_tag_list_free(tags_);
 	tags_ = gst_tag_list_new();
