@@ -53,7 +53,7 @@ on_set_volume(GtkCheckMenuItem *menu_item, gpointer user)
 	set_volume(*vol);
 }
 
-void select_music()
+gboolean select_music(gpointer data)
 {
 	gtk_status_icon_set_blinking(status_icon, TRUE);
 
@@ -66,7 +66,7 @@ void select_music()
 
 	/* choose a default music directory and apply it */
 	gchar const *music_dirs[] = {"Music", "music"};
-	gchar *default_path;
+	gchar *default_path = NULL;
 
 	for (gchar const **md = music_dirs; *md; md++) {
 		/* get a full path */
@@ -79,14 +79,20 @@ void select_music()
 		if (g_file_test(default_path, G_FILE_TEST_IS_DIR))
 			break;
 		g_free(default_path);
+		default_path = NULL;
 	}
 
 	/* set the default music folder */
-	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), default_path);
- 	g_free(default_path);
+	if (default_path) {
+		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), default_path);
+		g_free(default_path);
+		default_path = NULL;
+	}
 
 	/* display selection dialog */
+	g_debug("running select music dialog");
 	gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+	g_debug("returned from select music dialog");
 
 	gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 	gtk_widget_destroy(dialog);
@@ -97,12 +103,14 @@ void select_music()
 
 	g_free(filename);
 	gtk_status_icon_set_blinking(status_icon, FALSE);
+	
+	return FALSE;
 }
 
 static void
 on_select_music(GtkMenuItem *menu_item, gpointer data)
 {
-	select_music();
+	select_music(NULL);
 }
 
 static void
@@ -315,4 +323,5 @@ void init_tray()
 {
 	create_status_icon();
 	create_popup_menu();
+	connect_tray_signals();
 }

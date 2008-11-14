@@ -24,7 +24,7 @@ void set_volume(gdouble vol);
 /* tray functions */
 
 GtkStatusIcon *mp_get_status_icon();
-void select_music();
+gboolean select_music(gpointer);
 void pause_icon();
 void play_icon();
 
