@@ -1,9 +1,10 @@
 Package: miniplay
-Version: 0.02
+Version: 0.02-1
 Section: sound
 Architecture: i386
-Installed-Size: 300
+Installed-Size: 116
 Maintainer: Matt Joiner <anacrolix@gmail.com>
 Description: A parsimonious GTK+ audio player
  A very simple GTK+ audio player that plays nice in GNOME.
 Homepage: http://stupidape.dyndns.org/svn/miniplay
+Depends: libgtk2.0-0, libglib2.0-0, libnotify1, libgstreamer0.10-0

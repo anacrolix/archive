@@ -1,9 +1,11 @@
 #!/bin/sh
 
 build_package() {
+	rm -rf sandbox
 	make DESTDIR=sandbox install
-	cp -r DEBIAN sandbox
-	dpkg -b sandbox .
+	cp -r DEBIAN sandbox/
+	rm -rf sandbox/DEBIAN/.svn
+	dpkg -b sandbox/ .
 }
 
 if [ "$1" == "install" ]; then
