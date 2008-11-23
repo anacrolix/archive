@@ -11,3 +11,4 @@
 * compile instructions for several distros
 * stream select option (editdialog style)
 * correct previous when shuffle is on
+* ouput debug info to log file when no terminal is attached

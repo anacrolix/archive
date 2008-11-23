@@ -1,4 +1,4 @@
-AC_INIT([miniplay], [0.02], [anacrolix@gmail.com])
+AC_INIT([miniplay], [0.03], [anacrolix@gmail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
