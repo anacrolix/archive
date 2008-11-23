@@ -24,10 +24,13 @@ gstr_append(gchar **dest, gchar *src)
 static void
 gstr_appendfmt(gchar **dest, gchar const *fmt, ...)
 {
+	/* generate the append string */
 	va_list ap;
 	va_start(ap, fmt);
 	gchar *temp = g_strdup_vprintf(fmt, ap);
 	va_end(ap);
+	
+	/* append the string */
 	gstr_append(dest, temp);
 	g_free(temp);
 }
@@ -40,25 +43,19 @@ void mp_notify_track(GstTagList const *tags)
 	gst_tag_list_get_string(tags, GST_TAG_ALBUM, &album);
 
 	gchar *summary;
-	if (title) {
+	if (title)
 		summary = title;
-		title = NULL;
-	} else {
-		summary = g_strdup("");
-	}
-
-	gchar *body = NULL;
-	if (artist) {
-		gstr_appendfmt(&body, "by %s", artist);
-		g_free(artist);
-	}
-	if (album) {
-		gstr_appendfmt(&body, "%sfrom %s", artist?"\n":"", album);
-		g_free(album);
-	}
-	if (!body)
-		body = g_strdup("");
-
+	else
+		summary = g_strdup("Unknown Title");
+	
+	gchar *body = NULL;		
+	gstr_appendfmt(
+			&body, "by %s\nfrom %s",
+			artist ?: "Unknown artist",
+			album ?: "Unknown album");
+	if (artist) g_free(artist);
+	if (album) g_free(album);
+	
 	notify_notification_update(notify_, summary, body, NULL);
 	notify_notification_show(notify_, NULL);
 
