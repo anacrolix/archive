@@ -9,4 +9,4 @@ clean:
 	-rm -fv *.o ${EXES}
 
 jackrev: jackrev.hs
-	ghc -O2 -fvia-C -optc-O2 --make jackrev.hs
+	if [ -x ghc ]; then ghc -O2 -fvia-C -optc-O2 --make jackrev.hs; fi
