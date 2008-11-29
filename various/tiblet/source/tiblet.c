@@ -10,7 +10,8 @@
 	"?subtopic=whoisonline&world=Dolera&order=level"
 #define COUNT_PATTERN "Currently (\\d+) players are online\\."
 #define MAX_PAGESIZE (300 * 1024)
-#define UPDATE_INTERVAL (3 * 60 * 1000)
+#define UPDATE_INTERVAL_S (15 * 60)
+#define PIXMAPS_DIR "/usr/share/pixmaps/"
 
 typedef struct {
 	PanelApplet *applet;
@@ -85,7 +86,7 @@ static gboolean tibia_applet_factory(
 
 	box = gtk_hbox_new(FALSE, 3);
     tiblet->label = gtk_label_new("Tiblet");
-    image = gtk_image_new_from_file("/home/matt/Desktop/various/tiblet/tiblet.xpm");
+    image = gtk_image_new_from_file(PIXMAPS_DIR "tiblet.xpm");
     GdkPixbuf *pixbuf = gdk_pixbuf_scale_simple(
     		gtk_image_get_pixbuf(image), 24, 24, GDK_INTERP_HYPER);
     gtk_image_set_from_pixbuf(image, pixbuf);
@@ -101,7 +102,7 @@ static gboolean tibia_applet_factory(
     		G_REGEX_OPTIMIZE, 0, NULL);
 
     g_idle_add(initial_update, tiblet);
-    g_timeout_add(UPDATE_INTERVAL, timeout_function, tiblet);
+    g_timeout_add_seconds(UPDATE_INTERVAL_S, timeout_function, tiblet);
 
     return TRUE;
 }
