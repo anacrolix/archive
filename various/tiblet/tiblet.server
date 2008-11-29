@@ -1,12 +1,12 @@
 <oaf_info>
-<oaf_server iid="OAFIID:TibiaApplet_Factory" type="exe" location="/home/matt/Desktop/various/tiblet/tiblet">
+<oaf_server iid="OAFIID:TibiaApplet_Factory" type="exe" location="/usr/lib/tiblet/tiblet">
 
     <oaf_attribute name="repo_ids" type="stringv">
         <item value="IDL:Bonobo/GenericFactory:1.0"/>
         <item value="IDL:Bonobo/Unknown:1.0"/>
     </oaf_attribute>
-    <oaf_attribute name="name" type="string" value="Tibia Applet Factory"/>
-    <oaf_attribute name="description" type="string" value="Factory to create the Tibia applet"/>
+    <oaf_attribute name="name" type="string" value="Tiblet Factory"/>
+    <oaf_attribute name="description" type="string" value="Tibia Applet"/>
 </oaf_server>
 
 <oaf_server iid="OAFIID:TibiaApplet" type="factory"
@@ -20,6 +20,6 @@
     <oaf_attribute name="name" type="string" value="Tiblet"/>
     <oaf_attribute name="description" type="string" value="Tibia Applet"/>
     <oaf_attribute name="panel:category" type="string" value="Amusements"/>
-    <oaf_attribute name="panel:icon" type="string" value="/home/matt/Desktop/various/tiblet/tiblet.xpm"/>
+    <oaf_attribute name="panel:icon" type="string" value="tiblet.xpm"/>
 </oaf_server>
 </oaf_info>
