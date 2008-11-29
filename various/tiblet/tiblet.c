@@ -10,6 +10,7 @@
 	"?subtopic=whoisonline&world=Dolera&order=level"
 #define COUNT_PATTERN "Currently (\\d+) players are online\\."
 #define MAX_PAGESIZE (300 * 1024)
+#define UPDATE_INTERVAL (3 * 60 * 1000)
 
 typedef struct {
 	PanelApplet *applet;
@@ -40,7 +41,7 @@ static void update_label(TibiaApplet *tiblet)
 	g_object_unref(gf);
 
 	g_assert(count != MAX_PAGESIZE);
-	g_assert(!buf[count]);
+	buf[count] = '\0';
 
 	GMatchInfo *mi;
 	gchar *text;
@@ -53,7 +54,7 @@ static void update_label(TibiaApplet *tiblet)
 		text = g_strdup("Fail");
 	}
 	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
-	//g_free(text);
+	g_free(text);
 	g_match_info_free(mi);
 
 	g_free(buf);
@@ -71,7 +72,7 @@ static gboolean initial_update(gpointer data)
 	return FALSE;
 }
 
-static gboolean applet_fill(
+static gboolean tibia_applet_factory(
 	PanelApplet *applet, const gchar *iid, gpointer data)
 {
     if (strcmp(iid, EXE_IID) != 0)
@@ -100,9 +101,11 @@ static gboolean applet_fill(
     		G_REGEX_OPTIMIZE, 0, NULL);
 
     g_idle_add(initial_update, tiblet);
-    g_timeout_add(180000, timeout_function, tiblet);
+    g_timeout_add(UPDATE_INTERVAL, timeout_function, tiblet);
 
     return TRUE;
 }
 
-PANEL_APPLET_BONOBO_FACTORY(FACTORY_IID, PANEL_TYPE_APPLET, "The Hello World Applet", "0", applet_fill, NULL);
+PANEL_APPLET_BONOBO_FACTORY(
+		FACTORY_IID, PANEL_TYPE_APPLET, "Tibia Applet",
+		"0", tibia_applet_factory, NULL);
