@@ -1,0 +1,27 @@
+PCLIBS = dbus-glib-1 gtk+-2.0 libpanelapplet-2.0
+CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
+LDFLAGS = `pkg-config --libs $(PCLIBS)`
+CFLAGS = -g
+PREFIX = /usr
+VERSION = 0.1.0
+
+server_path := $(PREFIX)/lib/bonobo/servers
+server_file := @PACKAGE_NAME@.server
+applet_path := $(PREFIX)/lib/@PACKAGE_NAME@
+applet_file := @PACKAGE_NAME@
+
+default: applet server
+
+applet: @PACKAGE_NAME@
+
+server: $(server_path)/$(server_file)
+$(server_path)/$(server_file): $(server_file)
+	sudo ln -sf $(PWD)/$(server_file) $(server_path)
+
+install:
+	install -d $(server_path) $(applet_path)
+	install -m 644 -t $(server_path) $(server_file)
+	install -m 755 -t $(applet_path) $(applet_file)
+
+deb:
+	make install PREFIX="build/usr"
