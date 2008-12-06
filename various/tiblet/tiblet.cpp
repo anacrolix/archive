@@ -4,6 +4,8 @@
 #include <gtk/gtklabel.h>
 #include <gio/gio.h>
 
+#include "readuriasync.hpp"
+
 #define EXE_IID "OAFIID:TibiaApplet"
 #define FACTORY_IID EXE_IID "_Factory"
 #define WORLD_URI "http://www.tibia.com/community/" \
@@ -27,38 +29,13 @@ typedef struct {
 } UpdateLabelData;
 
 static void update_label(
-	gchar *text, TibiaApplet *tiblet)
+	gchar *buffer, TibiaApplet *tiblet)
 {
-	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
-	g_free(text);
-	g_free(tiblet);
-}
-
-static void update_label_finish(
-	GInputStream *source, GAsyncResult *result, UpdateLabelData *uld)
-{
-	gssize count = g_input_stream_read_finish(source, result, NULL);
-	g_assert(count != -1);
-	g_debug("read %zd bytes", count);
-
-	if (count != 0) {
-		uld->count += count;
-		g_input_stream_read_async(
-			source, uld->buffer + uld->count, MAX_PAGESIZE - uld->count,
-			G_PRIORITY_DEFAULT, NULL,
-			(GAsyncReadyCallback)update_label_finish, uld);
-		return;
-	}
-
-	g_object_unref(source);
-	g_object_unref(uld->gfile);
-
-	g_assert(uld->count != MAX_PAGESIZE);
-	uld->buffer[uld->count] = '\0';
-
 	GMatchInfo *mi;
 	gchar *text;
-	if (g_regex_match(uld->tiblet->regex, uld->buffer, 0, &mi)) {
+	if (g_regex_match(tiblet->regex, buffer,
+				static_cast<GRegexMatchFlags>(0), &mi))
+	{
 		text = g_match_info_fetch(mi, 1);
 		g_assert(text);
 		g_debug("Matched \"%s\"", text);
@@ -66,45 +43,28 @@ static void update_label_finish(
 	else {
 		text = g_strdup("Fail");
 	}
+	g_free(buffer);
 
-	g_free(uld->buffer);
-	g_free(uld);
-	update_label(text, uld->tiblet);
+	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
+	g_free(text);
 }
 
 static void update_label_async(TibiaApplet *tiblet)
 {
-	GFile *gf = g_file_new_for_uri(WORLD_URI);
-
-	GInputStream *gis = (GInputStream *)g_file_read(gf, NULL, NULL);
-	g_assert(gis);
-
-	gchar *buf = g_malloc(MAX_PAGESIZE);
-	g_assert(buf);
-
-	UpdateLabelData *uld = g_malloc(sizeof(UpdateLabelData));
-	g_assert(uld);
-	*uld = (UpdateLabelData) {
-		.gfile = gf,
-		.buffer = buf,
-		.count = 0,
-		.tiblet = tiblet
-	};
-
-	g_input_stream_read_async(
-			gis, buf, MAX_PAGESIZE, G_PRIORITY_DEFAULT, NULL,
-			(GAsyncReadyCallback)update_label_finish, uld);
+	ReadUriAsync<TibiaApplet *> *noob =
+			new ReadUriAsync<TibiaApplet *>(WORLD_URI, tiblet);
+	noob->readall(MAX_PAGESIZE);
 }
 
 static gboolean timeout_function(gpointer data)
 {
-	update_label_async(data);
+	update_label_async(reinterpret_cast<TibiaApplet *>(data));
 	return TRUE;
 }
 
 static gboolean initial_update(gpointer data)
 {
-	update_label_async(data);
+	update_label_async(reinterpret_cast<TibiaApplet *>(data));
 	return FALSE;
 }
 
@@ -114,7 +74,7 @@ static gboolean tibia_applet_factory(
     if (strcmp(iid, EXE_IID) != 0)
         return FALSE;
 
-	TibiaApplet *tiblet = g_malloc(sizeof(TibiaApplet));
+	TibiaApplet *tiblet = new TibiaApplet;
 	tiblet->applet = applet;
 
     GtkWidget *image, *box;
@@ -135,7 +95,7 @@ static gboolean tibia_applet_factory(
 
     tiblet->regex = g_regex_new(
     		"Currently (\\d+) players are online.",
-    		G_REGEX_OPTIMIZE, 0, NULL);
+    		G_REGEX_OPTIMIZE, static_cast<GRegexMatchFlags>(0), NULL);
 
     g_idle_add(initial_update, tiblet);
     g_timeout_add_seconds(UPDATE_INTERVAL_S, timeout_function, tiblet);
