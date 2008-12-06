@@ -3,3 +3,4 @@ Version: @PACKAGE_VERSION@-@PACKAGE_REVISION@
 Description: Tibia Applet
 Maintainer: Matt Joiner <anacrolix@gmail.com>
 Architecture: i386
+Depends: libpanel-applet2-0

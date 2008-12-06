@@ -1,8 +1,9 @@
 CC = g++
 PCLIBS = libpanelapplet-2.0
-CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
 LDFLAGS = `pkg-config --libs $(PCLIBS)`
 CFLAGS = -g -Wall
+CXXFLAGS = $(CFLAGS)
+CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
 
 PREFIX = /usr
 
@@ -26,6 +27,6 @@ deb:
 	make install PREFIX="build${PREFIX}"
 	install -d 'build/DEBIAN'
 	install -m 644 control 'build/DEBIAN'
-	dpkg -b build .
+	fakeroot dpkg -b build .
 
 tiblet.o: readuriasync.hpp

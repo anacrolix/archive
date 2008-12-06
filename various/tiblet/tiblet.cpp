@@ -21,12 +21,12 @@ typedef struct {
 	GRegex *regex;
 } TibiaApplet;
 
-static void update_label(
-	gchar *buffer, TibiaApplet *tiblet, ReadUriAsync<TibiaApplet *> *rua)
+static void update_label(gchar *buffer, TibiaApplet *tiblet)
 {
 	GMatchInfo *mi;
 	gchar *text;
-	if (g_regex_match(tiblet->regex, buffer,
+	if (buffer && g_regex_match(
+				tiblet->regex, buffer,
 				static_cast<GRegexMatchFlags>(0), &mi))
 	{
 		text = g_match_info_fetch(mi, 1);
@@ -36,8 +36,7 @@ static void update_label(
 	else {
 		text = g_strdup("Fail");
 	}
-	g_free(buffer);
-	delete rua;
+	if (buffer) g_free(buffer);
 
 	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
 	g_free(text);
@@ -45,9 +44,10 @@ static void update_label(
 
 static void update_label_async(TibiaApplet *tiblet)
 {
+	gtk_label_set_text(GTK_LABEL(tiblet->label), "Querying");
 	ReadUriAsync<TibiaApplet *> *noob =
 			new ReadUriAsync<TibiaApplet *>(WORLD_URI, update_label, tiblet);
-	noob->readall(MAX_PAGESIZE);
+	noob->start_reading(MAX_PAGESIZE);
 }
 
 static gboolean timeout_function(gpointer data)
@@ -74,7 +74,7 @@ static gboolean tibia_applet_factory(
     GtkWidget *image, *box;
 
 	box = gtk_hbox_new(FALSE, 3);
-    tiblet->label = gtk_label_new("Tiblet");
+    tiblet->label = gtk_label_new("Querying");
     image = gtk_image_new_from_file(PIXMAPS_DIR "tiblet.xpm");
     g_assert(image);
     GdkPixbuf *pixbuf = gdk_pixbuf_scale_simple(
