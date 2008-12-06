@@ -19,7 +19,61 @@ typedef struct {
 	GRegex *regex;
 } TibiaApplet;
 
-static void update_label(TibiaApplet *tiblet)
+typedef struct {
+	GFile *gfile;
+	gchar *buffer;
+	gssize count;
+	TibiaApplet *tiblet;
+} UpdateLabelData;
+
+static void update_label(
+	gchar *text, TibiaApplet *tiblet)
+{
+	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
+	g_free(text);
+	g_free(tiblet);
+}
+
+static void update_label_finish(
+	GObject *source, GAsyncResult *result, gpointer user_data)
+{
+	UpdateLabelData *uld = user_data;
+
+	gssize count = g_input_stream_read_finish(source, result, NULL);
+	g_assert(count != -1);
+	g_debug("read %zd bytes", count);
+
+	if (count != 0) {
+		uld->count += count;
+		g_input_stream_read_async(
+			source, uld->buffer + uld->count, MAX_PAGESIZE - uld->count,
+			G_PRIORITY_DEFAULT, NULL, update_label_finish, uld);
+		return;
+	}
+
+	g_object_unref(source);
+	g_object_unref(uld->gfile);
+
+	g_assert(uld->count != MAX_PAGESIZE);
+	uld->buffer[uld->count] = '\0';
+
+	GMatchInfo *mi;
+	gchar *text;
+	if (g_regex_match(uld->tiblet->regex, uld->buffer, 0, &mi)) {
+		text = g_match_info_fetch(mi, 1);
+		g_assert(text);
+		g_debug("Matched \"%s\"", text);
+	}
+	else {
+		text = g_strdup("Fail");
+	}
+
+	g_free(uld->buffer);
+	g_free(uld);
+	update_label(text, uld->tiblet);
+}
+
+static void update_label_async(TibiaApplet *tiblet)
 {
 	GFile *gf = g_file_new_for_uri(WORLD_URI);
 
@@ -29,47 +83,29 @@ static void update_label(TibiaApplet *tiblet)
 	gchar *buf = g_malloc(MAX_PAGESIZE);
 	g_assert(buf);
 
-	gssize count = 0, zd;
-	while ((zd = g_input_stream_read(
-				gis, buf + count, MAX_PAGESIZE - count, NULL, NULL)))
-	{
-		g_assert(zd != -1);
-		count += zd;
-	}
-	g_debug("Read %zd bytes", count);
+	UpdateLabelData *uld = g_malloc(sizeof(UpdateLabelData));
+	g_assert(uld);
+	*uld = (UpdateLabelData) {
+		.gfile = gf,
+		.buffer = buf,
+		.count = 0,
+		.tiblet = tiblet
+	};
 
-	g_object_unref(gis);
-	g_object_unref(gf);
-
-	g_assert(count != MAX_PAGESIZE);
-	buf[count] = '\0';
-
-	GMatchInfo *mi;
-	gchar *text;
-	if (g_regex_match(tiblet->regex, buf, 0, &mi)) {
-		text = g_match_info_fetch(mi, 1);
-		g_assert(text);
-		g_debug("Matched \"%s\"", text);
-	}
-	else {
-		text = g_strdup("Fail");
-	}
-	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
-	g_free(text);
-	g_match_info_free(mi);
-
-	g_free(buf);
+	g_input_stream_read_async(
+			gis, buf, MAX_PAGESIZE, G_PRIORITY_DEFAULT, NULL,
+			update_label_finish, uld);
 }
 
 static gboolean timeout_function(gpointer data)
 {
-	update_label(data);
+	update_label_async(data);
 	return TRUE;
 }
 
 static gboolean initial_update(gpointer data)
 {
-	update_label(data);
+	update_label_async(data);
 	return FALSE;
 }
 
