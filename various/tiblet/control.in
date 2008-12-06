@@ -1,5 +1,5 @@
-Package: @PROJECT_NAME@
-Version: @MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@-@REVISION@
+Package: @PACKAGE_NAME@
+Version: @PACKAGE_VERSION@-@PACKAGE_REVISION@
 Description: Tibia Applet
 Maintainer: Matt Joiner <anacrolix@gmail.com>
 Architecture: i386
