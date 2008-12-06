@@ -1,8 +1,6 @@
 #include <panel-applet.h>
 #include <dbus/dbus-glib.h>
-
-#define EXE_IID "OAFIID:RhythmboxApplet"
-#define FACTORY_IID EXE_IID "_Factory"
+#include "config.h"
 
 typedef struct {
 	PanelApplet *panel_applet;
@@ -187,6 +185,9 @@ static gboolean rbapplet_factory(
 {
 	g_debug("requested iid: %s", iid);
 
+	if (g_strcmp0(iid, BONOBO_APPLET_IID))
+		return FALSE;
+
 	/* allocate space for applet objects */
 	gpointer this = g_malloc0(sizeof(ThisApplet));
 	g_assert(this);
@@ -239,5 +240,5 @@ static gboolean rbapplet_factory(
 }
 
 PANEL_APPLET_BONOBO_FACTORY(
-		FACTORY_IID, PANEL_TYPE_APPLET, "Rhythmbox Applet",
-		"0", rbapplet_factory, NULL);
+		BONOBO_FACTORY_IID, PANEL_TYPE_APPLET, "???",
+		PACKAGE_VERSION, rbapplet_factory, NULL);
