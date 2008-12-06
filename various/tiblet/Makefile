@@ -1,3 +1,4 @@
+CC = g++
 PCLIBS = libpanelapplet-2.0
 CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
 LDFLAGS = `pkg-config --libs $(PCLIBS)`
@@ -26,3 +27,5 @@ deb:
 	install -d 'build/DEBIAN'
 	install -m 644 control 'build/DEBIAN'
 	dpkg -b build .
+
+tiblet.o: readuriasync.hpp

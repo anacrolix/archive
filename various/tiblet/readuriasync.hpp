@@ -2,9 +2,16 @@ template <typename UserData>
 class ReadUriAsync
 {
 public:
-	ReadUriAsync(gchar const *uri, UserData ud)
+	typedef void (*Callback)(gchar *, UserData, ReadUriAsync *);
+
+	ReadUriAsync(
+			gchar const *uri,
+			Callback cb,
+			UserData ud)
 	:	ud_(ud),
-		gf_(g_file_new_for_uri(uri))
+		gf_(g_file_new_for_uri(uri)),
+		count_(0),
+		cb_(cb)
 	{
 	}
 	~ReadUriAsync()
@@ -16,8 +23,9 @@ public:
 		GInputStream *gis = reinterpret_cast<GInputStream *>(
 				g_file_read(gf_, NULL, NULL));
 		g_assert(gis);
-		buf_ = new gchar[max];;
+		buf_ = new gchar[max];
 		g_assert(buf_);
+		max_ = max;
 		read(gis);
 	}
 
@@ -43,6 +51,8 @@ private:
 		g_object_unref(gis);
 		g_assert(count_ != max_);
 		buf_[count_] = '\0';
+
+		cb_(buf_, ud_, this);
 	}
 	static void read_finish_cb(
 			GObject *source, GAsyncResult *res, gpointer data)
@@ -52,6 +62,7 @@ private:
 	}
 
 	UserData ud_;
+	Callback cb_;
 	GFile *gf_;
 	gchar *buf_;
 	gssize count_;

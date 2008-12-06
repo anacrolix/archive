@@ -29,7 +29,7 @@ typedef struct {
 } UpdateLabelData;
 
 static void update_label(
-	gchar *buffer, TibiaApplet *tiblet)
+	gchar *buffer, TibiaApplet *tiblet, ReadUriAsync<TibiaApplet *> *rua)
 {
 	GMatchInfo *mi;
 	gchar *text;
@@ -52,7 +52,7 @@ static void update_label(
 static void update_label_async(TibiaApplet *tiblet)
 {
 	ReadUriAsync<TibiaApplet *> *noob =
-			new ReadUriAsync<TibiaApplet *>(WORLD_URI, tiblet);
+			new ReadUriAsync<TibiaApplet *>(WORLD_URI, update_label, tiblet);
 	noob->readall(MAX_PAGESIZE);
 }
 
