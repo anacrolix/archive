@@ -1,6 +1,7 @@
 PCLIBS = libpanelapplet-2.0
 CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
 LDFLAGS = `pkg-config --libs $(PCLIBS)`
+CFLAGS = -g -Wall
 
 PREFIX = /usr
 

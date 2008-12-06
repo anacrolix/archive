@@ -35,10 +35,8 @@ static void update_label(
 }
 
 static void update_label_finish(
-	GObject *source, GAsyncResult *result, gpointer user_data)
+	GInputStream *source, GAsyncResult *result, UpdateLabelData *uld)
 {
-	UpdateLabelData *uld = user_data;
-
 	gssize count = g_input_stream_read_finish(source, result, NULL);
 	g_assert(count != -1);
 	g_debug("read %zd bytes", count);
@@ -47,7 +45,8 @@ static void update_label_finish(
 		uld->count += count;
 		g_input_stream_read_async(
 			source, uld->buffer + uld->count, MAX_PAGESIZE - uld->count,
-			G_PRIORITY_DEFAULT, NULL, update_label_finish, uld);
+			G_PRIORITY_DEFAULT, NULL,
+			(GAsyncReadyCallback)update_label_finish, uld);
 		return;
 	}
 
@@ -77,7 +76,7 @@ static void update_label_async(TibiaApplet *tiblet)
 {
 	GFile *gf = g_file_new_for_uri(WORLD_URI);
 
-	GInputStream *gis = g_file_read(gf, NULL, NULL);
+	GInputStream *gis = (GInputStream *)g_file_read(gf, NULL, NULL);
 	g_assert(gis);
 
 	gchar *buf = g_malloc(MAX_PAGESIZE);
@@ -94,7 +93,7 @@ static void update_label_async(TibiaApplet *tiblet)
 
 	g_input_stream_read_async(
 			gis, buf, MAX_PAGESIZE, G_PRIORITY_DEFAULT, NULL,
-			update_label_finish, uld);
+			(GAsyncReadyCallback)update_label_finish, uld);
 }
 
 static gboolean timeout_function(gpointer data)
@@ -125,8 +124,8 @@ static gboolean tibia_applet_factory(
     image = gtk_image_new_from_file(PIXMAPS_DIR "tiblet.xpm");
     g_assert(image);
     GdkPixbuf *pixbuf = gdk_pixbuf_scale_simple(
-    		gtk_image_get_pixbuf(image), 24, 24, GDK_INTERP_HYPER);
-    gtk_image_set_from_pixbuf(image, pixbuf);
+    		gtk_image_get_pixbuf(GTK_IMAGE(image)), 24, 24, GDK_INTERP_HYPER);
+    gtk_image_set_from_pixbuf(GTK_IMAGE(image), pixbuf);
 
 	gtk_container_add(GTK_CONTAINER(applet), box);
 	gtk_container_add(GTK_CONTAINER(box), image);
