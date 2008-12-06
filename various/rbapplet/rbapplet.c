@@ -2,6 +2,12 @@
 #include <dbus/dbus-glib.h>
 #include "config.h"
 
+#define RB_DBUS_SERVICE "org.gnome.Rhythmbox"
+#define RB_DBUS_PLAYER_PATH "/org/gnome/Rhythmbox/Player"
+#define RB_DBUS_PLAYER_INTERFACE "org.gnome.Rhythmbox.Player"
+#define RB_DBUS_SHELL_PATH "/org/gnome/Rhythmbox/Shell"
+#define RB_DBUS_SHELL_INTERFACE "org.gnome.Rhythmbox.Shell"
+
 typedef struct {
 	PanelApplet *panel_applet;
 	DBusGConnection *dbus_sess_conn;
@@ -14,7 +20,7 @@ static gboolean name_has_owner(DBusGProxy *proxy)
 	gboolean has_owner;
 	dbus_g_proxy_call(
 		proxy, "NameHasOwner", NULL,
-		G_TYPE_STRING, "org.gnome.Rhythmbox", G_TYPE_INVALID,
+		G_TYPE_STRING, RB_DBUS_SERVICE, G_TYPE_INVALID,
 		G_TYPE_BOOLEAN, &has_owner, G_TYPE_INVALID);
 	return has_owner;
 }
@@ -28,7 +34,7 @@ static void name_owner_changed(
 
 	g_debug("name owner changed: %s, %s, %s", name, new_owner, old_owner);
 
-	if (g_strcmp0(name, "org.gnome.Rhythmbox"))
+	if (g_strcmp0(name, RB_DBUS_SERVICE))
 		return;
 
 	if (g_strcmp0(new_owner, "")) {
@@ -140,14 +146,18 @@ static void trash_current_rb_uri(ThisApplet *this)
 		gint response;
 		{
 			GtkWidget *dialog = gtk_message_dialog_new(
-					NULL, 0, GTK_MESSAGE_QUESTION, GTK_BUTTONS_OK_CANCEL,
+					NULL, 0, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
 					"Do you wish to delete:\n%s", dlg_text);
+			gtk_dialog_add_buttons(GTK_DIALOG(dialog),
+				GTK_STOCK_DELETE, GTK_RESPONSE_ACCEPT,
+				GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+				NULL);
 			response = gtk_dialog_run(GTK_DIALOG(dialog));
 			gtk_widget_destroy(dialog);
 		}
 		g_free(dlg_text);
 
-		if (response == GTK_RESPONSE_OK)
+		if (response == GTK_RESPONSE_ACCEPT)
 		{
 			GFile *file = g_file_new_for_uri(uri);
 			GError *error = NULL;
@@ -203,11 +213,11 @@ static gboolean rbapplet_factory(
 	g_assert(dbus_proxy);
 	rb_shell_proxy = dbus_g_proxy_new_for_name(
 			dbus_sess_conn,
-			"org.gnome.Rhythmbox", "/org/gnome/Rhythmbox/Shell", "org.gnome.Rhythmbox.Shell");
+			RB_DBUS_SERVICE, RB_DBUS_SHELL_PATH, RB_DBUS_SHELL_INTERFACE);
 	g_assert(rb_shell_proxy);
 	rb_player_proxy = dbus_g_proxy_new_for_name(
 			dbus_sess_conn,
-			"org.gnome.Rhythmbox", "/org/gnome/Rhythmbox/Player", "org.gnome.Rhythmbox.Player");
+			RB_DBUS_SERVICE, RB_DBUS_PLAYER_PATH, RB_DBUS_PLAYER_INTERFACE);
 	g_assert(rb_player_proxy);
 
 	/* register callback to monitor for dbus connections */
