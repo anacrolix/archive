@@ -21,13 +21,6 @@ typedef struct {
 	GRegex *regex;
 } TibiaApplet;
 
-typedef struct {
-	GFile *gfile;
-	gchar *buffer;
-	gssize count;
-	TibiaApplet *tiblet;
-} UpdateLabelData;
-
 static void update_label(
 	gchar *buffer, TibiaApplet *tiblet, ReadUriAsync<TibiaApplet *> *rua)
 {
@@ -44,6 +37,7 @@ static void update_label(
 		text = g_strdup("Fail");
 	}
 	g_free(buffer);
+	delete rua;
 
 	gtk_label_set_text(GTK_LABEL(tiblet->label), text);
 	g_free(text);
