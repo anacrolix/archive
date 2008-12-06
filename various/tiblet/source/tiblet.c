@@ -87,6 +87,7 @@ static gboolean tibia_applet_factory(
 	box = gtk_hbox_new(FALSE, 3);
     tiblet->label = gtk_label_new("Tiblet");
     image = gtk_image_new_from_file(PIXMAPS_DIR "tiblet.xpm");
+    g_assert(image);
     GdkPixbuf *pixbuf = gdk_pixbuf_scale_simple(
     		gtk_image_get_pixbuf(image), 24, 24, GDK_INTERP_HYPER);
     gtk_image_set_from_pixbuf(image, pixbuf);
