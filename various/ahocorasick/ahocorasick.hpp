@@ -12,6 +12,9 @@
 #define debug(fmt, ...) do { \
 	fprintf(stderr, fmt, ##__VA_ARGS__); } while (false)
 
+#define wdebug(fmt, ...) do { \
+	fwprintf(stderr, fmt, ##__VA_ARGS__); } while (false)
+
 #define FAIL_STATE ((state_t)-1)
 
 namespace AC {
@@ -65,8 +68,9 @@ public:
 	{
 	}
 
+	template <typename HaystackT>
 	void operator()(
-			Haystack<SymbolT> &haystack,
+			HaystackT &haystack,
 			void (*hit)(size_t index, keyword_t const *keyword))
 	{
 		debug("*** Performing search...\n");
@@ -116,9 +120,13 @@ private:
 
 		state_t operator()(state_t state, SymbolT const &symbol)
 		{
-			try {
-				return nodes_.at(state).at(symbol);
-			} catch (std::out_of_range &) {
+			if (state < nodes_.size()
+				&& (nodes_[state].find(symbol) != nodes_[state].end()))
+			{
+				return nodes_[state][symbol];
+			}
+			else
+			{
 				if (state == 0) return 0;
 				else return FAIL_STATE;
 			}

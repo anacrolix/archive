@@ -38,6 +38,29 @@ private:
 	size_t length_;
 };
 
+class WideStrKeyword : public Keyword<wchar_t>
+{
+public:
+	WideStrKeyword(wchar_t const str[])
+	:	string_(str),
+		length_(wcslen(str))
+	{
+	}
+	virtual size_t size() const { return length_; }
+	virtual wchar_t const &operator[](size_t index) const { return string_[index]; }
+#if !defined(NDEBUG)
+	virtual void debug_keyword() const {
+		wdebug(L"\"%s\"", string_);
+	}
+	virtual void debug_symbol(size_t index) const {
+		wdebug(L"\"%c\"", string_[index]);
+	}
+#endif
+private:
+	wchar_t const *string_;
+	size_t length_;
+};
+
 class CStrHaystack : public Haystack<char>
 {
 public:
@@ -63,6 +86,7 @@ class BinaryFileHaystack : public Haystack<char>
 {
 public:
 	BinaryFileHaystack(char const *filename)
+	:	Haystack<char>()
 	{
 		ifs_.open(filename);
 	}
@@ -117,7 +141,20 @@ bool test2(char const *filename)
 	kw.push_back(new CStrKeyword("vector"));
 	kw.push_back(new CStrKeyword("vec"));
 	kw.push_back(new CStrKeyword("vecna"));
-	kw.push_back(new CStrKeyword("mage"));
+	//kw.push_back(new CStrKeyword("mage"));
+	kw.push_back(new CStrKeyword("fighter"));
+	kw.push_back(new CStrKeyword("god"));
+	kw.push_back(new CStrKeyword("sword"));
+	kw.push_back(new CStrKeyword("spell"));
+	kw.push_back(new CStrKeyword("body"));
+	kw.push_back(new CStrKeyword("matt"));
+	kw.push_back(new CStrKeyword("04"));
+	kw.push_back(new CStrKeyword("table"));
+	kw.push_back(new CStrKeyword("and"));
+	//kw.push_back(new CStrKeyword("x"));
+
+	vector<Keyword<wchar_t> *> kw2;
+	kw2.push_back(new WideStrKeyword(L"hi"));
 
 	BinaryFileHaystack hay(filename);
 	AhoCorasick<char> ac(kw.begin(), kw.end());
