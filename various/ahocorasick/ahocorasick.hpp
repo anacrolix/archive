@@ -1,15 +1,20 @@
-#include <deque>
+#include <cassert>
 #if !defined(NDEBUG)
 #include <cstdio>
 #endif
+
+#include <deque>
 #include <map>
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 #define debug(fmt, ...) do { \
 	fprintf(stderr, fmt, ##__VA_ARGS__); } while (false)
 
 #define FAIL_STATE ((state_t)-1)
+
+namespace AC {
 
 template <typename SymbolT>
 class Keyword
@@ -21,6 +26,27 @@ public:
 	virtual void debug_keyword() const {}
 	virtual void debug_symbol(size_t index) const {}
 #endif
+};
+
+template <typename SymbolT>
+class Haystack
+{
+public:
+	Haystack()
+	:	offset_(0)
+	{}
+
+	bool next(SymbolT const *&input)
+	{
+		return this->at(offset_++, input);
+	}
+
+	size_t last() { return offset_ - 1; }
+
+private:
+	virtual bool at(size_t offset, SymbolT const *&input) const = 0;
+
+	size_t offset_;
 };
 
 template <typename SymbolT>
@@ -37,6 +63,32 @@ public:
 	:	g_(begin, end, o_),
 		f_(g_, o_)
 	{
+	}
+
+	void operator()(
+			Haystack<SymbolT> &haystack,
+			void (*hit)(size_t index, keyword_t const *keyword))
+	{
+		debug("*** Performing search...\n");
+		state_t state = 0;
+		SymbolT const *input;
+		while (haystack.next(input))
+		{
+			while (g_(state, *input) == FAIL_STATE) {
+				debug("failed %zu -> ", state);
+				state = f_(state);
+				debug("%zu\n", state);
+			}
+			state = g_(state, *input);
+			if (!o_[state].empty()) {
+				typename std::set<keyword_t const *>::const_iterator o;
+				for (o = o_[state].begin(); o != o_[state].end(); o++)
+				{
+					(hit)(haystack.last(), *o);
+				}
+			}
+		}
+
 	}
 
 private:
@@ -60,9 +112,14 @@ private:
 
 		nodes_t const &nodes() { return nodes_; }
 
-		state_t operator()(state_t state, SymbolT symbol)
+		state_t operator()(state_t state, SymbolT const &symbol)
 		{
-			return nodes_[state][symbol];
+			try {
+				return nodes_.at(state).at(symbol);
+			} catch (std::out_of_range &) {
+				if (state == 0) return 0;
+				else return FAIL_STATE;
+			}
 		}
 
 	private:
@@ -118,7 +175,7 @@ private:
 				OutputFunction &outputf)
 		:	fail_(gotof.nodes().size(), FAIL_STATE)
 		{
-			debug("Generating failure function...\n");
+			debug("*** Generating failure function...\n");
 			std::deque<state_t> queue;
 			typename edges_t::const_iterator edge_it;
 			/* queue all the nonfail root edges */
@@ -141,8 +198,10 @@ private:
 					state_t const s(edge_it->second);
 					queue.push_back(s);
 					state_t state = fail_[r];
-					while (gotof(state, edge_it->first) == FAIL_STATE)
+					while (gotof(state, edge_it->first) == FAIL_STATE) {
+						assert(state != FAIL_STATE);
 						state = fail_[state];
+					}
 					// f(s) <- g(state, a)
 					debug("f(%zu) <- %zu\n", s, gotof(state, a));
 					fail_[s] = gotof(state, a);
@@ -151,6 +210,12 @@ private:
 				}
 			}
 		}
+
+		state_t operator()(state_t state)
+		{
+			return fail_[state];
+		}
+
 	private:
 		std::vector<state_t> fail_;
 	};
@@ -161,3 +226,5 @@ private:
 	GotoFunction g_;
 	FailureFunction f_;
 };
+
+}; // namespace AC {

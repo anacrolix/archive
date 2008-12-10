@@ -9,8 +9,9 @@
 
 using namespace std;
 using namespace boost::assign;
+using namespace AC;
 
-class CStrKeyword : public Keyword<char const>
+class CStrKeyword : public Keyword<char>
 {
 public:
 	CStrKeyword(char const str[])
@@ -27,18 +28,47 @@ private:
 	size_t length_;
 };
 
-class IntSetKeyword : public Keyword<set<int> >
+class CStrHaystack : public Haystack<char>
 {
+public:
+	CStrHaystack(char const hay[])
+	:
+		hay_(hay)
+	{}
+
+	virtual bool at(size_t offset, char const *&input) const
+	{
+		if (offset < strlen(hay_)) {
+			input = &hay_[offset];
+			return true;
+		}
+		else
+			return false;
+	}
+private:
+	char const *hay_;
 };
+
+static void print_hit(size_t index, Keyword<char> const *keyword)
+{
+	debug("Found hit [%zu]: ", index);
+	keyword->debug_keyword();
+	debug("\n");
+}
 
 bool test1()
 {
-	vector<Keyword<char const> *> kw;
+	vector<Keyword<char> *> kw;
 	kw.push_back(new CStrKeyword("he"));
 	kw.push_back(new CStrKeyword("she"));
 	kw.push_back(new CStrKeyword("his"));
 	kw.push_back(new CStrKeyword("hers"));
-	AhoCorasick<char const> ac(kw.begin(), kw.end());
+
+	CStrHaystack hay("ushers");
+
+	AhoCorasick<char> ac(kw.begin(), kw.end());
+	ac(hay, print_hit);
+	ac(hay, print_hit);
 
 	return false;
 }
