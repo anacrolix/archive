@@ -22,10 +22,8 @@ class Keyword
 public:
 	virtual size_t size() const = 0;
 	virtual SymbolT const &operator[](size_t index) const = 0;
-#if !defined(NDEBUG)
 	virtual void debug_keyword() const {}
 	virtual void debug_symbol(size_t index) const {}
-#endif
 };
 
 template <typename SymbolT>
@@ -44,7 +42,7 @@ public:
 	size_t last() { return offset_ - 1; }
 
 private:
-	virtual bool at(size_t offset, SymbolT const *&input) const = 0;
+	virtual bool at(size_t offset, SymbolT const *&input) = 0;
 
 	size_t offset_;
 };
@@ -75,9 +73,9 @@ public:
 		while (haystack.next(input))
 		{
 			while (g_(state, *input) == FAIL_STATE) {
-				debug("failed %zu -> ", state);
+				//debug("failed %zu -> ", state);
 				state = f_(state);
-				debug("%zu\n", state);
+				//debug("%zu\n", state);
 			}
 			state = g_(state, *input);
 			if (!o_[state].empty()) {

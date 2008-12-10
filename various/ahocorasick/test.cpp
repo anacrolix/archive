@@ -1,5 +1,9 @@
 #include "ahocorasick.hpp"
 
+//#include <fcntl.h>
+
+#include <fstream>
+#include <iostream>
 #include <set>
 #include <string>
 #include <vector>
@@ -21,8 +25,14 @@ public:
 	}
 	virtual size_t size() const { return length_; }
 	virtual char const &operator[](size_t index) const { return string_[index]; }
-	virtual void debug_keyword() const { debug("\"%s\"", string_); }
-	virtual void debug_symbol(size_t index) const { debug("\"%c\"", string_[index]); }
+#if !defined(NDEBUG)
+	virtual void debug_keyword() const {
+		debug("\"%s\"", string_);
+	}
+	virtual void debug_symbol(size_t index) const {
+		debug("\"%c\"", string_[index]);
+	}
+#endif
 private:
 	char const *string_;
 	size_t length_;
@@ -36,7 +46,7 @@ public:
 		hay_(hay)
 	{}
 
-	virtual bool at(size_t offset, char const *&input) const
+	virtual bool at(size_t offset, char const *&input)
 	{
 		if (offset < strlen(hay_)) {
 			input = &hay_[offset];
@@ -47,6 +57,34 @@ public:
 	}
 private:
 	char const *hay_;
+};
+
+class BinaryFileHaystack : public Haystack<char>
+{
+public:
+	BinaryFileHaystack(char const *filename)
+	{
+		ifs_.open(filename);
+	}
+	~BinaryFileHaystack()
+	{
+		ifs_.close();
+	}
+
+	virtual bool at(size_t offset, char const *&input)
+	{
+		if (ifs_.good()) {
+			ifs_.get(buf_);
+			input = &buf_;
+			return true;
+		}
+		else
+			return false;
+	}
+
+private:
+	ifstream ifs_;
+	mutable char buf_;
 };
 
 static void print_hit(size_t index, Keyword<char> const *keyword)
@@ -73,15 +111,25 @@ bool test1()
 	return false;
 }
 
-bool test2()
+bool test2(char const *filename)
 {
+	vector<Keyword<char> *> kw;
+	kw.push_back(new CStrKeyword("vector"));
+	kw.push_back(new CStrKeyword("vec"));
+	kw.push_back(new CStrKeyword("vecna"));
+	kw.push_back(new CStrKeyword("mage"));
+
+	BinaryFileHaystack hay(filename);
+	AhoCorasick<char> ac(kw.begin(), kw.end());
+	ac(hay, print_hit);
+
 	return false;
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	test1();
-	test2();
+	//test2(argv[1]);
 
 	return 0;
 }

@@ -1,6 +1,6 @@
 CC = g++
-CXXFLAGS = -g -Wall -pg
-LDFLAGS = -pg
+CXXFLAGS = -O2
+LDFLAGS =
 
 default: clean test
 clean:
