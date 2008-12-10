@@ -1,9 +1,15 @@
-//#include <list>
 #include <deque>
-#include <iostream>
+#if !defined(NDEBUG)
+#include <cstdio>
+#endif
 #include <map>
 #include <set>
 #include <vector>
+
+#define debug(fmt, ...) do { \
+	fprintf(stderr, fmt, ##__VA_ARGS__); } while (false)
+
+#define FAIL_STATE ((state_t)-1)
 
 template <typename SymbolT>
 class Keyword
@@ -11,6 +17,10 @@ class Keyword
 public:
 	virtual size_t size() const = 0;
 	virtual SymbolT const &operator[](size_t index) const = 0;
+#if !defined(NDEBUG)
+	virtual void debug_keyword() const {}
+	virtual void debug_symbol(size_t index) const {}
+#endif
 };
 
 template <typename SymbolT>
@@ -40,9 +50,12 @@ private:
 				keyword_iter_t const &end,
 				OutputFunction &output)
 		{
+			debug("*** Generating goto function...\n");
 			state_t newstate = 0;
-			for ( ; begin != end; begin++)
+			for ( ; begin != end; begin++) {
+				debug("Entering("); (*begin)->debug_keyword(); debug(")\n");
 				enter(**begin, newstate, output);
+			}
 		}
 
 		nodes_t const &nodes() { return nodes_; }
@@ -77,8 +90,16 @@ private:
 			/* generate new edges */
 			while (index < keyword.size())
 			{
-				(*node)[keyword[index++]] = ++newstate;
+				// newstate <- newstate + 1
+				newstate += 1;
+				// g(state a_p) <- newstate
+				debug("g(%zu, ", state);
+				keyword.debug_symbol(index);
+				debug(") <- %zu\n", newstate);
+				(*node)[keyword[index++]] = newstate;
+				// state <- newstate
 				state = newstate;
+				// node <- lambda x: g(state, x)
 				if (state == nodes_.size())
 					nodes_.resize(state + 1);
 				node = &nodes_[state];
@@ -95,9 +116,9 @@ private:
 		FailureFunction(
 				GotoFunction &gotof,
 				OutputFunction &outputf)
-		:	fail_(gotof.nodes().size(), -1)
+		:	fail_(gotof.nodes().size(), FAIL_STATE)
 		{
-			std::cerr << "Generating failure function..." << std::endl;
+			debug("Generating failure function...\n");
 			std::deque<state_t> queue;
 			typename edges_t::const_iterator edge_it;
 			/* queue all the nonfail root edges */
@@ -107,7 +128,6 @@ private:
 				std::pair<SymbolT, state_t> const &edge(*edge_it);
 				queue.push_back(edge.second);
 				fail_[edge.second] = 0;
-				std::cerr << "g(" << 0 << ", " << edge.first << ") is " << edge.second << std::endl;
 			}
 			/* generate failure transitions */
 			while (!queue.empty())
@@ -117,16 +137,18 @@ private:
 				edges_t const &node = gotof.nodes()[r];
 				for (edge_it = node.begin(); edge_it != node.end(); ++edge_it)
 				{
-					state_t s(edge_it->second);
+					SymbolT const &a(edge_it->first);
+					state_t const s(edge_it->second);
 					queue.push_back(s);
 					state_t state = fail_[r];
-					while (gotof(state, edge_it->first) == -1)
+					while (gotof(state, edge_it->first) == FAIL_STATE)
 						state = fail_[state];
-					fail_[edge_it->second] = gotof(state, edge_it->first);
+					// f(s) <- g(state, a)
+					debug("f(%zu) <- %zu\n", s, gotof(state, a));
+					fail_[s] = gotof(state, a);
+					// output(s) <- output(s) U output(f(s))
 					outputf[s].insert(outputf[fail_[s]].begin(), outputf[fail_[s]].end());
 				}
-
-
 			}
 		}
 	private:

@@ -20,6 +20,8 @@ public:
 	}
 	virtual size_t size() const { return length_; }
 	virtual char const &operator[](size_t index) const { return string_[index]; }
+	virtual void debug_keyword() const { debug("\"%s\"", string_); }
+	virtual void debug_symbol(size_t index) const { debug("\"%c\"", string_[index]); }
 private:
 	char const *string_;
 	size_t length_;
@@ -35,7 +37,7 @@ bool test1()
 	kw.push_back(new CStrKeyword("he"));
 	kw.push_back(new CStrKeyword("she"));
 	kw.push_back(new CStrKeyword("his"));
-	kw.push_back(new CStrKeyword("her"));
+	kw.push_back(new CStrKeyword("hers"));
 	AhoCorasick<char const> ac(kw.begin(), kw.end());
 
 	return false;
