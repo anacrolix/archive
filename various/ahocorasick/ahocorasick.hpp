@@ -56,6 +56,8 @@ public:
 	typedef size_t state_t;
 	typedef std::map<SymbolT, state_t> edges_t;
 	typedef std::vector<edges_t> nodes_t;
+	typedef std::set<keyword_t const *> outputs_t;
+	typedef std::map<state_t, outputs_t> OutputFunction;
 
 	AhoCorasick(keyword_iter_t const &begin, keyword_iter_t const &end)
 	:	g_(begin, end, o_),
@@ -72,17 +74,19 @@ public:
 		SymbolT const *input;
 		while (haystack.next(input))
 		{
-			while (g_(state, *input) == FAIL_STATE) {
+			state_t state2;
+			while ((state2 = g_(state, *input)) == FAIL_STATE) {
 				//debug("failed %zu -> ", state);
 				state = f_(state);
 				//debug("%zu\n", state);
 			}
-			state = g_(state, *input);
-			if (!o_[state].empty()) {
-				typename std::set<keyword_t const *>::const_iterator o;
-				for (o = o_[state].begin(); o != o_[state].end(); o++)
+			state = state2;
+			{
+				std::set<keyword_t const *> const &out_node = o_[state];
+				typename outputs_t::const_iterator out_it;
+				for (out_it = out_node.begin(); out_it != out_node.end(); out_it++)
 				{
-					(hit)(haystack.last(), *o);
+					(hit)(haystack.last(), *out_it);
 				}
 			}
 		}
@@ -90,7 +94,7 @@ public:
 	}
 
 private:
-	typedef std::map<state_t, std::set<keyword_t const *> > OutputFunction;
+	//typedef std::map<state_t, std::set<keyword_t const *> > OutputFunction;
 
 	class GotoFunction
 	{

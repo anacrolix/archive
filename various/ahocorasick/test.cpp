@@ -129,7 +129,7 @@ bool test2(char const *filename)
 int main(int argc, char **argv)
 {
 	test1();
-	//test2(argv[1]);
+	test2(argv[1]);
 
 	return 0;
 }
