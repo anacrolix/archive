@@ -1,240 +1,212 @@
+//#include <iterator>
 #include <cassert>
-#if !defined(NDEBUG)
-#include <cstdio>
-#endif
-
 #include <deque>
 #include <map>
 #include <set>
-#include <stdexcept>
 #include <vector>
 
-#define debug(fmt, ...) do { \
-	fprintf(stderr, fmt, ##__VA_ARGS__); } while (false)
-
-#define wdebug(fmt, ...) do { \
-	fwprintf(stderr, fmt, ##__VA_ARGS__); } while (false)
-
-#define FAIL_STATE ((state_t)-1)
-
-namespace AC {
-
-template <typename SymbolT>
-class Keyword
-{
-public:
-	virtual size_t size() const = 0;
-	virtual SymbolT const &operator[](size_t index) const = 0;
-	virtual void debug_keyword() const {}
-	virtual void debug_symbol(size_t index) const {}
-};
-
-template <typename SymbolT>
-class Haystack
-{
-public:
-	Haystack()
-	:	offset_(0)
-	{}
-
-	bool next(SymbolT const *&input)
-	{
-		return this->at(offset_++, input);
-	}
-
-	size_t last() { return offset_ - 1; }
-
-private:
-	virtual bool at(size_t offset, SymbolT const *&input) = 0;
-
-	size_t offset_;
-};
+size_t const FAIL_STATE = -1;
 
 template <typename SymbolT>
 class AhoCorasick
 {
 public:
-	typedef Keyword<SymbolT> keyword_t;
-	typedef typename std::vector<keyword_t *>::iterator keyword_iter_t;
 	typedef size_t state_t;
-	typedef std::map<SymbolT, state_t> edges_t;
-	typedef std::vector<edges_t> nodes_t;
-	typedef std::set<keyword_t const *> outputs_t;
-	typedef std::map<state_t, outputs_t> OutputFunction;
 
-	AhoCorasick(keyword_iter_t const &begin, keyword_iter_t const &end)
-	:	g_(begin, end, o_),
-		f_(g_, o_)
+	template <typename KeywordIterT>
+	AhoCorasick(
+			KeywordIterT const & kw_begin,
+			KeywordIterT const & kw_end)
+	:	goto_(kw_begin, kw_end, output_),
+		fail_(goto_, output_),
+		where_(0),
+		state_(0)
 	{
 	}
 
-	template <typename HaystackT>
-	void operator()(
-			HaystackT &haystack,
-			void (*hit)(size_t index, keyword_t const *keyword))
+	template <typename InputIterT, typename CallbackT>
+	void search(
+			InputIterT input_it,
+			InputIterT input_end,
+			CallbackT callback)
 	{
-		debug("*** Performing search...\n");
-		state_t state = 0;
-		SymbolT const *input;
-		while (haystack.next(input))
+		for ( ; input_it != input_end; ++input_it, where_++)
 		{
-			state_t state2;
-			while ((state2 = g_(state, *input)) == FAIL_STATE) {
-				//debug("failed %zu -> ", state);
-				state = f_(state);
-				//debug("%zu\n", state);
-			}
-			state = state2;
+			SymbolT const &input(*input_it);
 			{
-				std::set<keyword_t const *> const &out_node = o_[state];
-				typename outputs_t::const_iterator out_it;
-				for (out_it = out_node.begin(); out_it != out_node.end(); out_it++)
+				state_t next;
+				while ((next = goto_(state_, input)) == FAIL_STATE)
+					state_ = fail_(state_);
+				state_ = next;
+			}
+			{
+				std::set<size_t> const &out_node = output_[state_];
+				typename std::set<size_t>::const_iterator output_it;
+				for (output_it = out_node.begin(); output_it != out_node.end(); ++output_it)
 				{
-					(hit)(haystack.last(), *out_it);
+					callback(where_, *output_it);
 				}
 			}
 		}
-
 	}
 
-private:
-	//typedef std::map<state_t, std::set<keyword_t const *> > OutputFunction;
+	void reset() { state_ = 0; where_ = 0; }
 
-	class GotoFunction
+private:
+#if 0
+	class OutputFunction
 	{
 	public:
-		GotoFunction(
-				keyword_iter_t begin,
-				keyword_iter_t const &end,
-				OutputFunction &output)
+		OutputFunction() {}
+		std::set<size_t> & operator[](state_t index)
 		{
-			debug("*** Generating goto function...\n");
-			state_t newstate = 0;
-			for ( ; begin != end; begin++) {
-				debug("Entering("); (*begin)->debug_keyword(); debug(")\n");
-				enter(**begin, newstate, output);
-			}
-		}
-
-		nodes_t const &nodes() { return nodes_; }
-
-		state_t operator()(state_t state, SymbolT const &symbol)
-		{
-			if (state < nodes_.size()
-				&& (nodes_[state].find(symbol) != nodes_[state].end()))
-			{
-				return nodes_[state][symbol];
-			}
-			else
-			{
-				if (state == 0) return 0;
-				else return FAIL_STATE;
-			}
+			return outputs_[index];
 		}
 
 	private:
+		std::map<state_t, std::set<size_t> > outputs_;
+	};
+#else
+	typedef std::map<state_t, std::set<size_t> > OutputFunction;
+#endif
+	class GotoFunction
+	{
+	public:
+		typedef std::map<SymbolT, state_t> edges_t;
+		typedef std::vector<edges_t> nodes_t;
+
+		template <typename KeywordIterT>
+		GotoFunction(
+				KeywordIterT kw_iter,
+				KeywordIterT const & kw_end,
+				OutputFunction & output_f)
+		{
+			state_t newstate = 0;
+			size_t kw_index = 0;
+			for ( ; kw_iter != kw_end; ++kw_iter)
+			{
+				enter(*kw_iter, newstate);
+				output_f[newstate].insert(kw_index++);
+			}
+		}
+
+		state_t operator()(state_t state, SymbolT const & symbol) const
+		{
+			assert(state < graph_.size());
+			edges_t const &node(graph_[state]);
+			typename edges_t::const_iterator const &edge_it(node.find(symbol));
+			if (edge_it != node.end())
+			{
+				return edge_it->second;
+			}
+			else
+			{
+				return (state == 0) ? 0 : FAIL_STATE;
+			}
+		}
+
+		nodes_t const & get_nodes() const { return graph_; }
+
+	private:
+		template <typename KeywordT>
 		void enter(
-				keyword_t const &keyword,
-				state_t &newstate,
-				OutputFunction &output)
+				KeywordT const & keyword,
+				state_t & newstate)
 		{
 			state_t state = 0;
 			size_t index = 0;
-			//typename nodes_t::iterator *node;
-			edges_t *node;
-			/* follow existing edges */
-			while (true)
+			std::map<SymbolT, state_t> *node;
+
+			// follow existing symbol edges
+			for ( ; index < keyword.size(); index++)
 			{
-				typename edges_t::iterator edge;
-				if (state == nodes_.size())
-					nodes_.resize(state + 1);
-				node = &nodes_[state];
-				edge = node->find(keyword[index]);
+				// this node won't be initialized
+				if (state == graph_.size())
+					graph_.resize(state + 1);
+				node = &graph_[state];
+				typename std::map<SymbolT, state_t>::iterator edge =
+						node->find(keyword[index]);
 				if (edge == node->end()) break;
 				state = edge->second;
-				index++;
 			}
-			/* generate new edges */
-			while (index < keyword.size())
+			//printf("resize %u\n", graph_.size() + keyword.size() - index - 1);
+			//graph_.resize(graph_.size() + keyword.size() - index);
+			// generate new symbol edges
+			for ( ; index < keyword.size(); index++)
 			{
-				// newstate <- newstate + 1
-				newstate += 1;
-				// g(state a_p) <- newstate
-				debug("g(%zu, ", state);
-				keyword.debug_symbol(index);
-				debug(") <- %zu\n", newstate);
-				(*node)[keyword[index++]] = newstate;
-				// state <- newstate
+				(*node)[keyword[index]] = ++newstate;
 				state = newstate;
-				// node <- lambda x: g(state, x)
-				if (state == nodes_.size())
-					nodes_.resize(state + 1);
-				node = &nodes_[state];
+				if (state == graph_.size())
+					graph_.resize(state + 1);
+				node = &graph_[state];
 			}
-			output[state].insert(&keyword);
 		}
 
-		nodes_t nodes_;
+		std::vector<std::map<SymbolT, state_t> > graph_;
 	};
 
 	class FailureFunction
 	{
 	public:
 		FailureFunction(
-				GotoFunction &gotof,
-				OutputFunction &outputf)
-		:	fail_(gotof.nodes().size(), FAIL_STATE)
+				GotoFunction const & _goto,
+				OutputFunction & output)
+		:	table_(_goto.get_nodes().size(), FAIL_STATE)
 		{
-			debug("*** Generating failure function...\n");
 			std::deque<state_t> queue;
-			typename edges_t::const_iterator edge_it;
-			/* queue all the nonfail root edges */
-			edges_t const &rootnode = gotof.nodes()[0];
-			for (edge_it = rootnode.begin(); edge_it != rootnode.end(); ++edge_it)
-			{
-				std::pair<SymbolT, state_t> const &edge(*edge_it);
-				queue.push_back(edge.second);
-				fail_[edge.second] = 0;
-			}
-			/* generate failure transitions */
+
+			queue_edges(_goto.get_nodes()[0], queue);
+
 			while (!queue.empty())
 			{
 				state_t r = queue.front();
 				queue.pop_front();
-				edges_t const &node = gotof.nodes()[r];
+				typename GotoFunction::edges_t const &node(_goto.get_nodes()[r]);
+				typename GotoFunction::edges_t::const_iterator edge_it;
 				for (edge_it = node.begin(); edge_it != node.end(); ++edge_it)
 				{
-					SymbolT const &a(edge_it->first);
-					state_t const s(edge_it->second);
+					std::pair<SymbolT, state_t> const &edge(*edge_it);
+					SymbolT const &a(edge.first);
+					state_t const &s(edge.second);
+
 					queue.push_back(s);
-					state_t state = fail_[r];
-					while (gotof(state, edge_it->first) == FAIL_STATE) {
-						assert(state != FAIL_STATE);
-						state = fail_[state];
-					}
-					// f(s) <- g(state, a)
-					debug("f(%zu) <- %zu\n", s, gotof(state, a));
-					fail_[s] = gotof(state, a);
-					// output(s) <- output(s) U output(f(s))
-					outputf[s].insert(outputf[fail_[s]].begin(), outputf[fail_[s]].end());
+					state_t state = table_[r];
+					while (_goto(state, a) == FAIL_STATE)
+						state = table_[state];
+					table_[s] = _goto(state, a);
+					output[s].insert(
+							output[table_[s]].begin(),
+							output[table_[s]].end());
 				}
 			}
 		}
 
-		state_t operator()(state_t state)
+		state_t operator()(state_t state) const
 		{
-			return fail_[state];
+			return table_[state];
 		}
 
 	private:
-		std::vector<state_t> fail_;
+		std::vector<state_t> table_;
+
+		/* queue nonfail edges */
+		inline void queue_edges(
+				typename GotoFunction::edges_t const & node,
+				std::deque<state_t> & queue)
+		{
+			typename GotoFunction::edges_t::const_iterator edge_it;
+			for (edge_it = node.begin(); edge_it != node.end(); ++edge_it)
+			{
+				std::pair<SymbolT, state_t> const &edge(*edge_it);
+				queue.push_back(edge.second);
+				table_[edge.second] = 0;
+			}
+		}
 	};
 
-	AhoCorasick(AhoCorasick const &);
-
-	OutputFunction o_;
-	GotoFunction g_;
-	FailureFunction f_;
+	OutputFunction output_;
+	GotoFunction const goto_;
+	FailureFunction const fail_;
+	size_t where_;
+	state_t state_;
 };
-
-}; // namespace AC {
