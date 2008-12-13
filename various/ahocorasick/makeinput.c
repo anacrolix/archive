@@ -14,9 +14,9 @@ int main(int argc, char **argv)
 
 	/* generate output */
 	srand48(seed);
-	for ( ; n > 0; n--) {
+	for ( ; n > 0; n -= sizeof(long int)) {
 		long int m = mrand48();
-		if (fwrite(&m, sizeof(m), 1, stdout) != 1) goto fail;
+		if (fwrite(&m, (sizeof(m) < n) ? sizeof(m) : n, 1, stdout) != 1) goto fail;
 	}
 
 	return EXIT_SUCCESS;

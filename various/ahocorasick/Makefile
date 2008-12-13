@@ -1,5 +1,5 @@
 CC = g++
-CXXFLAGS = -g #-pg -fprofile-arcs -ftest-coverage
+CXXFLAGS = -O3 #-pg -fprofile-arcs -ftest-coverage
 LDFLAGS = #-pg -fprofile-arcs -ftest-coverage
 
 default: clean test
