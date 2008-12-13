@@ -39,17 +39,13 @@ int main()
 	char input[] = "ushers";
 	Results<string> results(keywords.begin(), keywords.end());
 	ac.search(&input[0], &input[sizeof(input)], results);
-#if 0
 	vector<set<size_t> > const expected = list_of<set<size_t> >
 			(list_of(3))
 			(list_of(3))
 			()
 			(list_of(5));
-#endif
-	vector<set<size_t> > expected(4);
-	expected[0].insert(3);
-	assert(expected.size() == results.hits_.size());
-	assert(expected[0].size() == results.hits_[0].size());
+	
+	assert(expected == results.hits_);
 
 	return 0;
 }
