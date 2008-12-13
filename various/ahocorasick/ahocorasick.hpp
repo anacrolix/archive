@@ -28,7 +28,7 @@ public:
 	void search(
 			InputIterT input_it,
 			InputIterT input_end,
-			CallbackT callback)
+			CallbackT & callback)
 	{
 		for ( ; input_it != input_end; ++input_it, where_++)
 		{
