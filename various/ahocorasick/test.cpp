@@ -11,41 +11,53 @@
 using namespace std;
 using namespace boost::assign;
 
-template <typename KeywordT>
+template <typename KeywordStoreT>
 struct Results
 {
-	template <typename KeywordIterT>
-	Results(KeywordIterT const & begin, KeywordIterT const & end)
-	:	keywords_(begin, end),
-		hits_(distance(begin, end))
+	Results(KeywordStoreT const & keywords)
+	:	keywords_(keywords),
+		hits_(keywords.size())
 	{
 	}
 
-	void operator()(size_t where, size_t what)
+	void operator()(size_t what, size_t where)
 	{
-		cout << what << " : " << where << endl;
-		assert(hits_[what].insert(where).second);
-		cout << "offset: " << where << "; found: " << keywords_[what] << endl;
+		cout << "[" << where << "]" << keywords_[what] << endl;
+		hits_[what].insert(where);
 	}
 
-	vector<KeywordT> keywords_;
+	KeywordStoreT const &keywords_;
 	vector<set<size_t> > hits_;
 };
+
+typedef vector<set<size_t> > (*correctness_test)(vector<string> const &, char const *, char const *);
+
+vector<set<size_t> >
+matt_correctness(vector<string> const & keywords, char const *begin, char const *end)
+{
+	AhoCorasick<char> ac(keywords.begin(), keywords.end());
+	Results <vector<string> > results(keywords);
+	ac.search(begin, end, results);
+	return results.hits_;
+}
+
+static vector<correctness_test> correctness_tests = list_of(matt_correctness);
 
 int main()
 {
 	vector<string> const keywords = list_of("he")("she")("his")("hers");
-	AhoCorasick<char> ac(keywords.begin(), keywords.end());
-	char input[] = "ushers";
-	Results<string> results(keywords.begin(), keywords.end());
-	ac.search(&input[0], &input[sizeof(input)], results);
+	char const input[] = "ushers";
 	vector<set<size_t> > const expected = list_of<set<size_t> >
 			(list_of(3))
 			(list_of(3))
 			()
 			(list_of(5));
-	
-	assert(expected == results.hits_);
+
+	for (vector<correctness_test>::iterator it = correctness_tests.begin();
+		it != correctness_tests.end(); ++it)
+	{
+		assert(expected == (**it)(keywords, &input[0], &input[sizeof(input)]));
+	}
 
 	return 0;
 }

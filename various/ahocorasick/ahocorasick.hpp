@@ -44,7 +44,7 @@ public:
 				typename std::set<size_t>::const_iterator output_it;
 				for (output_it = out_node.begin(); output_it != out_node.end(); ++output_it)
 				{
-					callback(where_, *output_it);
+					callback(*output_it, where_);
 				}
 			}
 		}
@@ -129,15 +129,17 @@ private:
 				if (edge == node->end()) break;
 				state = edge->second;
 			}
-			//printf("resize %u\n", graph_.size() + keyword.size() - index - 1);
-			//graph_.resize(graph_.size() + keyword.size() - index);
+			/* could resize here as we know how many more symbols remain,
+			 * however we can't invalidate node yet */
+			graph_.resize(graph_.size() + keyword.size() - index);
+			node = &graph_[state];
 			// generate new symbol edges
 			for ( ; index < keyword.size(); index++)
 			{
 				(*node)[keyword[index]] = ++newstate;
 				state = newstate;
-				if (state == graph_.size())
-					graph_.resize(state + 1);
+				//if (state == graph_.size())
+				//	graph_.resize(state + 1);
 				node = &graph_[state];
 			}
 		}
