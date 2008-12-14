@@ -6,5 +6,5 @@ default: clean test
 clean:
 	-rm -f test *.o
 test:
-test.o: test.cpp AhoCorasick.hpp Time.hpp
+test.o: test.cpp AhoCorasick.hpp Timer.hpp
 
