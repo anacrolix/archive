@@ -12,7 +12,6 @@
 
 #include <boost/assign/list_of.hpp>
 
-#include "erisick-test.h"
 
 using namespace std;
 using namespace boost::assign;
@@ -53,7 +52,7 @@ matt_test_function(vector<string> const & keywords, char const *begin, char cons
 }
 
 static vector<test_function_t> test_functions =
-		list_of(&matt_test_function)(&eric_test_function);
+		list_of(&matt_test_function);
 
 typedef struct {
 	vector<string> keywords;
