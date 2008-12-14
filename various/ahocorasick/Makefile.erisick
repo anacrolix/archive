@@ -1,2 +1,4 @@
+CXXFLAGS = -g
+
 erisick: erisick-main.o
 erisick-main.o: erisick.h

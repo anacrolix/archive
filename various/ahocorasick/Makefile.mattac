@@ -1,0 +1,10 @@
+CC = g++
+CXXFLAGS = -O3 -Wall #-pg -fprofile-arcs -ftest-coverage
+LDFLAGS = #-pg -fprofile-arcs -ftest-coverage
+
+default: clean test
+clean:
+	-rm -f test *.o
+test:
+test.o: test.cpp AhoCorasick.hpp Time.hpp
+

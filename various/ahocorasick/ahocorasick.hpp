@@ -1,11 +1,12 @@
-//#include <iterator>
+#pragma once
+
 #include <cassert>
 #include <deque>
 #include <map>
 #include <set>
 #include <vector>
 
-size_t const FAIL_STATE = -1;
+size_t const AC_FAIL_STATE = -1;
 
 template <typename SymbolT>
 class AhoCorasick
@@ -35,7 +36,7 @@ public:
 			SymbolT const &input(*input_it);
 			{
 				state_t next;
-				while ((next = goto_(state_, input)) == FAIL_STATE)
+				while ((next = goto_(state_, input)) == AC_FAIL_STATE)
 					state_ = fail_(state_);
 				state_ = next;
 			}
@@ -101,7 +102,7 @@ private:
 			}
 			else
 			{
-				return (state == 0) ? 0 : FAIL_STATE;
+				return (state == 0) ? 0 : AC_FAIL_STATE;
 			}
 		}
 
@@ -153,7 +154,7 @@ private:
 		FailureFunction(
 				GotoFunction const & _goto,
 				OutputFunction & output)
-		:	table_(_goto.get_nodes().size(), FAIL_STATE)
+		:	table_(_goto.get_nodes().size(), AC_FAIL_STATE)
 		{
 			std::deque<state_t> queue;
 
@@ -173,7 +174,7 @@ private:
 
 					queue.push_back(s);
 					state_t state = table_[r];
-					while (_goto(state, a) == FAIL_STATE)
+					while (_goto(state, a) == AC_FAIL_STATE)
 						state = table_[state];
 					table_[s] = _goto(state, a);
 					output[s].insert(
