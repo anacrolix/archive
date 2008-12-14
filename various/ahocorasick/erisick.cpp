@@ -42,10 +42,13 @@ void erisick::addFound(std::string s)
 }
 
 
-void erisick::add(std::list<std::string> needles)
+void erisick::add(std::list<std::string> Needles)
 {
-
-    for(std::list<std::string>::iterator word = needles.begin(); word != needles.end(); word++)
+	if(!needles.empty())
+		throw 2; //you can not call add twice, yet.
+	needles = Needles;
+	
+    for(std::list<std::string>::iterator word = Needles.begin(); word != Needles.end(); word++)
     {
         erisick *at = this;
 
@@ -136,18 +139,18 @@ void erisick::add(std::list<std::string> needles)
 //    kid[letter]->payload = letter;
 //}
 
-std::list<std::pair<int, std::string> > erisick::search(std::string haystack)
+template <typename CallbackT>
+void erisick::search(char *start, char *end, CallbackT & callback)
 {
     std::list<std::pair<int, std::string> > results;
     erisick *at = this;
 
-	for(size_t i = 0; i < haystack.length() ; i++)
+	for(char *i = start; i < end ; i++)
     {
         erisick *cor = NULL;
         while(cor == NULL)
         {
-            cor = at->kid[haystack[i]];
-
+            cor = at->kid[*i];
 
             if (at == this) //no use for us
                 break;
@@ -162,12 +165,18 @@ std::list<std::pair<int, std::string> > erisick::search(std::string haystack)
 
         for(std::list<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
         {
-            std::pair<int, std::string> res(i, *f);
-            results.push_back(res);
+            //f is the word we found
+            //*i is it's position
+            size_t where = i-start;
+            
+            for(std::list<std::string>::iterator what = this->needles.begin();
+            what != this->needles.end(); what++)
+            {
+            	callback(*what, where);
+			}
+            
         }
 
     }
-
-    return results;
 
 }

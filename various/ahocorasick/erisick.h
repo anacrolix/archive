@@ -1,6 +1,7 @@
 #ifndef _CORASICK_H
 #define	_CORASICK_H
 
+#include <fstream>
 #include <list>
 #include <string>
 
@@ -9,13 +10,18 @@ public:
     erisick();
 	erisick(erisick *Parent);
     erisick(erisick *Parent, char c);
-    void add(std::list<std::string> needles);
+    void add(std::list<std::string> Needles);
 
-    std::list<std::pair<int, std::string> > search(std::string haystack);
+	template <typename CallbackT>
+    void search(char *start, char *end, CallbackT & callback);
+    
 
     erisick *parent;
     erisick *fallback;
 private:
+	//because matt's a fag, I've had to include this
+	std::list<std::string> needles; //:' (
+
      erisick *find(char target);
      //void add(char letter);
 	 void init();
