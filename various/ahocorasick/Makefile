@@ -8,3 +8,4 @@ clean:
 	-rm -f test *.o
 test:
 test.o: test.cpp ahocorasick.hpp
+

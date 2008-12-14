@@ -1,6 +1,6 @@
-#include "corasick.h"
+#include "erisick.h"
 
-corasick::corasick()
+erisick::erisick()
 {
     this->parent = NULL;
     this->fallback = NULL;
@@ -12,33 +12,21 @@ corasick::corasick()
     }
 }
 
-void corasick::addFound(std::string s)
+void erisick::addFound(std::string s)
 {   //should i check if it already exists?
     this->found.push_back(s);
 }
 
 
-void corasick::add(std::list<std::string> needles)
+void erisick::add(std::list<std::string> needles)
 {
 
     for(std::list<std::string>::iterator word = needles.begin(); word != needles.end(); word++)
     {
-        corasick *at = this;
+        erisick *at = this;
 
         for(std::string::iterator c = word->begin(); c != word->end(); c++)
         {
-            //corasick *newAt = NULL;
-           // for(int i = 0; i < 255; i++)
-           //{
-           //     if(at->kid[i] == NULL)
-           //         continue;
-           //    if(at->kid[i]->payload == c)
-           //     {
-           //         newAt = at->kid;
-           //        break;
-           //     }
-           // }
-
             if(at->kid[*c] == NULL)
             {
                 at->add(*c);
@@ -53,7 +41,7 @@ void corasick::add(std::list<std::string> needles)
     //time to make fall backs. fuck fuck fuck
     this->fallback = this; //that was easy ;D
 
-    std::list<corasick *> nodes; //a todo list of sort
+    std::list<erisick *> nodes; //a todo list of sort
 
     //well, here's the easy part. All immediate kiddies
     //will fall back to root
@@ -73,11 +61,11 @@ void corasick::add(std::list<std::string> needles)
     //ok, now to the fucked up shit.
     while(nodes.empty() == false)
     {
-        std::list<corasick *> newNodes; //for our next run, see end of code :D
+        std::list<erisick *> newNodes; //for our next run, see end of code :D
 
-        for(std::list<corasick *>::iterator node = nodes.begin(); node != nodes.end(); node++)
+        for(std::list<erisick *>::iterator node = nodes.begin(); node != nodes.end(); node++)
         {
-            corasick *r = (*node)->parent->fallback;
+            erisick *r = (*node)->parent->fallback;
             char c = (*node)->payload;
 
             while(r != NULL  && r->kid[c] == NULL)
@@ -88,8 +76,8 @@ void corasick::add(std::list<std::string> needles)
             else
             {
                 (*node)->fallback = r->kid[c];
-                for(std::list<std::string>::iterator f = (*node)->fallback->found->begin();
-                f != (*node)->fallback->found->end(); f++)
+                for(std::list<std::string>::iterator f = (*node)->fallback->found.begin();
+                f != (*node)->fallback->found.end(); f++)
                 {
                     (*node)->addFound(*f);
                 }
@@ -100,7 +88,7 @@ void corasick::add(std::list<std::string> needles)
             {
                 if((*node)->kid[i] != NULL)
                 {
-                    newNodes->pop_back((*node)->kid[i]);
+                    newNodes.push_back((*node)->kid[i]);
                 }
 
             }
@@ -109,21 +97,21 @@ void corasick::add(std::list<std::string> needles)
     }
 }
 
-void corasick::add(char letter)
+void erisick::add(char letter)
 {
-    kid[letter] = new corasick();
+    kid[letter] = new erisick();
     kid[letter]->parent = this;
     kid[letter]->payload = letter;
 }
 
-std::list<std::pair<int, std::string> > corasick::search(std::string haystack)
+std::list<std::pair<int, std::string> > erisick::search(std::string haystack)
 {
     std::list<std::pair<int, std::string> > results;
-    corasick *at = this;
+    erisick *at = this;
 
     for(int i = 0; i < haystack.length() ; i++)
     {
-        corasick * cor = NULL;
+        erisick * cor = NULL;
         while(cor == NULL)
         {
             cor = at->kid[haystack[i]];
@@ -133,14 +121,14 @@ std::list<std::pair<int, std::string> > corasick::search(std::string haystack)
                 break;
 
             if(cor == NULL) //didn't find
-                *at = at->fallback; //and repeat
+                at = at->fallback; //and repeat
         }
 
         if(cor != NULL)
             at = cor;
 
 
-        for(std::list<std::string>::iterator f = at->found->begin(); f != at->found->end(); f++)
+        for(std::list<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
         {
             std::pair<int, std::string> res(i, *f);
             results.push_back(res);

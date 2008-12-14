@@ -1,7 +1,7 @@
 
 #include <list>
 
-#include "corasick.h"
+#include "eri-corasick.h"
 #include <iostream>
 
 int main(int argc, char** argv)
@@ -15,13 +15,13 @@ int main(int argc, char** argv)
     needles.push_back("jesus");
 
 
-    corasick c;
+    erisick c;
     c.add(needles);
 
     results = c.search("I went to the jesus store for some teletubbies and bumpted into a negro");
 
-    for(std::list<std::pair<int, std::string> >::iterator r = results->begin();
-        r != resultsat->end();
+    for(std::list<std::pair<int, std::string> >::iterator r = results.begin();
+        r != results.end();
         r++)
     {
         std::cout << "Found " << r->second << " at " << r->first << std::endl;

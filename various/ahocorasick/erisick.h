@@ -4,24 +4,25 @@
 #include <list>
 #include <string>
 
-class corasick {
+class erisick {
 public:
-    corasick();
-    corasick(corasick *parent);
+    erisick();
+    erisick(erisick *parent);
+    void add(std::list<std::string> needles);
 
     std::list<std::pair<int, std::string> > search(std::string haystack);
 
-    corasick *parent;
-    corasick *fallback;
+    erisick *parent;
+    erisick *fallback;
 private:
-     corasick *find(char target);
+     erisick *find(char target);
      void add(char letter);
-     void add(std::list<std::string> needles);
+
      void addFound(std::string s);
      
      std::list<std::string> found;
      bool end;
-     corasick *kid[sizeof(char) * 256];
+     erisick *kid[sizeof(char) * 256];
     //this can be removed in a future version
     //but it is because i'm lazy:
     char payload;
