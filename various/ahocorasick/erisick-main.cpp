@@ -1,4 +1,3 @@
-
 #include <list>
 
 #include "erisick.h"
@@ -27,9 +26,5 @@ int main(int argc, char** argv)
         std::cout << "Found " << r->second << " at " << r->first << std::endl;
     }
 
-
-
-
     return (0);
 }
-

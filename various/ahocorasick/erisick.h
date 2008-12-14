@@ -7,7 +7,8 @@
 class erisick {
 public:
     erisick();
-    erisick(erisick *parent);
+	erisick(erisick *Parent);
+    erisick(erisick *Parent, char c);
     void add(std::list<std::string> needles);
 
     std::list<std::pair<int, std::string> > search(std::string haystack);
@@ -16,7 +17,8 @@ public:
     erisick *fallback;
 private:
      erisick *find(char target);
-     void add(char letter);
+     //void add(char letter);
+	 void init();
 
      void addFound(std::string s);
      
@@ -31,7 +33,4 @@ private:
 
 
 
-
-
 #endif	/* _CORASICK_H */
-

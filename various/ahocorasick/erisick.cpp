@@ -1,16 +1,40 @@
 #include "erisick.h"
 
-erisick::erisick()
-{
-    this->parent = NULL;
-    this->fallback = NULL;
-    this->end = false;
 
-    for(int i = 0; i < (sizeof(char) * 256); i++)
+erisick::erisick(erisick *Parent, char c)
+: parent(Parent)
+{
+	init();
+	kid[c] = new erisick(this);
+	this->payload = c;
+}
+
+erisick::erisick(erisick *Parent)
+: parent(Parent)
+{
+	init();
+	this->payload = ' ';
+}
+
+erisick::erisick()
+: parent(NULL)
+{
+	init();
+	this->payload = ' ';
+}
+
+void erisick::init()
+{
+	this->fallback = NULL;
+    this->end = false;
+	for(int i = 0; i < (sizeof(char) * 256); i++)
     {
         kid[i] = NULL;
     }
 }
+
+
+
 
 void erisick::addFound(std::string s)
 {   //should i check if it already exists?
@@ -29,7 +53,8 @@ void erisick::add(std::list<std::string> needles)
         {
             if(at->kid[*c] == NULL)
             {
-                at->add(*c);
+                erisick* add = new erisick(at, *c);
+				at->kid[*c] = add;
             }
             at = at->kid[*c];
         }
@@ -39,7 +64,7 @@ void erisick::add(std::list<std::string> needles)
     }
 
     //time to make fall backs. fuck fuck fuck
-    this->fallback = this; //that was easy ;D
+    
 
     std::list<erisick *> nodes; //a todo list of sort
 
@@ -48,7 +73,7 @@ void erisick::add(std::list<std::string> needles)
     for(int i = 0; i < (sizeof(char) * 256); i++)
     {
         if(this->kid[i] == NULL)
-            break; //nothing to be done
+            continue; //nothing to be done
         this->kid[i]->fallback = this;
         //let's add it, and its kiddies to our todo
         for(int j = 0; j < (sizeof(char) * 256); j++)
@@ -58,17 +83,18 @@ void erisick::add(std::list<std::string> needles)
         }
     }
 
+	std::list<erisick *> newNodes; //for our next run, see end of code :D
     //ok, now to the fucked up shit.
     while(nodes.empty() == false)
     {
-        std::list<erisick *> newNodes; //for our next run, see end of code :D
+        
 
         for(std::list<erisick *>::iterator node = nodes.begin(); node != nodes.end(); node++)
         {
             erisick *r = (*node)->parent->fallback;
-            char c = (*node)->payload;
+			char c = (*node)->payload;
 
-            while(r != NULL  && r->kid[c] == NULL)
+            while(r != NULL && r->kid[c] == NULL)
                 r = r->fallback;
 
             if(r==NULL) //can't be saved
@@ -92,26 +118,32 @@ void erisick::add(std::list<std::string> needles)
                 }
 
             }
-            nodes = newNodes;
+            
         }
+		nodes.clear();
+		for(std::list<erisick *>::iterator n = newNodes.begin(); n != newNodes.end(); n++)
+			nodes.push_back(*n);
+		newNodes.clear();
+
     }
+	this->fallback = this; //that was easy ;D
 }
 
-void erisick::add(char letter)
-{
-    kid[letter] = new erisick();
-    kid[letter]->parent = this;
-    kid[letter]->payload = letter;
-}
+//void erisick::add(char letter)
+//{
+//    kid[letter] = new erisick();
+//    kid[letter]->parent = this;
+//    kid[letter]->payload = letter;
+//}
 
 std::list<std::pair<int, std::string> > erisick::search(std::string haystack)
 {
     std::list<std::pair<int, std::string> > results;
     erisick *at = this;
 
-    for(int i = 0; i < haystack.length() ; i++)
+	for(size_t i = 0; i < haystack.length() ; i++)
     {
-        erisick * cor = NULL;
+        erisick *cor = NULL;
         while(cor == NULL)
         {
             cor = at->kid[haystack[i]];
