@@ -11,7 +11,6 @@ public:
 	erisick(erisick *Parent);
     erisick(erisick *Parent, char c);
     void add(std::list<std::string> Needles);
-
 	template <typename CallbackT>
     void search(char *start, char *end, CallbackT & callback);
     
@@ -19,9 +18,6 @@ public:
     erisick *parent;
     erisick *fallback;
 private:
-	//because matt's a fag, I've had to include this
-	std::list<std::string> needles; //:' (
-
      erisick *find(char target);
      //void add(char letter);
 	 void init();

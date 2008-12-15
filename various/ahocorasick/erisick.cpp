@@ -42,7 +42,7 @@ void erisick::addFound(std::string s)
 }
 
 
-void erisick::add(std::list<std::string> Needles)
+What
 {
 	if(!needles.empty())
 		throw 2; //you can not call add twice, yet.
@@ -165,16 +165,9 @@ void erisick::search(char *start, char *end, CallbackT & callback)
 
         for(std::list<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
         {
-            //f is the word we found
-            //*i is it's position
             size_t where = i-start;
-            
-            for(std::list<std::string>::iterator what = this->needles.begin();
-            what != this->needles.end(); what++)
-            {
-            	callback(*what, where);
-			}
-            
+            //*f is the std::string we found
+            callback(where, *f); 
         }
 
     }
