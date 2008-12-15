@@ -58,7 +58,7 @@ typedef struct {
 	vector<set<size_t> > expected;
 } TestData;
 
-int main()
+int main(int argc, char **argv)
 {
 	TestData td[2];
 	td[0].keywords = list_of("he")("she")("his")("hers");
@@ -100,7 +100,7 @@ int main()
 		cerr << t << ": graph construction (" << file_kw.size() << " keywords)" << endl;
 
 		Results<vector<string> > results(file_kw, true);
-		ifstream fag("input", ifstream::binary);
+		ifstream fag(argv[1], ifstream::binary);
 
 		t.restart();
 		while (fag.good()) {
