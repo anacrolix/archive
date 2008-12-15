@@ -1,9 +1,9 @@
 CC = g++
-CXXFLAGS = -O3  -pg -fprofile-arcs -ftest-coverage
-LDFLAGS = -pg -fprofile-arcs -ftest-coverage
+CXXFLAGS = -g
+LDFLAGS =
 
 default: clean test-eric
 clean:
 	-rm -f test-eric *.o
 test-eric: test-eric.o
-test-eric.o:  test-eric.cpp erisick.cpp Timer.hpp
+test-eric.o: test-eric.cpp erisick.cpp Timer.hpp

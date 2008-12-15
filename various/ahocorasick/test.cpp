@@ -1,7 +1,6 @@
 #include "AhoCorasick.hpp"
 #include "Timer.hpp"
 
-
 #include <cstdio>
 
 #include <fstream>
@@ -11,7 +10,6 @@
 #include <vector>
 
 #include <boost/assign/list_of.hpp>
-
 
 using namespace std;
 using namespace boost::assign;
