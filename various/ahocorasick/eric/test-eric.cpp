@@ -1,9 +1,10 @@
 #include "erisick.h"
 #include <stdlib.h>
+#include <iostream>
 #include <list>
 #include <string>
 #include <boost/assign/list_of.hpp>
-#include "Timer.hpp"
+//#include "Timer.hpp"
 
 using namespace std;
 using namespace boost::assign;
@@ -19,7 +20,7 @@ int main()
 	for (int i = 10000; i < 100000; i++) {
 		// no idea how to do this in fag++
 		char buf[10];
-		snprintf(buf, sizeof(buf), "%u", i);
+		sprintf(buf, "%u", i);
 		keywords.push_back(buf);
 	}
 	assert(keywords.size() == 90004);

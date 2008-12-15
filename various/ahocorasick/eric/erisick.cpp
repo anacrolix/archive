@@ -1,6 +1,5 @@
 #include "erisick.h"
 
-
 erisick::erisick(erisick *Parent, char c)
 : parent(Parent)
 {
