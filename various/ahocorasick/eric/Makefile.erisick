@@ -5,5 +5,4 @@ LDFLAGS =
 default: clean test-eric
 clean:
 	-rm -f test-eric *.o
-test-eric: test-eric.o
-test-eric.o: test-eric.cpp erisick.cpp
+test-eric: test-eric.cpp erisick.cpp

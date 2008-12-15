@@ -1,72 +1,31 @@
 #include "erisick.h"
-#include <stdlib.h>
+
 #include <iostream>
-#include <list>
-#include <string>
-#include <boost/assign/list_of.hpp>
-//#include "Timer.hpp"
 
-using namespace std;
-using namespace boost::assign;
-
-void result_callback(string what, size_t where)
+void write(std::string what, size_t where)
 {
-	cout << "[" << where << "]" << what.c_str() << endl;
-}
+	std::cout << "Found " << what << " at pos " << where;
+} 
 
-int main()
+int main(int argc, char** argv)
 {
-	list<string> keywords = list_of("sex")("dick")("c++")("lol");
-	for (int i = 10000; i < 100000; i++) {
-		// no idea how to do this in fag++
-		char buf[10];
-		sprintf(buf, "%u", i);
-		keywords.push_back(buf);
-	}
-	assert(keywords.size() == 90004);
+    std::list<std::string> needles;
 
-	erisick eric();
-	eric.add(keywords);
-	char input[] = "ushers";
-	//e.search(&input[0], &input[strlen(input)], result_callback);
-#if 0
-	{
-		Timer t("performance test");
+    needles.push_back("teletubby");
+    needles.push_back("negro");
+    needles.push_back("jesus");
 
-		vector<string> file_kw = list_of("sex")("dick")("c++")("lol");
-		for (int i = 10000; i < 100000; i++) {
-			char buf[10];
-			snprintf(buf, sizeof(buf), "%u", i);
-			file_kw.push_back(buf);
-		}
 
-		t.restart();
-		AhoCorasick<char> matt_ac(file_kw.begin(), file_kw.end());
-		cerr << t << ": graph construction (" << file_kw.size() << " keywords)" << endl;
+    erisick *eric = new erisick();
 
-		Results<vector<string> > results(file_kw, true);
-		ifstream fag("input", ifstream::binary);
 
-		t.restart();
-		while (fag.good()) {
-#if 1
-			char buf[512];
-			fag.read(buf, 512);
-			matt_ac.search(buf, buf + fag.gcount(), results);
-#else
-			char c = fag.get();
-			matt_ac.search(&c, &c + 1, results);
-#endif
-		}
-		t.pause();
-		cerr << endl;
-		assert(fag.is_open());
-		fag.clear();
-		fag.seekg(0, ios::end);
-		int len = fag.tellg();
-		cerr << t << ": search " << len << " bytes" << endl;
-	}
-#endif
+	//expensive build
+    eric->add(needles);
 
-	return EXIT_SUCCESS;
+	char *s = "I went to the jesus store for some teletubbies and bumpted into a negro";
+
+	//eric->search((s+0), (s+70), &write);
+
+	
+    return 0;
 }
