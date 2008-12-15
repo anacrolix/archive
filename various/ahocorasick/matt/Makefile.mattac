@@ -1,6 +1,6 @@
 CC = g++
-CXXFLAGS = -O3 -Wall -pg -fprofile-arcs -ftest-coverage
-LDFLAGS = -pg -fprofile-arcs -ftest-coverage
+CXXFLAGS = -O3 -Wall
+LDFLAGS =
 
 default: clean test
 clean:

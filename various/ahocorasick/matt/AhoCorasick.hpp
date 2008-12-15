@@ -6,14 +6,14 @@
 #include <set>
 #include <vector>
 
-size_t const AC_FAIL_STATE = -1;
-
 template <typename SymbolT>
 class AhoCorasick
 {
 public:
 	typedef size_t state_t;
+	static size_t const AC_FAIL_STATE = -1;
 
+	// KeywordIterT is a sequence of sequences of SymbolT
 	template <typename KeywordIterT>
 	AhoCorasick(
 			KeywordIterT const & kw_begin,
@@ -25,6 +25,8 @@ public:
 	{
 	}
 
+	// input is sequence of symbols
+	// CallbackT must be callable with (size_t what, size_t where)
 	template <typename InputIterT, typename CallbackT>
 	void search(
 			InputIterT input_it,
@@ -51,25 +53,12 @@ public:
 		}
 	}
 
+	// use this to start a new scan
 	void reset() { state_ = 0; where_ = 0; }
 
 private:
-#if 0
-	class OutputFunction
-	{
-	public:
-		OutputFunction() {}
-		std::set<size_t> & operator[](state_t index)
-		{
-			return outputs_[index];
-		}
-
-	private:
-		std::map<state_t, std::set<size_t> > outputs_;
-	};
-#else
 	typedef std::map<state_t, std::set<size_t> > OutputFunction;
-#endif
+
 	class GotoFunction
 	{
 	public:

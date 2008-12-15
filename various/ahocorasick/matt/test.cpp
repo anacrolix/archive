@@ -100,14 +100,14 @@ int main(int argc, char **argv)
 		cerr << t << ": graph construction (" << file_kw.size() << " keywords)" << endl;
 
 		Results<vector<string> > results(file_kw, true);
-		ifstream fag(argv[1], ifstream::binary);
+		ifstream input(argv[1], ifstream::binary);
 
 		t.restart();
-		while (fag.good()) {
+		while (input.good()) {
 #if 1
 			char buf[512];
-			fag.read(buf, 512);
-			matt_ac.search(buf, buf + fag.gcount(), results);
+			input.read(buf, 512);
+			matt_ac.search(buf, buf + input.gcount(), results);
 #else
 			char c = fag.get();
 			matt_ac.search(&c, &c + 1, results);
@@ -115,10 +115,10 @@ int main(int argc, char **argv)
 		}
 		t.pause();
 		cerr << endl;
-		assert(fag.is_open());
-		fag.clear();
-		fag.seekg(0, ios::end);
-		int len = fag.tellg();
+		assert(input.is_open());
+		input.clear();
+		input.seekg(0, ios::end);
+		int len = input.tellg();
 		cerr << t << ": search " << len << " bytes" << endl;
 	}
 #endif
