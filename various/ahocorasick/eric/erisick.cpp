@@ -32,20 +32,16 @@ void erisick::init()
     }
 }
 
-
-
-
 void erisick::addFound(std::string s)
 {   //should i check if it already exists?
     this->found.push_back(s);
 }
 
-
-What
+void erisick::add(std::list<std::string> Needles)
 {
-	if(!needles.empty())
+	if(!Needles.empty())
 		throw 2; //you can not call add twice, yet.
-	needles = Needles;
+	std::list<std::string> needles = Needles;
 	
     for(std::list<std::string>::iterator word = Needles.begin(); word != Needles.end(); word++)
     {
@@ -137,38 +133,3 @@ What
 //    kid[letter]->parent = this;
 //    kid[letter]->payload = letter;
 //}
-
-template <typename CallbackT>
-void erisick::search(char *start, char *end, CallbackT & callback)
-{
-    std::list<std::pair<int, std::string> > results;
-    erisick *at = this;
-
-	for(char *i = start; i < end ; i++)
-    {
-        erisick *cor = NULL;
-        while(cor == NULL)
-        {
-            cor = at->kid[*i];
-
-            if (at == this) //no use for us
-                break;
-
-            if(cor == NULL) //didn't find
-                at = at->fallback; //and repeat
-        }
-
-        if(cor != NULL)
-            at = cor;
-
-
-        for(std::list<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
-        {
-            size_t where = i-start;
-            //*f is the std::string we found
-            callback(where, *f); 
-        }
-
-    }
-
-}
