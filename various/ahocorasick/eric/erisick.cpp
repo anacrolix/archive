@@ -56,7 +56,7 @@ void erisick::search(char *start, char *end, void (*callback)(std::string, size_
 
 		if(!at->found.empty()) //should be slightly faster
 		{
-		for(std::list<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
+		for(std::vector<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
 		{
 			size_t where = i-start;
 			//*f is the std::string we found
@@ -73,10 +73,10 @@ void erisick::addFound(std::string s)
     this->found.push_back(s);
 }
 
-void erisick::add(std::list<std::string> needles)
+void erisick::add(std::vector<std::string> needles)
 {
 	
-    for(std::list<std::string>::iterator word = needles.begin(); word != needles.end(); word++)
+    for(std::vector<std::string>::iterator word = needles.begin(); word != needles.end(); word++)
     {
         erisick *at = this;
 
@@ -97,7 +97,7 @@ void erisick::add(std::list<std::string> needles)
     //time to make fall backs. fuck fuck fuck
     
 
-    std::list<erisick *> nodes; //a todo list of sort
+    std::vector<erisick *> nodes; //a todo vector of sort
 
     //well, here's the easy part. All immediate kiddies
     //will fall back to root
@@ -114,13 +114,13 @@ void erisick::add(std::list<std::string> needles)
         }
     }
 
-	std::list<erisick *> newNodes; //for our next run, see end of code :D
+	std::vector<erisick *> newNodes; //for our next run, see end of code :D
     //ok, now to the fucked up shit.
     while(nodes.empty() == false)
     {
         
 
-        for(std::list<erisick *>::iterator node = nodes.begin(); node != nodes.end(); node++)
+        for(std::vector<erisick *>::iterator node = nodes.begin(); node != nodes.end(); node++)
         {
             erisick *r = (*node)->parent->fallback;
 			char c = (*node)->payload;
@@ -133,7 +133,7 @@ void erisick::add(std::list<std::string> needles)
             else
             {
                 (*node)->fallback = r->kid[c];
-                for(std::list<std::string>::iterator f = (*node)->fallback->found.begin();
+                for(std::vector<std::string>::iterator f = (*node)->fallback->found.begin();
                 f != (*node)->fallback->found.end(); f++)
                 {
                     (*node)->addFound(*f);
@@ -152,7 +152,7 @@ void erisick::add(std::list<std::string> needles)
             
         }
 		nodes.clear();
-		for(std::list<erisick *>::iterator n = newNodes.begin(); n != newNodes.end(); n++)
+		for(std::vector<erisick *>::iterator n = newNodes.begin(); n != newNodes.end(); n++)
 			nodes.push_back(*n);
 		newNodes.clear();
 

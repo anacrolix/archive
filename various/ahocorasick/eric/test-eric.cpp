@@ -9,7 +9,7 @@ void write(std::string what, size_t pos)
 
 int main(int argc, char** argv)
 {
-    std::list<std::string> needles;
+    std::vector<std::string> needles;
 
     needles.push_back("teletubby");
     needles.push_back("negro");
@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 	void (*callbackwrite)(std::string, size_t) = NULL;
 	callbackwrite = &write;
 
-	eric->search((s+0), (s+70), callbackwrite);
+	eric->search((s+0), (s+50), callbackwrite);
 
 	
     return 0;
