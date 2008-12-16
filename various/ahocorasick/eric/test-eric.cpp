@@ -2,9 +2,9 @@
 
 #include <iostream>
 
-void write(std::string what, size_t where)
+void write(std::string what, size_t pos)
 {
-	std::cout << "Found " << what << " at pos " << where;
+	std::cout << "Found " << what << " at pos " << pos << std::endl;
 } 
 
 int main(int argc, char** argv)
@@ -22,9 +22,12 @@ int main(int argc, char** argv)
 	//expensive build
     eric->add(needles);
 
-	char *s = "I went to the jesus store for some teletubbies and bumpted into a negro";
+	char *s = "I went to the jesus store for some negro teletubbies on a";
 
-	//eric->search((s+0), (s+70), &write);
+	void (*callbackwrite)(std::string, size_t) = NULL;
+	callbackwrite = &write;
+
+	eric->search((s+0), (s+70), callbackwrite);
 
 	
     return 0;

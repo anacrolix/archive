@@ -33,7 +33,7 @@ void erisick::init()
 }
 
 
-void erisick::search(char *start, char *end, int (*callback)(std::string, size_t))
+void erisick::search(char *start, char *end, void (*callback)(std::string, size_t))
 {
 	std::list<std::pair<int, std::string> > results;
 	erisick *at = this;
@@ -72,13 +72,10 @@ void erisick::addFound(std::string s)
     this->found.push_back(s);
 }
 
-void erisick::add(std::list<std::string> Needles)
+void erisick::add(std::list<std::string> needles)
 {
-	if(!Needles.empty())
-		throw 2; //you can not call add twice, yet.
-	std::list<std::string> needles = Needles;
 	
-    for(std::list<std::string>::iterator word = Needles.begin(); word != Needles.end(); word++)
+    for(std::list<std::string>::iterator word = needles.begin(); word != needles.end(); word++)
     {
         erisick *at = this;
 

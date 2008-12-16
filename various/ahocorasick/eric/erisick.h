@@ -10,7 +10,7 @@ public:
 
 	void add(std::list<std::string> needles);
 
-	void search(char *start, char *end, int (*callback)(std::string, size_t));
+	void search(char *start, char *end, void (*callback)(std::string, size_t));
 
 	erisick *parent;
 	erisick *fallback;
