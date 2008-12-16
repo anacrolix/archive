@@ -35,7 +35,6 @@ void erisick::init()
 
 void erisick::search(char *start, char *end, void (*callback)(std::string, size_t))
 {
-	std::list<std::pair<int, std::string> > results;
 	erisick *at = this;
 
 	for(char *i = start; i < end ; i++)
@@ -55,12 +54,14 @@ void erisick::search(char *start, char *end, void (*callback)(std::string, size_
 		if(cor != NULL)
 			at = cor;
 
-
+		if(!at->found.empty()) //should be slightly faster
+		{
 		for(std::list<std::string>::iterator f = at->found.begin(); f != at->found.end(); f++)
 		{
 			size_t where = i-start;
 			//*f is the std::string we found
 			callback(*f, where); 
+		}
 		}
 
 	}
