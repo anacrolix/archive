@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <deque>
+#include <ext/hash_map>
 #include <map>
 #include <set>
 #include <vector>
@@ -62,7 +63,7 @@ private:
 	class GotoFunction
 	{
 	public:
-		typedef std::map<SymbolT, state_t> edges_t;
+		typedef __gnu_cxx::hash_map<SymbolT, state_t> edges_t;
 		typedef std::vector<edges_t> nodes_t;
 
 		template <typename KeywordIterT>
@@ -105,7 +106,7 @@ private:
 		{
 			state_t state = 0;
 			size_t index = 0;
-			std::map<SymbolT, state_t> *node;
+			edges_t *node;
 
 			// follow existing symbol edges
 			for ( ; index < keyword.size(); index++)
@@ -114,13 +115,11 @@ private:
 				if (state == graph_.size())
 					graph_.resize(state + 1);
 				node = &graph_[state];
-				typename std::map<SymbolT, state_t>::iterator edge =
-						node->find(keyword[index]);
+				typename edges_t::iterator edge = node->find(keyword[index]);
 				if (edge == node->end()) break;
 				state = edge->second;
 			}
-			/* could resize here as we know how many more symbols remain,
-			 * however we can't invalidate node yet */
+			// increase graph size by the number of remaining symbols
 			graph_.resize(graph_.size() + keyword.size() - index);
 			node = &graph_[state];
 			// generate new symbol edges
@@ -128,13 +127,12 @@ private:
 			{
 				(*node)[keyword[index]] = ++newstate;
 				state = newstate;
-				//if (state == graph_.size())
-				//	graph_.resize(state + 1);
 				node = &graph_[state];
 			}
+			assert(graph_.size() == state + 1);
 		}
 
-		std::vector<std::map<SymbolT, state_t> > graph_;
+		nodes_t graph_;
 	};
 
 	class FailureFunction
