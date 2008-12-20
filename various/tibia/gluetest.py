@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.0
 
-from parsers.tibiacom import *
+import tibiacom
+import dbiface
 
-dolera = ServerStatus('Dolera')
-print("Players online on Dolera:")
-print("Total players:", dolera.player_count())
+tibiacom.who_is_online("Dolera")
