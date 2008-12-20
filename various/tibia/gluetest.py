@@ -3,4 +3,4 @@
 import tibiacom
 import dbiface
 
-tibiacom.who_is_online("Dolera")
+print(tibiacom.who_is_online("Dolera"))
