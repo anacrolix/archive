@@ -20,7 +20,7 @@ current_uri()
 }
 
 static GList *
-build_music_list(GList *list, gchar *path)
+build_music_list(GList *list, gchar const *path)
 {
 	GDir *dir = g_dir_open(path, 0, NULL);
 	if (!dir) {
@@ -57,7 +57,7 @@ free_music_list()
 }
 
 void
-set_music_directory(gchar *path)
+set_music_directory(gchar const *path)
 {
 	/* build track uri list */
 	GList *list = build_music_list(NULL, path);

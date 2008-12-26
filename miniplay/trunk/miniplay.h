@@ -1,3 +1,6 @@
+#include <sys/file.h>
+#include <string.h>
+#include <unistd.h>
 #include <gio/gio.h>
 #include <gtk/gtk.h>
 #include <gst/gst.h>
@@ -8,7 +11,7 @@
 /* audio functions */
 
 void init_audio();
-void set_music_directory(gchar *path);
+void set_music_directory(gchar const *path);
 void set_shuffle(gboolean shuffle);
 void next_track();
 void prev_track();
@@ -31,7 +34,7 @@ void mp_notify_track(GstTagList const *tags);
 
 /* configuration */
 
-void mp_conf_init();
+gboolean mp_conf_init(gchar const *conf_path);
 void mp_conf_save();
 
 gboolean mp_conf_has_music_dir();
