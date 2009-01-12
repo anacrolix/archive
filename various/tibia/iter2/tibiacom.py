@@ -1,28 +1,9 @@
 import httplib
 import re
 import urllib
-
-def __decode_html(string):
-	from htmlentitydefs import name2codepoint as n2cp
-	import re
-
-	def substitute_entity(match):
-		ent = match.group(2)
-		if match.group(1) == "#":
-			return chr(int(ent))
-		else:
-			cp = n2cp.get(ent)
-
-		if cp:
-			return unichr(cp)
-		else:
-			return match.group()
-
-	def decode_entity(string):
-		entity_re = re.compile("&(#?)(\d{1,5}|\w{1,8});")
-		return entity_re.subn(substitute_entity, string)[0]
-
-	return decode_entity(string).replace("\xa0", " ")
+from tibiacom_util import decode_tibia_html as __decode_html
+import time
+import util
 
 conn = httplib.HTTPConnection("www.tibia.com")
 
@@ -100,8 +81,9 @@ def __ci_deaths(html):
 	return deaths
 
 def char_info(name):
+	rv = {"timestamp": util.unix_utc()}
 	html = http_get("/community/", {"subtopic": "characters", "name": name})
-	try: rv = __ci_info(html)
+	try: rv.update(__ci_info(html))
 	except Exception, a:
 		print "name:", name
 		raise
@@ -109,21 +91,8 @@ def char_info(name):
 	rv["deaths"] = __ci_deaths(html)
 	return rv
 
-def pretty_print_char_info(info):
-	simple = info.keys()
-	simple.remove("deaths")
-	for k in simple:
-		print k + ":", info[k]
-	a = info["deaths"]
-	if a != None:
-		for b in a:
-			print b[0] + ":",
-			print "killed" if b[2][0] else "died", "at Level", b[1],
-			print "by", b[2][1]
-			if b[3] is not None:
-				print "\tand by", b[3][1]
-
 def online_list(world):
+	stamp = util.unix_utc()
 	html = http_get("/community/", {"subtopic": "whoisonline", "world": world})
 	FIELDS = (
 			("name", lambda x: __decode_html(x)),
@@ -133,6 +102,6 @@ def online_list(world):
 	row_re = re.compile("""<TR BGCOLOR=#[A-F0-9]+><TD WIDTH=\d+%><A HREF="http://www.tibia.com/community/\?subtopic=characters&name=[^"]+">([^<]+)</A></TD><TD WIDTH=\d+%>(\d+)</TD><TD WIDTH=\d+%>([^<]+)</TD></TR>""")
 	for a in row_re.finditer(html):
 		assert len(a.groups()) == len(FIELDS)
-		players.append(dict([(FIELDS[b][0], FIELDS[b][1](a.group(b+1))) for b in range(len(FIELDS))]))
+		players.append(dict([(FIELDS[b][0], FIELDS[b][1](a.group(b+1))) for b in range(len(FIELDS))] + [("online", True)]))
 	assert int(re.search(r"Currently (\d+) players are online\.", html).group(1)) == len(players)
-	return players
+	return stamp, players
