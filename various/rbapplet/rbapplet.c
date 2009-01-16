@@ -81,6 +81,12 @@ static GHashTable *get_rb_song_properties(
 	return ht;
 }
 
+static gboolean rb_next(ThisApplet *this)
+{
+	return dbus_g_proxy_call(this->rb_player_proxy, "next", NULL,
+			G_TYPE_INVALID, G_TYPE_INVALID);
+}
+
 static gchar const *lookup_variant_string(
 		GHashTable *hash_table, gpointer key)
 {
@@ -147,7 +153,7 @@ static void trash_current_rb_uri(ThisApplet *this)
 		{
 			GtkWidget *dialog = gtk_message_dialog_new(
 					NULL, 0, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
-					"Do you wish to delete:\n%s", dlg_text);
+					"Move to Trash?\n\n%s", dlg_text);
 			gtk_dialog_add_buttons(GTK_DIALOG(dialog),
 				GTK_STOCK_DELETE, GTK_RESPONSE_ACCEPT,
 				GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
@@ -159,6 +165,7 @@ static void trash_current_rb_uri(ThisApplet *this)
 
 		if (response == GTK_RESPONSE_ACCEPT)
 		{
+			/* delete the track */
 			GFile *file = g_file_new_for_uri(uri);
 			GError *error = NULL;
 			g_file_trash(file, NULL, &error);
@@ -171,10 +178,22 @@ static void trash_current_rb_uri(ThisApplet *this)
 				g_error_free(error);
 			}
 			g_object_unref(file);
+
+			/* skip to next track if the current uri hasn't changed
+			 * (most likely due to track transition waiting for user response)
+			 */
+			if (error == NULL) {
+				gchar *new_uri = get_rb_playing_uri(this->rb_player_proxy);
+				if (new_uri) {
+					if (g_strcmp0(new_uri, uri) == 0)
+						rb_next(this);
+					g_free(new_uri);
+				}
+			}
 		}
 
 	}
-	g_free(uri);
+	if (uri) g_free(uri);
 }
 
 static gboolean delete_box_pressed(
