@@ -209,6 +209,22 @@ static gboolean delete_box_pressed(
 	}
 }
 
+static void show_about_dialog(
+	BonoboUIComponent *component, gpointer user_data, char const *cname)
+{
+	ThisApplet *this = user_data;
+	gchar const *authors[] = {
+		"Matt \"Eruanno\" Joiner <anacrolix@gmail.com>",
+		NULL
+	};
+	gtk_show_about_dialog(
+			NULL,
+			"authors", authors,
+			"version", PACKAGE_VERSION,
+			"program-name", APPLET_FULLNAME,
+			NULL);
+}
+
 static gboolean rbapplet_factory(
 	PanelApplet *applet, gchar const *iid, gpointer data)
 {
@@ -258,9 +274,28 @@ static gboolean rbapplet_factory(
 			event_box, "button-press-event",
 			G_CALLBACK(delete_box_pressed), this);
 
+	/* setup menu */
+	static char const menu_xml[] =
+		"<popup name=\"button3\">\n"
+			"<menuitem "
+				"name=\"Item 1\" "
+				"verb=\"RbAppletAbout\" "
+				"label=\"_About\" "
+				"pixtype=\"stock\" "
+				"pixname=\"gnome-stock-about\" "
+			"/>\n"
+		"</popup>\n";
+	static BonoboUIVerb const menu_verbs[] = {
+		BONOBO_UI_VERB("RbAppletAbout", show_about_dialog),
+		BONOBO_UI_VERB_END
+	};
+	panel_applet_setup_menu(applet, menu_xml, menu_verbs, this);
+
+	/* show applet if RB is running */
 	if (name_has_owner(dbus_proxy))
 		gtk_widget_show_all(GTK_WIDGET(applet));
 
+	/* save this members */
 	*(ThisApplet *)this = (ThisApplet) {
 		applet, dbus_sess_conn, dbus_proxy, rb_shell_proxy, rb_player_proxy
 	};
