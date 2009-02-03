@@ -1,6 +1,6 @@
 Package: internode-applet
 Maintainer: Matt Joiner <anacrolix@gmail.com>
-Architecture: i386
+Architecture: @BUILD_ARCH@
 Version: 1.6-0
 Depends: python-gnome2-desktop
 Description: Internode Usage Meter for GNOME
