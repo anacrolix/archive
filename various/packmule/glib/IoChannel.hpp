@@ -12,7 +12,7 @@ public:
 	{
 		GError *e = NULL;
 		gio_channel_ = g_io_channel_new_file(filename, mode, &e);
-		assert((gio_channel_ && !e) || (!gio_channel_ && e));
+		//assert((gio_channel_ && !e) || (!gio_channel_ && e));
 		if (e) throw glib::Error(e);
 		g_io_channel_set_encoding(gio_channel_, encoding, &e);
 		if (e) throw Error(e);

@@ -7,9 +7,7 @@ namespace glib {
 class Error : public std::exception
 {
 public:
-	Error(GError *e) throw ()
-		:	error_(e)
-	{}
+	Error(GError *e) : error_(e) {}
 
 	virtual ~Error() throw () {
 		g_error_free(error_);
