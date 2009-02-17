@@ -1,0 +1,32 @@
+EruIPChg Aug/2007
+matt@eruanno.com
+This is a command-line based utility to reconfigure your Tibia executables on either Windows or Linux to connect to OT servers, using the generally accepted OT RSA public key. It can also reset to the default CIPSoft servers.
+
+Instructions on use in Windows and Linux follow.
+
+WINDOWS
+
+Installation:
+"eruipchg.exe" must be placed in the Tibia directory containing "Tibia.exe". Create a shortcut to "eruipchg.exe" and place it somewhere useful such as the desktop. Right click the shortcut and click properties. Goto the end of the "target" field and add the OT address.
+
+Use:
+Double-clicking this shortcut when an OT address is present will reconfigure "Tibia.exe" to connect to the current IP address of the OT server. If no OT address is given, the executable will be reset back to the CIPSoft default servers.
+
+Note:
+There is no reason you can't run "eruipchg.exe" from the command-line if you know how to do this. You can also configure a batch script to reconfigure your exe, immediately prior to loading it.
+
+example.bat:
+cd "\Program Files\Tibia"
+eruipchg ot.example.com
+Tibia &
+
+LINUX
+
+Installation:
+Either place "eruipchg" in the same directory as "Tibia", or create a symbolic link to it from your Tibia folder. 
+
+Use:
+From the folder containing the "Tibia" executable run "./eruipchg ot.example.com" to reconfigure your executable to connect to the given OT address. Run "./eruipchg" to reset your executable back to the default CIPSoft servers.
+
+Note:
+Use of this utility can be combined into a shell script, or ran as a single command from a terminal. I'll assume if you're running Linux that you're familiar enough to configure this yourself.

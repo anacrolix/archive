@@ -1,0 +1,3 @@
+LIBRARY packet
+EXPORTS SendPacket
+EXPORTS XTEA

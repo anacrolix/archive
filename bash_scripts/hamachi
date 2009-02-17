@@ -1,0 +1,12 @@
+#!/bin/bash
+
+hamachi start
+hamachi login && sleep 5
+echo Joining Hamachi network...
+hamachi join n00b69 && sleep 2
+hamachi go-online n00b69 && sleep 2
+hamachi get-nicks
+echo Adding broadcast route...
+sudo route add 255.255.255.255 dev ham0
+hamachi list && \
+echo Connected to Hamachi!

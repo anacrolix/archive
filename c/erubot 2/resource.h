@@ -1,0 +1,2 @@
+#define IDD_MAIN 1001
+#define IDC_CHKLIGHT 1002

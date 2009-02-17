@@ -1,0 +1,6 @@
+#! /bin/bash
+
+emerge --sync && \
+layman -S && \
+update-eix && \
+emerge -vDNua world
