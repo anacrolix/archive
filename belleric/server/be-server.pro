@@ -10,5 +10,5 @@ QT += network
 CONFIG += debug
 
 # Input
-HEADERS += server.h
-SOURCES += main.cpp server.cpp
+HEADERS += server.h ../common/chatsocket.h
+SOURCES += main.cpp server.cpp ../common/chatsocket.cpp

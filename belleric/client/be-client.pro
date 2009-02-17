@@ -9,5 +9,5 @@ INCLUDEPATH += .
 QT += network
 
 # Input
-HEADERS += view.h
-SOURCES += main.cpp view.cpp
+HEADERS += view.h ../common/chatsocket.h
+SOURCES += main.cpp view.cpp ../common/chatsocket.cpp

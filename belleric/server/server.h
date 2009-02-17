@@ -2,21 +2,7 @@
 #define server_h
 
 #include <QtNetwork>
-
-class SocketNotifier : public QObject
-{
-		Q_OBJECT
-	public:
-		SocketNotifier(QTcpSocket *socket);
-	signals:
-		void newMessage(QTcpSocket *);
-		void endConnection(QTcpSocket *);
-	private slots:
-		void readyRead();
-		void disconnected();
-	private:
-		QTcpSocket *m_socket;
-};
+#include "../common/chatsocket.h"
 
 class ChatServer : QObject
 {
@@ -25,11 +11,11 @@ class ChatServer : QObject
 		ChatServer();
 	private slots:
 		void newConnection();
-		void newMessage(QTcpSocket *);
-		void endConnection(QTcpSocket *);
+		void newMessage(ChatSocket *, QByteArray &);
+		void endConnection(ChatSocket *);
 	private:
 		QTcpServer *m_serverSocket;
-		QSet<QTcpSocket *> m_clientSockets;
+		QSet<ChatSocket *> m_clients;
 };
 
 #endif

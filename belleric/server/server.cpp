@@ -1,23 +1,5 @@
 #include "server.h"
 
-SocketNotifier::SocketNotifier(QTcpSocket* socket) :
-		QObject(socket),
-		m_socket(socket)
-{
-	connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
-	connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
-}
-
-void SocketNotifier::readyRead()
-{
-	emit newMessage(m_socket);
-}
-
-void SocketNotifier::disconnected()
-{
-	emit endConnection(m_socket);
-}
-
 ChatServer::ChatServer() :
 		m_serverSocket(new QTcpServer(this))
 {
@@ -31,40 +13,39 @@ void ChatServer::newConnection()
 	QTcpSocket *newsock = m_serverSocket->nextPendingConnection();
 	qDebug() << "Accepted connection from" << newsock->peerAddress();
 	newsock->write("Welcome to Belleric chat!");
-	SocketNotifier *notifier = new SocketNotifier(newsock);
-	connect(notifier, SIGNAL(newMessage(QTcpSocket *)),
-			this, SLOT(newMessage(QTcpSocket *)));
-	connect(notifier, SIGNAL(endConnection(QTcpSocket *)),
-			this, SLOT(endConnection(QTcpSocket *)));
-	m_clientSockets << newsock;
-	qDebug() << "Now there are" << m_clientSockets.size() << "clients";
+	ChatSocket *cs = new ChatSocket(newsock);
+	connect(cs, SIGNAL(newMessage()),
+			this, SLOT(newMessage()));
+	connect(cs, SIGNAL(endConnection()),
+			this, SLOT(endConnection()));
+	m_clients << cs;
+	qDebug() << "Now there are" << m_clients.size() << "clients";
 }
 
-void ChatServer::newMessage(QTcpSocket *socket)
+void ChatServer::newMessage(ChatSocket *cs, QByteArray &message)
 {
-	QByteArray message = socket->readAll();
-	qDebug() << socket->peerAddress().toString() << ":" << message;
-	QSetIterator<QTcpSocket *> it(m_clientSockets);
+	//qDebug() << socket->peerAddress().toString() << ":" << message;
+	QSetIterator<ChatSocket *> it(m_clients);
 	while (it.hasNext())
 	{
-		QTcpSocket *client = it.next();
-		if (client != socket)
+		ChatSocket *client = it.next();
+		if (client != cs)
 		{
-			client->write(message);
+			client->sendMessage(message);
 		}
 	}
 }
 
-void ChatServer::endConnection(QTcpSocket *socket)
+void ChatServer::endConnection(ChatSocket *cs)
 {
-	if (m_clientSockets.remove(socket))
+	if (m_clients.remove(cs))
 	{
-		qDebug() << "Disconnected" << socket->peerAddress().toString();
-		qDebug() << "There are now" << m_clientSockets.size() << "clients";
+		qDebug() << "Disconnected" << cs->m_socket->peerAddress().toString();
+		qDebug() << "There are now" << m_clients.size() << "clients";
 	}
 	else
 	{
-		qFatal("Socket %u is not listed!", uint(socket));
+		qFatal("Socket %u is not listed!", uint(cs));
 	}
-	socket->deleteLater();
+	cs->m_socket->deleteLater();
 }
