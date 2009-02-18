@@ -1,0 +1,61 @@
+void get_size_matches2(set<off_t> &matches)
+{
+	matches.clear();
+	vector<Datahash>::iterator i, j;
+	for (i = g_hashes.begin(); i != g_hashes.end(); ++i) {
+		off_t size = i->end - i->start;
+		// check match not already found
+		if (matches.find(size) == matches.end()) continue;
+		// skip if there are no duplicates to be found
+		for (j = i + 1; j != g_hashes.end(); ++j) {
+			if (j->end - j->start == size) {
+				break;
+			}
+		}
+		if (j == g_hashes.end()) continue;
+		// add match
+		matches.insert(size);
+	}
+}
+
+void get_size_matches(off_t *matches[], uint *matchcnt)
+{
+	size_t matchmax = 100;
+	*matchcnt = 0;
+	*matches = (off_t *)calloc(matchmax, sizeof(**matches));
+	if (*matches == NULL) goto done;
+	for (uint i = 0; i < g_hashes.size(); i++) {
+		off_t size = g_hashes[i].end - g_hashes[i].start;
+		// skip this size if it's already recorded
+		uint match;
+		for (match = 0; match < *matchcnt; match++) {
+			if (size == (*matches)[match]) {
+				break;
+			}
+		}
+		assert(match >= 0 && match <= *matchcnt);
+		if (match < *matchcnt) continue;
+		// skip if no duplicates of this size found
+		for (match = i + 1; match < g_hashes.size(); match++) {
+			if (size == g_hashes[match].end - g_hashes[match].start) {
+				break;
+			}
+		}
+		assert(match >= i + 1 && match <= g_hashes.size());
+		if (match == g_hashes.size()) continue;
+		// add match
+		assert(*matchcnt <= matchmax);
+		if (*matchcnt == matchmax) {
+			matchmax *= 2;
+			assert(matchmax > *matchcnt);
+			*matches = (off_t *)realloc(*matches, matchmax * sizeof(**matches));
+			if (matches == NULL) fatal(errno, "realloc()");
+		}
+		(*matches)[(*matchcnt)++] = size;
+	}
+done:
+	debugln("setting buffer size to %d bytes (%d items)", *matchcnt * sizeof(**matches), *matchcnt);
+	off_t *resized = (off_t *)realloc(*matches, *matchcnt * sizeof(**matches));
+	if (resized != NULL || *matchcnt * sizeof(**matches) == 0) *matches = resized;
+	assert((!*matches && !*matchcnt) || (*matches && *matchcnt > 0));
+}

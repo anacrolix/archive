@@ -1,0 +1,10 @@
+Example usage:
+perl pingsrvs.pl -s mail.isp.net -f pinghosts.conf "Alertee <bob@alertme.com>, Janice <janice@imawench.xxx>"
+
+Pinghost configuration:
+host.or.ip protocol(service, port, service, ...)
+next.host ...
+
+Services are as defined in /etc/services
+
+Feedback and questions to matt@eruanno.com

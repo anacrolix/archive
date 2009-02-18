@@ -1,0 +1,38 @@
+# matt's control
+stupidape.dyndns.org icmp tcp(ftp)
+# cpanel
+acr1.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+acr2.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+acs1.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+acs2.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+ns1-csoho.aussiehq.net.au icmp tcp(domain)
+ns2-csoho.aussiehq.net.au icmp tcp(domain)
+# plesk
+abr1.alpha.aussiehq.net.au icmp tcp(ftp,domain,http)
+apr1.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+apr2.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+ars4.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+ars5.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+brisbane.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+bundaberg.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+canberra.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+darwin.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+gladstone.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+hobart.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+katherine.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+mackay.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+newcastle.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+node1.alpha.aussiehq.net.au icmp tcp(ftp,domain,http)
+node2.alpha.aussiehq.net.au icmp tcp(ftp,domain,http)
+node3.alpha.aussiehq.net.au icmp tcp(ftp,domain,http)
+node4.alpha.aussiehq.net.au icmp tcp(ftp,domain,http)
+node5.alpha.aussiehq.net.au icmp tcp(ftp,domain,http)
+sydney.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+taree.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+townsville.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+usps1.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+wws1.soho.aussiehq.net.au icmp tcp(ftp,domain,http)
+# dedicated
+
+# custom
+#203.88.127.1 tcp(10050)

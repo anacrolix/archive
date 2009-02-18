@@ -1,0 +1,206 @@
+#!/usr/bin/perl -w
+use strict;
+
+use CGI::Carp qw/warningsToBrowser fatalsToBrowser/;
+use CGI::Pretty qw/:standard/;
+#use URI;
+use lib '/home/httpd/vhosts/eruanno.com/private/tibia';
+require 'tibdb.pl';
+
+my $page_title = 'Character Information';
+my $char_name = ucfirst param('char_name');
+my $sort_by;
+if (lc param('sort_by') eq 'level') {
+    $sort_by = 'deaths.level DESC';
+} elsif (lc  param('sort_by') eq 'name') {
+    $sort_by = 'chars.name';
+} else {
+    $sort_by = 'deaths.time DESC';
+}
+
+if ($char_name) {
+    $page_title .= ' - '.$char_name;
+}
+
+#print headers
+print
+  header(),
+  start_html(-title => $page_title,
+	     -style => 'tibstats.css'
+	    );
+
+#insert header file
+{
+    open FHINC, '<', 'header.html';
+    print <FHINC>;
+    close FHINC;
+}
+
+#print title
+my $note = $char_name ? 'Statistics for '.$char_name : 'No character was provided';
+print div({id => 'page_title'}, $note);
+
+#character information
+{
+    my $dbh = Tibia::DB::open_db();
+    #check existence print if not
+    if (not $char_name or Tibia::DB::query($dbh, 'SELECT * FROM chars WHERE name=?', $char_name)->rows != 1) {
+	print p({align => 'center'}, 'No character by this name exists.');
+	Tibia::DB::close_db($dbh);
+	last;
+    }
+    #print various information
+    {
+	my $sth = Tibia::DB::query
+	  ($dbh,
+	   <<'EOSQL'
+SELECT
+chars.id,
+chars.sex,
+chars.vocation,
+chars.level,
+(SELECT name FROM worlds WHERE id=chars.world) as world,
+chars.residence,
+(SELECT name FROM guilds WHERE id=chars.guild) as guild,
+chars.status,
+chars.banished,
+chars.online,
+(SELECT ROUND(AVG(deaths.level)) FROM deaths WHERE chars.id=deaths.killer) as avg_frag_level,
+(SELECT COUNT(deaths.victim) FROM deaths WHERE chars.id=deaths.victim) as death_count,
+(SELECT COUNT(deaths.killer) FROM deaths WHERE chars.id=deaths.killer) as frag_count
+FROM chars
+WHERE chars.name=?
+EOSQL
+	   , $char_name);
+	die "Returned more than one character for $char_name" if ($sth->rows != 1);
+	my $d = $sth->fetchrow_hashref();
+	$sth->finish;
+	$sth = Tibia::DB::query
+	  ($dbh, 'SELECT 1+COUNT(*) FROM (SELECT COUNT(*) AS frags FROM deaths GROUP BY killer) AS frag_ranks WHERE frag_ranks.frags > ?', $d->{frag_count});
+	my @e = $sth->fetchrow_array();
+	$sth->finish;
+	my @rows;
+	push
+	  (@rows,
+	   Tr(th('Gender:'), td($d->{sex} eq 'M' ? 'Male' : 'Female')),
+	   Tr(th('Profession:'), td($d->{vocation})),
+	   Tr(th('Level:'), td($d->{level})),
+	   Tr(th('World:'), td($d->{world})),
+	   Tr(th('Residence:'), td($d->{residence})),
+	   Tr(th('Guild:'), td(a({href => Tibia::get_guild_page_link($d->{guild})}, $d->{guild}))),
+	   Tr(th('Status:'), td($d->{status})),
+	   $d->{banished} ? Tr(th('Banished:'), td($d->{banished})) : undef,
+	   Tr({style => 'border-bottom: thin solid black'}, th('Online:'), $d->{online} ? td({style => 'color: green; font-weight: bold;'}, 'Yes') : td({style => 'color: red; font-weight: bold;'}, 'No')),
+	   Tr(th('Frags:'), td($d->{frag_count})),
+	   Tr(th('Deaths:'), td($d->{death_count})),
+	   Tr(th('Average Frag Level:'), td($d->{avg_frag_level})),
+	   Tr(th('Frag Ranking:'), td('#'.$e[0]))
+	  );
+# 	foreach my $k (keys %$d) {
+# 	    push @rows,
+# 	      Tr(th(ucfirst $k, ':'),td($d->{$k}));
+# 	}
+	print p(table({class => 'tibia_stats_hor'}, @rows));
+
+    }
+    #kill list
+    {
+	print h3({style => 'text-align: center;'}, 'Kills');
+	my $sth = Tibia::DB::query
+	  ($dbh,
+	   <<"EOSQL"
+SELECT
+chars.name,
+deaths.level,
+deaths.time
+FROM chars, deaths
+WHERE chars.id=deaths.victim
+AND deaths.killer=(SELECT id FROM chars WHERE name=?)
+ORDER BY $sort_by
+EOSQL
+	   , $char_name);
+	if ($sth->rows == 0) {
+	    print p({align => 'center'}, 'No kills were found.');
+	    $sth->finish;
+	    last;
+	}
+	my @rows;
+	push @rows,
+	  Tr
+	    (th(a({href => "?char_name=$char_name&sort_by=name"},'Name')),
+	     th(a({href => "?char_name=$char_name&sort_by=level"},'Level')),
+	     th(a({href => "?char_name=$char_name&sort_by=time"},'Time')),
+	    );
+	while (my $d = $sth->fetchrow_hashref()) {
+	    my @row =
+	      (td(a({href => "?char_name=$d->{name}"}, $d->{name})),
+	       td($d->{level}),
+	       td($d->{time}),
+	      );
+	    push @rows, Tr(@row);
+	}
+	$sth->finish;
+	print p(table({class => 'tibia_stats_table'}, @rows));
+    }
+    #death list
+    {
+	print h3({style => 'text-align: center;'}, 'Deaths');
+	my $sth = Tibia::DB::query
+	  ($dbh,
+	   <<"EOSQL"
+SELECT
+chars.name,
+deaths.level,
+deaths.time
+FROM chars, deaths
+WHERE chars.id=deaths.killer
+AND deaths.victim=(SELECT id FROM chars WHERE name=?)
+ORDER BY $sort_by
+EOSQL
+	   , $char_name);
+	     if ($sth->rows == 0) {
+		 print p({align => 'center'}, 'No deaths were found.');
+		 $sth->finish();
+		 last;
+	     }
+	my @rows;
+	push @rows,
+	  Tr
+	    (th(a({href => "?char_name=$char_name&sort_by=name"},'Name')),
+	     th(a({href => "?char_name=$char_name&sort_by=level"},'Level')),
+	     th(a({href => "?char_name=$char_name&sort_by=time"},'Time')),
+	    );
+	while (my $d = $sth->fetchrow_hashref()) {
+	    my @row =
+	      (td
+	       (a({href => '?char_name='.$d->{name}},
+		  $d->{name})),
+	       td($d->{level}),
+	       td($d->{time})
+	      );
+	    push @rows, Tr(@row);
+	}
+	$sth->finish;
+	print p(table({class => 'tibia_stats_table'}, @rows));
+    }
+    Tibia::DB::close_db($dbh);
+}
+#print search char box
+print <<'EOFORM';
+<p><table class="intro_table">
+<tr><td><form action="charstats.html" method="GET">
+<input name="char_name" maxlength="32" />
+<input type="submit" value="Search Char!" />
+</form></td></tr>
+</table></p>
+EOFORM
+#   form
+#   ({action => 'charstats.html', method => 'get'},
+#    input({name => 'char_name', maxlength => 32}),
+#    input({name => 'submit', value => 'search char'})
+#   );
+
+#finish up
+print comment('You are reading teh sources!!1');
+print end_html();
+exit(0);

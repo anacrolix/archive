@@ -1,0 +1,84 @@
+#!/usr/bin/perl -w
+use strict;
+
+use CGI::Carp qw/warningsToBrowser fatalsToBrowser/;
+use CGI::Pretty qw/:standard/;
+use lib '/home/httpd/vhosts/eruanno.com/private/tibia';
+require "tibdb.pl";
+
+my $page_title = 'Dolera Current PZ Locks';
+
+#print headers
+print 
+  header(),
+  start_html(-title => $page_title,
+	     -style => 'tibstats.css'
+	    )
+  ;
+#insert header file
+{
+  open FHINC, '<', 'header.html';
+  print <FHINC>;
+  close FHINC;
+}
+#print title and information
+print
+  table({class => 'intro_table'},
+	#Tr(td(h1($page_title))),
+	Tr(td(
+	      div({id => 'page_title'}, $page_title),
+	      ul(
+		 li("Only players that get 15 minute PZ locks are displayed."),
+		 li("List is updated every 5 minutes."),
+		 li("The time columns shows the number of minutes of PZ lock remaining."),
+		 li("Only the most recent kill is displayed, and only if the killer hasn't died since."),
+		 li("Players are not shown if they're not online for some reason."),
+		 li("5 minutes of \'overtime\' is given for PKs that don\'t lose PZ lock right away")
+		)
+	     ))
+       )
+  ;
+#the query
+my $sql_query = <<'EOSQL';
+SELECT
+15 - FLOOR((UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(deaths.time))/60) as pz_remaining,
+killer.name as killers_name,
+killer.level as killers_level,
+killer.vocation killers_vocation,
+(SELECT name FROM guilds WHERE id = killer.guild) as killers_guild,
+victim.name as victims_name
+FROM deaths, chars as victim, chars as killer
+WHERE time > SUBTIME(NOW(), '00:20:00')
+AND lasthit=1
+AND victim.id=deaths.victim
+AND killer.id=deaths.killer
+AND killer.online=1
+AND NOT EXISTS (SELECT * FROM deaths AS killer_deaths WHERE killer_deaths.time > deaths.time AND killer_deaths.victim=killer.id)
+AND NOT EXISTS (SELECT * FROM deaths AS killer_victims WHERE killer_victims.time > deaths.time AND killer_victims.killer=killer.id)
+ORDER BY pz_remaining DESC
+EOSQL
+#create header rows
+my @rows;
+push @rows, th('Time').th({colspan => '4'}, 'Killer').th('Victim');
+push @rows, th([qw((Mins) Name Level Vocation Guild Name )]);
+{
+  my $dbh = Tibia::DB::open_db();
+  my $sth = Tibia::DB::query($dbh, $sql_query);
+  while (my $href_data = $sth->fetchrow_hashref()) {
+    push @rows, 
+      td([
+	  $href_data->{pz_remaining},
+	  a({href => Tibia::get_char_page_link($href_data->{killers_name})}, $href_data->{killers_name}),
+	  $href_data->{killers_level},
+	  $href_data->{killers_vocation},
+	  a({href => Tibia::get_guild_page_link($href_data->{killers_guild})}, $href_data->{killers_guild}),
+	  a({href => Tibia::get_char_page_link($href_data->{victims_name})}, $href_data->{victims_name}),
+	 ]);
+  }
+  $sth->finish();
+  Tibia::DB::close_db($dbh);
+}
+print table({class => 'tibia_stats_table'}, Tr(\@rows));
+
+print end_html();
+exit(0);

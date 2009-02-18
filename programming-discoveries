@@ -1,0 +1,149 @@
+GCC extensions
+
+#if __GNUC_ _ >= 3
+# undef inline
+# define inline       inline __attribute_ _ ((always_inline))
+# define __noinline   __attribute_ _ ((noinline))
+# define __pure       __attribute_ _ ((pure))
+# define __const      __attribute_ _ ((const))
+# define __noreturn   __attribute_ _ ((noreturn))
+# define __malloc     __attribute_ _ ((malloc))
+# define __must_check __attribute_ _ ((warn_unused_result))
+# define __deprecated __attribute_ _ ((deprecated))
+# define __used       __attribute_ _ ((used))
+# define __unused     __attribute_ _ ((unused))
+# define __packed      __attribute_ _ ((packed))
+# define __align(x)    __attribute_ _ ((aligned (x)))
+# define __align_max   __attribute_ _ ((aligned))
+# define likely(x)     _ _builtin_expect (!!(x), 1)
+# define unlikely(x)   _ _builtin_expect (!!(x), 0)
+#else
+# define _ _noinline   /* no  noinline */
+# define _ _pure       /* no  pure */
+# define _ _const      /* no  const */
+# define _ _noreturn   /* no  noreturn */
+# define _ _malloc     /* no  malloc */
+# define _ _must_check /* no  warn_unused_result */
+# define _ _deprecated /* no  deprecated */
+# define _ _used       /* no  used */
+# define _ _unused     /* no  unused */
+# define _ _packed     /* no  packed */
+# define _ _align(x)   /* no  aligned */
+# define _ _align_max  /* no  align_max */
+# define likely(x)     (x)
+# define unlikely(x)   (x)
+#endif
+
+raison d'être
+The claimed reason for the existence of something or someone; the purpose of something or someone. 
+
+ex post facto (not comparable)
+
+   1. retroactive.
+   2. (law) formulated or enacted after some event, and then retroactively applied to it.
+
+
+linux special files:
+character device (ordered)
+block device (not ordered)
+named pipe
+socket file
+
+filesystems:
+namespaces
+sectors
+blocks
+
+processes:
+sections (data: initialized data, text: code + read only variables (constants) bss: uninitialized data
+
+pread() pwrite() fsync() pselect() poll() ppoll() fcloseall() setvbuf() flockfile() fileno() f*_unlocked()
+
+msync(), madvise(), mmap(), mremap(), munmap(), mprotect()
+
+posix_fadvise(), readahead()
+
+CHS addressing (cylinder, head, sector (track, platter, ")
+
+blkid command!
+
+-Wextra
+
+exec(l|v)[p|e] (l = list args, v = vector args, p = search user path, e = environment)
+
+atexit() vs. on_exit()
+
+waitid(), waitpid() with negative pid
+posix		rusage(BSD)
+wait()		wait3()
+waitpid()	wait4()
+
+system()
+
+{u,g}ids, real, effective, saved
+
+sessions(process groups/jobs(processes))
+
+nice() daemon() setsid()
+
+ioprio_{get,set}()
+
+{get,set}priority()
+
+real time processes. chrt(1)
+
+sched_* affinity, scheduler, params
+
+{set,get}rlimit
+
+stat, fstat, lstat
+chmod, fchmod
+
+{,l,f}{set,get,list,remove}xattr()
+
+inotify()
+
+xmalloc() conventional malloc wrapper
+malloc0()
+xmalloc0()
+
+x*() for all error handled funcs?
+
+anonymous mappings
+memory alignment
+
+mallinfo() malloc_usable_size() malloc_trim(), mallinfo(), malloc_stats()
+alloca()
+VLAs
+MALLOC_CHECK_
+
+memset, memcmp, memmove, memcpy, memchr, memrchr, memmem
+
+mlock() mlockall() munlock, munlockall, mincore
+
+signals: raised->(ignore, catch/handle, default)
+
+signal(), sys_siglist[], psignal(), strsignal(), sys_siglist[]
+kill(), raise()
+
+sigaction(), sigqueue() sigset*()
+
+time_t, struct timeval, struct timespec, struct tm, clock_t, clockid_t, struct tms
+
+time(), clock_getres(), gettimeofday(), clock_gettime(), times()
+
+stime(), settimeofday(), clock_settime()
+
+asctime{,_r}(), mktime(), ctime{,_r}() {gm,local}time{,_r}()
+
+difftime(), adjtime{,x}()
+
+{,u,{clock_,}nano}sleep()
+
+alarm(), {get,set}itimer(), timer_*()
+
+__attribute__ (({noinline,always_inline,pure,const,noreturn,malloc,warn_unused_result,deprecated,used,unused,packed,aligned()}))
+__builtin_expect(!!(), 0|1)
+typeof(), offsetof()
+
+case ranges x...y

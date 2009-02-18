@@ -1,0 +1,264 @@
+;
+;             Name: Matthew Joiner
+;   Student Number: 4125668
+;           Course: COMP2300
+;Assignment Number: 2
+;Name of this file: pairmatch.ass
+;        Lab Group: 2
+;
+;
+; I declare that the material I am submitting in this file is entirely
+; my own work.  I have not collaborated with anyone to produce it, nor
+; have I copied it, in part or in full, from work produced by someone else.
+;
+
+		;#include <stdio.h>
+external WriteString
+external WriteInt
+		;#define SEQMAX 10 
+SEQMAX = 10
+
+s = -4
+len = -3
+i = -1
+c = 0
+N = 2
+		;void readSeq(char *s, int len) {
+readSeq:
+incsp #N
+		;  int i = 0;
+load #0
+store !i
+		;  char c = getchar();
+trap #2
+store !c
+		;  while (c != '\0' && c != '\n') {
+rswh1:
+	load !c
+	cmp #0
+	beq rswh1e
+	cmp #'\n'
+	beq rswh1e
+		;    if (i < len) s[i] = c;
+rsif1:
+	load !i
+	cmp !len
+	bgt rsif1e
+	beq rsif1e
+	load !s
+	add !i
+	storexr
+	load !c
+	store *0
+rsif1e:
+		;    i++;
+	load !i
+	add #1
+	store !i
+		;    c = getchar();
+	trap #2
+	store !c
+	jmp rswh1
+		;  }
+rswh1e:
+		;  if (i < len) s[i] = '\0';
+rsif2:
+	load !i
+	cmp !len
+	bgt rsif2e
+	beq rsif2e
+	load !s
+	add !i
+	storexr
+	load #'\0'
+	store *0
+rsif2e:
+		;  return;
+	incsp #-N
+	ret
+		;}
+		;int matchPairs(char *s1, char *s2, int len) {
+s1 = -17
+s2 = -16
+len = -15
+RV = -14
+i = -12
+j = -11
+ch = -10
+uP = -9
+N = 13
+
+matchP:
+		;  int i, j, matches = 0, usedPair[len];
+	incsp #N
+	load #0
+	store !RV
+		;  //clear usePair
+		;  for (i=0;i<len;i++) usedPair[i]=0;
+	load #0
+	store !i
+mpfor1:
+	cmp #SEQMAX
+	bgt mpfor1e
+	beq mpfor1e
+	loadsp
+	load #uP
+	add !i
+	storexr
+	load #0
+	store *0
+	load !i
+	add #1
+	store !i
+	jmp mpfor1
+mpfor1e:
+		;  for (i=0; i+1 < len && s1[i+1] != '\0'; i++) {
+	load #0
+	store !i
+mpfor2:
+	load !i
+	add #1
+	cmp !len
+	bgt mpfor2e
+	beq mpfor2e
+	add !s1
+	storexr
+	load *0
+	cmp #'\0'
+	beq mpfor2e
+		;    for (j=0; j+1 < len && s2[j+1] != '\0'; j++) {	
+	load #0
+	store !j	
+mpfor3:
+	add #1
+	cmp !len
+	bgt mpfor3e
+	beq mpfor3e
+	add !s2
+	storexr
+	load *0
+	cmp #'\0'
+	bgt mpfor3e
+	beq mpfor3e
+		;      //printf("\n%.2s,%.2s", &s1[i], &s2[j]);
+		;      if (usedPair[j] == 0 && s1[i] == s2[j] && s1[i+1] == s2[j+1]) {
+	loadsp
+	add #uP
+	add !j
+	storexr
+	load *0
+	cmp #0
+	bne mpif1e
+	load !s1
+	add !i
+	storexr
+	load *0
+	store !ch
+	load !s2
+	add !j
+	storexr
+	load *0
+	cmp !ch
+	bne mpif1e
+	load !s2
+	add !j
+	add #1
+	storexr
+	load *0
+	store !ch
+	load !s1
+	add !i
+	add #1
+	storexr
+	load *0
+	cmp !ch
+	bne mpif1e
+		;        matches++;
+	load !RV
+	add #1
+	store !RV	
+		;        //printf(" MATCH");
+		;        usedPair[j] = 1;
+	loadsp
+	add #uP
+	add !j
+	storexr
+	load #1
+	store *0
+		;        break;
+	jmp mpfor3e
+		;}
+mpif1e:
+	load !j
+	add #1
+	store !j
+	jmp mpfor3
+		;}
+mpfor3e:
+	load !i
+	add #1
+	store !i
+	jmp mpfor2
+		;}
+mpfor2e:
+		;  //printf("\n");
+		;  /*printf("Matching pairs: ");
+		;  for (i=0;i+1<len && s2[i+1] != '\0';i++) if (usedPair[i]) printf("%.2s, ",&s2[i]);
+		;  printf("\n");*/
+		;  return matches;
+	incsp #-N
+	ret
+		;}
+		;
+		
+
+		;int main(void) {
+fL: block SEQMAX
+sL: block SEQMAX
+
+PairMatch:
+		;  char firstLine[SEQMAX], secondLine[SEQMAX];
+		;  readSeq(firstLine, SEQMAX);
+	incsp #2
+	loada fL
+	store !-1
+	load #SEQMAX
+	store !0
+	call readSeq
+	incsp #-2
+		;  readSeq(secondLine, SEQMAX);
+	incsp #2
+	loada sL
+	store !-1
+	load #SEQMAX
+	store !0
+	call readSeq
+	incsp #-2
+		;  printf("%d\n", matchPairs(firstLine, secondLine, SEQMAX));
+	incsp #4
+	loada fL
+	store !-3
+	loada sL
+	store !-2
+	load #SEQMAX
+	store !-1
+	call matchP
+	load !0
+	incsp #-2
+	store !-1
+	load #4
+	store !0
+	call WriteInteger
+	incsp #-2
+	load #'\n'
+	trap #3
+		
+	incsp #1
+	loada fL
+	store !0
+	call WriteString
+	incsp #-1
+	trap #1
+		;  return 0;
+		;}
+end PairMatch

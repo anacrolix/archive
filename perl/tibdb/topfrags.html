@@ -1,0 +1,80 @@
+#!/usr/bin/perl -w
+use strict;
+
+use CGI::Carp qw/warningsToBrowser fatalsToBrowser/;
+use CGI::Pretty qw/:standard/;
+use lib '/home/httpd/vhosts/eruanno.com/private/tibia';
+require "tibdb.pl";
+
+my $page_title = 'Dolera Top 300 Player Killers';
+
+#print headers
+print 
+  header(),
+  start_html(-title => $page_title,
+	     -style => 'tibstats.css'
+	    )
+  ;
+
+#insert header file
+{
+  open FHINC, '<', 'header.html';
+  print <FHINC>;
+  close FHINC;
+}
+#print title and information
+print
+  table({class => 'intro_table'},
+	Tr(td(
+	      div({id => 'page_title'}, $page_title),
+	      ul(
+		 li("Kills recorded from 1 June 2007 04:30 CEST"),
+		 li("List update every 5 minutes"),
+		 li("You may have your kill list parsed directly if you email it to me")
+		)
+	     ))
+       )
+  ;
+#the query
+my $sql_query = <<'EOSQL';
+SELECT
+chars.name AS fragger_name,
+count(deaths.killer) AS frag_count,
+-- sum(power(deaths.level, 1)) as sum_frags,
+chars.vocation AS fragger_vocation,
+chars.level AS fragger_level,
+(SELECT name FROM guilds WHERE id = chars.guild) AS fragger_guild,
+chars.residence as fragger_residence
+FROM chars, deaths
+WHERE chars.id=deaths.killer
+GROUP BY deaths.killer
+-- ORDER BY sum_frags DESC
+ORDER BY frag_count DESC
+LIMIT 300
+EOSQL
+#create header rows
+my @rows;
+push @rows, th([qw/Rank Frags Name Voc Level Guild Residence/]);
+{
+  my $rank = 1;
+  my $dbh = Tibia::DB::open_db();
+  my $sth = Tibia::DB::query($dbh, $sql_query);
+  while (my $d = $sth->fetchrow_hashref()) {
+    my @row =
+      ($rank++, 
+       $d->{frag_count}, 
+       a({href => "charstats.html?char_name=$d->{fragger_name}"}, $d->{fragger_name}),
+       $d->{fragger_vocation}, 
+       $d->{fragger_level},
+       a({href => Tibia::get_guild_page_link($d->{fragger_guild})}, $d->{fragger_guild}),
+       $d->{fragger_residence}
+      );
+    push @rows, td(\@row);
+  }
+  $sth->finish();
+  Tibia::DB::close_db($dbh);
+}
+print table({class => 'tibia_stats_table'}, Tr(\@rows));
+#finish
+print end_html();
+exit(0);

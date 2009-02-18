@@ -1,0 +1,164 @@
+CFLAGS ?= -std=c99 -D_GNU_SOURCE -O2 -g -Wall -Wextra
+
+# Main sources.
+source-dirs := adapter common mac phy rlc rrc
+$(foreach dir,$(source-dirs),$(eval $(dir)-sources := $$(wildcard $(dir)/*.c)))
+adapter-generated := adapter/config.tab.c adapter/config.tab.h \
+	adapter/config.yy.c
+adapter-sources += $(filter %.c,$(adapter-generated))
+
+# Tests.
+manual_test-sources := $(wildcard manual_tests/*.c)
+manual_test-programs := $(basename $(manual_test-sources))
+test-sources := $(wildcard tests/*.c)
+test-programs := $(basename $(test-sources))
+
+# Mock sources.
+mock_mac-sources := $(wildcard mock_mac/*.c)
+mock_phy-sources := $(wildcard mock_phy/*.c)
+
+sources := $(foreach src,$(filter %-sources,$(.VARIABLES)),$($(src)))
+headers := $(wildcard include/*.h adapter/*.h mac/*.h phy/*.h)
+objects := $(sources:.c=.o)
+
+ifeq ($(USE_MOCK_MAC),yes)
+mac-library := libmock_mac.a
+other-mac := libmac.a
+else
+mac-library := libmac.a
+other-mac := libmock_mac.a
+endif
+ifeq ($(USE_MOCK_PHY),yes)
+phy-library := libmock_phy.a
+other-phy := libphy.a
+else
+phy-library := libphy.a
+other-phy := libmock_phy.a
+endif
+libraries := libcommon.a $(mac-library) $(phy-library) librlc.a librrc.a
+all-libraries := $(libraries) $(other-mac) $(other-phy)
+# Repeat the -l flags because libphy.a will reference libmac.a (via
+# the _ind functions) and vice-versa (via the _req functions).
+LIBS := -L. $(patsubst lib%.a,-l%,$(libraries) $(libraries)) -pthread
+
+# Colour codes.
+CNO := \x1b[0m
+CRE := $(CNO)\x1b[31m
+CGR := $(CNO)\x1b[32m
+CYE := $(CNO)\x1b[33m
+CBL := $(CNO)\x1b[34m
+CMA := $(CNO)\x1b[35m
+CCY := $(CNO)\x1b[36m
+CWH := $(CNO)\x1b[37m
+CBRE := $(CNO)\x1b[1;31m
+CBGR := $(CNO)\x1b[1;32m
+CBYE := $(CNO)\x1b[1;33m
+CBBL := $(CNO)\x1b[1;34m
+CBMA := $(CNO)\x1b[1;35m
+CBCY := $(CNO)\x1b[1;36m
+CBWH := $(CNO)\x1b[1;37m
+cmd-echo := $(shell which echo)
+
+all: mac-adapter $(test-programs) $(manual_test-programs) TAGS
+
+mac-adapter: $(adapter-sources:.c=.o) $(libraries)
+	@echo -e '$(CBBL)Link $(CBYE)$@$(CBBL)...$(CNO)'
+	@gcc -o $@ $(filter %.o,$^) $(LIBS)
+
+# Libraries.
+define library-template
+lib$1.a: lib$1.a($($1-sources:.c=.o))
+	@echo -e '$(CBMA)Ranlib $(CBYE)lib$1.a$(CBMA)...$(CNO)'
+	@ranlib lib$1.a
+lib$1.a(%): %
+	@echo -e '$(CMA)Add $(CYE)$$<$(CMA) to $(CYE)$$@$(CMA)...$(CNO)'
+	@ar cr $$@ $$<
+endef
+$(foreach lib,$(patsubst lib%.a,%,$(libraries)) \
+	     ,$(eval $(call library-template,$(lib))))
+
+clean:
+	@echo -n -e '$(CRE)Cleaning...$(CNO)'
+	@-rm -f mac-adapter
+	@-rm -rf docs
+	@-rm -f $(all-libraries)
+	@-rm -f $(adapter-generated)
+	@-rm -f $(objects)
+	@-rm -f $(test-programs)
+	@-rm -f $(manual_test-programs)
+	@-rm -f $(depends)
+	@-rm -f TAGS
+	@echo -e ' $(CRE)done.$(CNO)'
+
+# Dependency tracking.
+depends := $(sources:.c=.d)
+%.d: %.c
+	@echo -e '$(CGR)Finding dependencies for $(CYE)$<$(CGR)...$(CNO)'
+	@gcc -I. -Iinclude -MM -MP -MT $(<D)/$(<F:.c=.o) -MF $@ $<
+ifneq ($(MAKECMDGOALS),clean)
+-include $(depends)
+endif
+
+# Compile.
+%.o: %.c
+	@echo -e '$(CBL)Compile $(CYE)$@$(CBL)...$(CNO)'
+	@gcc -I. -Iinclude $(CFLAGS) -c $< -o $@
+.PRECIOUS: %.o
+
+# Rules for flex/bison.
+%.yy.c: %.l
+	@echo -e '$(CGR)Flex $(CYE)$<$(CGR)...$(CNO)'
+	@flex -o$@ $<
+# Silence a compiler warning in generated code.
+%.yy.o: CFLAGS += -Wno-sign-compare -Wno-unused
+
+%.tab.c %.tab.h: %.y
+	@echo -e '$(CGR)Bison $(CYE)$<$(CGR)...$(CNO)'
+	@cd $(<D) && bison -d $(<F)
+adapter/config.yy.c: adapter/config.tab.h
+.PRECIOUS: %.yy.c %.tab.c %.tab.h
+
+# Tags.
+TAGS: $(sources) $(headers)
+	@echo -e '$(CRE)Creating $(CYE)$@$(CRE)...$(CNO)'
+	@-etags $(sources) $(headers)
+
+# Test system.
+
+# Here's how it works. Each .c file in tests/ is compiled into its own
+# program and linked against all the MAC libraries. `make test' will
+# run all the tests it can find. If the program terminates normally,
+# the test is considered to pass.
+
+# If the program needs something more for whatever reason (reading
+# from a file, for example), a shell script with the same name as the
+# .c file but the .sh extension will be executed, if it
+# exists. test/foo.c could be driven by tests/foo.sh, for instance.
+
+# Test programs should produce no output if possible, to keep the
+# makefile output clean.
+non-main-objects := $(filter-out %main.o,$(adapter-sources:.c=.o))
+
+test-targets := $(patsubst tests/%,test-%,$(test-programs))
+define test-template
+tests/$1: tests/$1.o $(non-main-objects) $(libraries)
+	@echo -e '$(CCY)Link test $(CYE)$1$(CCY)...$(CNO)'
+	@gcc -o $$@ $$(filter %.o,$$^) $(LIBS)
+test-$1: tests/$1
+	@echo -n -e '$(CBCY)Test $(CYE)$1$(CBCY)...$(CNO) '
+	@-cd tests && 							\
+		(if test -x $1.sh; then ./$1.sh; else ./$1; fi) &&	\
+			$(cmd-echo) -e '$(CGR)OK$(CNO)' || 			\
+			$(cmd-echo) -e '$(CRE)FAIL$(CNO)'
+endef
+$(foreach test,$(notdir $(test-programs)) \
+	      ,$(eval $(call test-template,$(test))))
+test: $(test-targets)
+
+define manual_test-template
+manual_tests/$1: manual_tests/$1.o $(non-main-objects) $(libraries)
+	@echo -e '$(CCY)Link manual test $(CYE)$1$(CCY)...$(CNO)'
+	@gcc -o $$@ $$(filter %.o,$$^) $(LIBS)
+endef
+$(foreach test,$(notdir $(manual_test-programs)) \
+	      ,$(eval $(call manual_test-template,$(test))))

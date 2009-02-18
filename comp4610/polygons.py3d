@@ -1,0 +1,137 @@
+
+# Modelling lab exercise
+
+## Initialisation
+import py3d
+from py3d import scene, matrix, geo, deck
+
+
+# Utility Translate Rotate Scale function
+# h, p, r are heading, pitch, roll
+
+def TRS (x, y, z, h, p, r, s):
+  scene.begin(matrix.transform(
+  	matrix.translate(x, y, z),
+	matrix.euler(h, p, r),
+	matrix.scale(s)))
+
+def endTRS ():
+  scene.end()
+
+
+##	Computed point grid
+
+def drawPointGrid ():
+  TRS(-5,-2,0, 0,0,0, 1)
+  geo.color((0.62,0.93,0.93))
+  geo.pointSize(4)
+  verts = []
+  space = 1
+  for x in range(0, 10):
+    for z in range(0, 10):
+      verts.append((x * space, 0, z * space))
+  scene.draw(geo.points(verts))
+  endTRS()
+
+
+##	Primitives
+
+PrimVerts = [
+  (0,  0, 1),
+  (-2, 0, 0),
+  (-1, 0, -1),
+  (1,  0, -1),
+  (2,  0, 0)
+  ]
+
+def drawPoly ():
+  TRS(0,0,0, 0,90,0, 0.5)
+  geo.color((1,1,0))
+  # Uncomment one of
+  g = geo.points(PrimVerts)
+  #g = geo.lines(PrimVerts)
+  #g = geo.polygon(PrimVerts)
+  # and draw
+  scene.draw(g)
+  endTRS()
+
+
+##	Polyhedron
+
+Verts = [
+  ( -0.5,  0.5, -0.5 ), # 0 left top rear
+  (  0.5,  0.5, -0.5 ), # 1 right top rear
+  (  0.5, -0.5, -0.5 ), # 2 right bottom rear
+  ( -0.5, -0.5, -0.5 ), # 3 left bottom rear
+  ( -0.5,  0.5,  0.5 ), # 4 left top front
+  (  0.5,  0.5,  0.5 ), # 5 right top front
+  (  0.5, -0.5,  0.5 ), # 6 right bottom front
+  ( -0.5, -0.5,  0.5 )  # 7 left bottom front
+  ]
+
+Faces = [
+  ( 4, 5, 6, 7 ),   # front
+  ( 5, 1, 2, 6 ),   # right
+  ( 0, 4, 7, 3 ),   # left
+  ( 4, 0, 1, 5 ),   # top
+  ( 7, 6, 2, 3 ),   # bottom
+  ( 1, 0, 3, 2 )    # rear
+  ]
+
+def drawPolyhedron ():
+  geo.color((1,1,0))
+  TRS(0,0,0, 0,0,0, 1)
+  scene.draw(geo.polyhedron(Faces, Verts))
+  endTRS()
+
+
+##	Complex polyhedron
+
+MeshVerts = [
+  ( -1.5, 1.5, 1.2 ),
+  ( -0.5, 1.5, 0.6 ),
+  ( 0.5, 1.5, 0.6 ),
+  ( 1.5, 1.5, 1.2 ),
+  ( -0.75, 0.75, 0 ),
+  ( -0.25, 0.75, 0 ),
+  ( 0.25, 0.75, 0 ),
+  ( 0.75, 0.75, 0 ),
+  ( -0.75, -0.75, 0 ),
+  ( -0.25, -0.75, 0 ),
+  ( 0.25, -0.75, 0 ),
+  ( 0.75, -0.75, 0 ),
+  ( -1.5, -1.5, -1.2 ),
+  ( -0.5, -1.5, -0.6 ),
+  ( 0.5, -1.5, -0.6 ),
+  ( 1.5, -1.5, -1.2 )
+  ]
+
+MeshFaces = [
+  ( 0, 4, 1 ),
+  ( 1, 4, 7, 2 ),
+  ( 2, 7, 3 ),
+  ( 4, 8, 11, 7 ),
+  ( 8, 12, 13 ),
+  ( 8, 13, 14, 11 ),
+  ( 14, 15, 11 )
+  ]
+
+def drawMesh ():
+  geo.color((0,0,1))
+  TRS(0,0,0, 0,0,0, 1)
+  scene.draw(geo.polyhedron(MeshFaces, MeshVerts))
+  endTRS()
+
+
+##	Main program
+
+deck.far(1000)
+geo.tessellate(10, 10)
+deck.view((0,0,-5), (0,0,0))
+
+drawPointGrid()
+#drawPoly()
+#drawPolyhedron()
+#drawMesh()
+
+# End

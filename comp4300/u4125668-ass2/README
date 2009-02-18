@@ -1,0 +1,26 @@
+COMP4300 Parallel Systems
+Assignment 2-2007
+Matthew Joiner, u4125668
+
+**********************************************************************
+FILES
+**********************************************************************
+Analysis documentation:
+analysis.pdf
+
+Source files:
+headers.h 
+mysort.c
+stack.c
+stack.h
+test.c
+
+This file:
+README
+
+**********************************************************************
+INSTRUCTIONS
+**********************************************************************
+Compilation:
+Compile using make in this directory. This generates the executable 
+mysort.

@@ -1,0 +1,2 @@
+Options +ExecCGI +FollowSymLinks
+AddHandler cgi-script cgi

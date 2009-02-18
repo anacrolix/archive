@@ -1,0 +1,9 @@
+project Balancing_Template is
+
+   for Source_Dirs use ("Sources");
+   for Object_Dir use "Objects";
+   for Exec_Dir use "Executables";
+   for Main use ("../Balancing_Priorities/balancing_priorities.adb");
+
+end Balancing_Template;
+

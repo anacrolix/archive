@@ -1,0 +1,267 @@
+; macro definitions:  
+;   e, e1, e2 are any '*' mode instrn. operands (eg. #3, label, !2, *0, @label)
+;	they refer to an immediate value or a value at a memory location 
+;   addr is any mode 1 instrn. operand (eg. label, number) 
+;   x, Array, Ptr are any '+' mode instrn. operands (eg. label, !2, *0, @label)
+;	they refer to a memory address
+;   n is any +ve number (eg. 0, 2), op is a PeANUt instruction
+
+macro Set1 (x, e)	; perform x = e 	
+	load	e		; (AC = <value referred by e>)
+	store	x		; (Memory[x] = AC)
+endmacro
+
+macro Set2 (x, e1, op, e2) ; perform x = e1 + e2
+	load	e1		; (AC = <value referred by e1>)
+	op	e2		; (AC = AC op <value referred by e2>)
+	store	x		; (Memory[x] = AC)
+endmacro
+
+macro Comp (e1, e2)	; compare e1, e2	
+			;  (use for evaluating conditions in IF, WHILE, etc)
+	load	e1		; (AC = <value referred by e1>)
+	cmp	e2		; (PSW(10:13) set to compare AC with e2) 
+endmacro
+
+macro Put (e)		; write value of e to terminal
+	load	e		; (AC = <value referred by e>)
+	trap	#3		; (AC(0:7) written to standard output)
+endmacro
+
+macro Get (x)		; read next char from keyboard into x
+	trap	#2		; (read next char from keyboard into AC)
+	store	x		; (Memory[x] = AC)
+endmacro
+
+macro Push (e)          ; push value of e onto stack
+                        ;  (use before calling proc. with value parameters)
+        load    e               ; (AC = <value referred by e>)
+        incsp   #1              ; (SP = SP + 1; done last in case e=!num)
+        store   !0              ; (Memory[SP] = AC)
+endmacro
+
+macro Pusha (Addr)      ; push address of addr onto stack
+                        ;  (use before calling proc. with VAR/Array parameters)
+        loada   Addr            ; (AC = Addr)
+        incsp   #1              ; (SP = SP + 1)
+        store   !0              ; (Memory[SP] = AC)
+endmacro
+
+macro   Pop (n)         ; pop n elements of the stack
+                        ;  (use at end of proc. call or end of proc body)   
+        incsp   #-n             ; (SP = SP - n)
+endmacro
+
+macro Call1 (Proc, e)	; call procedure Proc, having one value parameter
+	Push	(e)		; push e onto stack
+	call	Proc		; (call procedure Proc)
+	Pop	(1)		; (restore stack)
+endmacro
+
+macro Call2 (Proc, e1, e2); call procedure Proc, having 2 value parameters (e1,e2)
+			;  or a function Proc, with 1 value parameter (e2)
+			;     and stack is used for return value (e1=#0) 
+	load	e1		; (AC = <value referred by e1>)
+	store	!1		; (Memory[SP+1] = AC)
+	load	e2		; (AC = <value referred by e2>)
+	store	!2		; (Memory[SP+2] = AC)
+	incsp	#2		; (SP = SP + 2)
+	call	Proc		; (call procedure Proc)
+	incsp	#-2		; (restore stack)
+endmacro
+
+macro SetXR (e)		; set XR to e
+        load    e               ; (AC = <value referred by e>)
+        storexr                 ; (XR = AC)
+endmacro
+				; /* simplified version of some of Modula-2's 
+				;  * InOut library for PeANUt
+				;  *
+				;  * Author: Peter Strazdins, DCS ANU
+				;  *
+				;  * Date written: 	July, 1991.
+				;  * Updated:	   	June 1993
+				;  * WriteInt(-32768,..) bug fixed
+				;  *			Sep 94
+				;  * Updated for C	Apr 00  */
+				;
+                                ; #include <stdio.h>				
+	global Write		;  /* these correspond to definition module
+	global WriteInt		;   * declarations;  have almost identical 
+	global WriteString	;   * behavior to the standard InUut module */
+	global ReadCard		;
+	global WriteCard
+	global Log10
+
+                                ;   /* Write(ch) = putchar(ch) */
+	ch 	= -1		;   void Write(char ch) {
+Write:				;   	
+	load	!ch		;     putchar(ch);
+	trap 	#3		;   } /*Write() */
+      	ret   			;
+				;   /* WriteInt(x,4) = printf("%4d",x) */
+	x 	= -4		;   void WriteInt(short int x, 
+	n 	= -3		;  		  short unsigned int n) {
+MinInt: data	-32768		;     short const int MinInt = -32768;
+				;     short int 
+	NSp 	= -1		;        NSp,	 	 /* # of ' ' to print */
+	aX 	= 0		;        aX;	 	             /* = |x| */
+	NumLocs = 2		;	         /* number of local vars. = 2 */
+WriteInt:			;     
+	incsp	#NumLocs	;     /* allocate stack space for local vars. */
+	Set2 	(!NSp, !n, sub, #1);  NSp = n - 1;
+	Set1 	(!aX, !x)	;     aX = x;
+	Comp	(!x, MinInt)	;     if (x == MinInt) {
+	bne	WIend1		;       /* avoid integer overflow */
+	Set2	(!aX, !aX, dvd, #10);   aX = aX / 10;   	
+	Set2 	(!NSp, !NSp, sub, #1);  NSp =  NSp - 1;   
+WIend1:				;     } /*if*/
+	Comp 	(#0, !x)	;     if (0 > x) {               /* ie. x < 0 */
+	ble 	WIend2		;
+	Set2 	(!aX, #0, sub, !aX);    aX = 0 - aX;      
+	Set2 	(!NSp, !NSp, sub, #1);  NSp =  NSp - 1;    /*  will write '-' */
+WIend2:				;     } /*if*/
+	Comp 	(#0, !aX)	;     if (aX != 0) {
+	beq 	WIend3		;
+	Call2 	(Log10, #0, !aX); 	NSp =  NSp - Log10(aX); 
+	Set2 	(!NSp, !NSp, sub, !1);
+WIend3:				;     } /*if*/
+				;
+WIwhile:Comp 	(!NSp, #0)	;     while (NSp > 0) {
+	ble 	WIendwh		;
+	Set2 	(!NSp, !NSp, sub, #1);	NSp = NSp - 1;
+	Put 	(#' ')		;	putchar(' ');
+	jmp	WIwhile		;     } /*while*/
+WIendwh:			;
+	Comp 	(#0, !x)	;     if (0 > x) {               /* ie. x < 0 */
+	ble 	WIend4		;
+	Put 	(#'-')		;	putchar('-');	
+WIend4:				;     } /*IF*/
+	Call1 	(WriteCard, !aX);     WriteCard(aX);
+	Comp	(!x, MinInt)	;     if (x == MinInt) {
+	bne	WIend5		;
+	load	!aX		;	putchar((ax 
+	mul	#-10		;	         % 10 ) +
+	sub	!x		;			
+	add	#'0'		;		 '0');
+	trap	#3		;
+WIend5:				;     } /*if*/
+	incsp	#-NumLocs	;   } /*WriteInt()*/ /*take local vars off stack*/
+	ret			;
+                                ;   /* Log10(x) = log to base 10 of x */
+	x 	= -2		;   short unsigned Log10( short unsigned int x){
+	RV 	= -3		;                   /* return value via stack */
+				;     
+	Logx 	= 0;		;     short unsigned int Logx;
+	NumLocs = 1		;	         /* number of local vars. = 1 */
+Log10:				;    
+	incsp	#NumLocs	;     /* allocate stack space for local vars. */
+	Comp 	(!x, #0)	;     if (x != 0) {
+	beq	Lelse		;
+	Set1 	(!Logx, #0)	;       Logx = 0;
+	Set2 	(!x, !x, dvd, #10);	x = x / 10;
+Lwhile: Comp 	(!x, #0)	;	while (x != 0) {		
+	beq	Lendwh		;
+	Set2 	(!Logx, !Logx, add, #1);  Logx = Logx + 1;
+	Set2 	(!x, !x, dvd, #10);	  x = x / 10;
+	jmp	Lwhile		;       } /*while*/
+Lendwh:				;
+	jmp	Lendif		;     } else {
+Lelse:				;				
+	Set1 	(!Logx, #-1)	;	Logx = -1;	/* illegal value for 0*/
+Lendif:				;     } /*if*/
+	Set1 	(!RV, !Logx)	;     return Logx;
+	incsp	#-NumLocs	;   } /*Log10()*/  /*take local vars off stack*/
+	load	#-1		;	  /* break callers using AC to get RV */
+	ret			;
+				;
+;/* The procedure WriteCard converts its single cardinal parameter into its
+; * decimal representation, and outputs the resulting sequence of characters to
+; * the standard output.
+;
+; * This procedure first divides its parameter into two parts: the quotient and
+; * remainder after division by 10. This separates the leading digits, if any, 
+; * from the last digit.  For example, it divides the number 7623 into a leading
+; * part, 762, and its last digit, 3.  If the leading part is non-zero, it calls
+; * itself (recursively) to write out that leading part. After the leading part
+; * (if any) has been output, we convert the last digit into an ascii character,
+; *  and write that character to the standard output. */
+				;   /* WriteCard(x) = printf("%d", x) */
+				;   void WriteCard(
+	val 	= -4		; 		short unsigned int val) {
+				;     short unsigned int
+	quot 	= -2		;       quot,
+	rem 	= -1		;       rem,
+	temp 	= 0		;       temp;
+	NumLocs = 3		;                /* number of local vars. = 3 */
+WriteCard:			;    
+	incsp	#NumLocs 	;     /* allocate stack space for local vars. */
+	Set2 	(!quot, !val, dvd, #10);
+				;     quot = val / 10;
+	Set2 	(!temp, !quot, mul, #10);
+				;     temp = quot * 10;
+	Set2 	(!rem, !val, sub,!temp);
+				;     rem = val - temp;
+	Comp 	(!quot, #0)	;     if (quot != 0) {
+	beq	WCendif		;
+	Call1 	(WriteCard, !quot);	WriteCard(quot);
+WCendif:			;     } /*if*/;
+	load	!rem		;     putchar(rem + '0');
+	add	#'0'		;
+	trap	#3		;
+	incsp	#-NumLocs	;   } /*WriteCard()*/  /*take local off stack */
+	ret			;
+				;   /* WriteString(s) = printf("%s", s) */
+				;   void WriteString(
+	str 	= -2		;		char str[]) {
+				;      
+	i 	= 0		;     short unsigned int i;
+	NumLocs = 1 		;	         /* number of local vars. = 1 */
+WriteString:			;    	
+	incsp	#NumLocs	;     /* allocate stack space for local vars. */
+	Set1	(!i,#0)		;     i = 0;		
+WSwhile:load	!str		;     while (str[i] != 0) { 
+	add	!i		;	  /* null char is last elt. of string */
+	storexr			;	            /* XR = address of str[i] */
+	Comp	(*0, #0)	;
+	beq	WSendwh		;
+	Put 	(*0)		;	putchar( str[i] );
+				;
+	Set2 	(!i, !i, add, #1);	i = i + 1;
+	jmp	WSwhile		;     } /*while*/
+WSendwh:			;
+	incsp	#-NumLocs	;   } /*WriteString()*//*take locals off stack*/
+	ret   			;
+				; /* ReadCard(&n) = scanf("%d", &n) */
+				; void ReadCard(
+	n 	= -3		; 		short unsigned int *n) {
+	ch 	= -1		;   char ch: CHAR;
+	n0 	= 0		;   short unsigned int n0;
+	NumLocs = 2		; 	         /* number of local vars. = 2 */
+ReadCard:			;    
+	incsp	#NumLocs 	;     /* allocate stack space for local vars. */
+RCrepeat:			;   do 
+	Get 	(!ch)		;     ch = getchar();
+	Comp 	(#'0', !ch)	;   while (('0' > ch)
+	bgt	RCrepeat	;
+	Comp 	(!ch, #'9')	;          && (ch > '9'));
+	bgt	RCrepeat	;	
+	Set1 	(!n0, #0)	;   n0 = 0;  
+RCwhile:Comp 	(#'0', !ch)	;   while (('0'<= ch)
+	bgt	RCendwh		;	
+	Comp 	(!ch, #'9')	;          && (ch <= '9')) {
+	bgt	RCendwh		;
+	Set2	(!ch, !ch, sub, #'0');ch = ch - '0';
+				;	
+	load	!n0		;     n0 = n0 * 10 + ch;
+	mul	 #10		;
+	add	!ch		;
+	store	!n0		;		
+	Get 	(!ch)		;     ch = getchar();
+	jmp	RCwhile2	;   } /*while*/
+RCendwh:			;
+	SetXR 	(!n);		;   n = n0;		  /* XR = address of n*/
+	Set1 	(*0, !n0)	;
+	incsp	#-NumLocs	;   } /*ReadCard()*//*take local vars off stack*/
+	load	#-1		;	/* break callers using AC to get value*/
+	ret			;

@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+#
+# Pierre BETOUIN <pierre.betouin@security-labs.org>
+# http://securitech.homeunix.org
+# OPCODE finder in memory : search for a specific pattern in a process memory
+# Thanks to Phil Biondi for his help on python / ptrace library
+#
+# Usage: ./opcode_finder <OPCODE> <pid> 
+# Example: ./opcode_memory_finder.py FFD0 1575
+#
+# Some useful Linux X86 OPCODE(s)
+# \xFF\xD0	call %eax
+# \xFF\xD3	call %ebx 
+# \xFF\xD4	call %esp
+# \xFF\xD5	call %ebp
+# \x58		pop %eax
+# \x59		pop %ecx
+# \x5b		pop %ebx
+# \xFF\x55\x9C	call [ebp-100]
+# Other OPCODES in Ressources/template.asm
+
+import ptrace, os, sys, string, binascii
+
+def find_opcode(opcode, opcode_ascii, pid):
+	pid = int(pid)
+	ptrace.attach(pid)
+	try:
+		os.waitpid(pid,0)
+		l = open("/proc/%i/maps" % pid).readline()
+		beg,end = map(lambda x: int(x,16),l.split()[0].split("-"))
+		m = os.open("/proc/%i/mem" % pid, os.O_RDONLY)
+		os.lseek(m, beg, 0)
+		mem = os.read(m, end-beg)
+		pos = mem.find(opcode)
+		if pos < 0:
+			print ("0x%s OPCODE(s) not found") % opcode_ascii
+							
+		else:
+			print ("0x%s OPCODE(s) found at") % opcode_ascii, hex(beg+pos)
+	finally:
+         	ptrace.detach(pid,0)
+		print "-- end --"
+
+if __name__ == "__main__":
+	if not sys.argv[2:]:
+		sys.stdout.write("Usage: ./opcode_memory_finder.py <OPCODE(s)> <pid>\n") 
+		sys.exit(0)
+	
+	print find_opcode(binascii.a2b_hex(sys.argv[1]), sys.argv[1], sys.argv[2])
+	

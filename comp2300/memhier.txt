@@ -1,0 +1,16 @@
+/* ---------------------------------------------------------------------
+
+             Name: 
+   Student Number: 
+           Course: 
+Assignment Number: 
+Name of this file: 
+        Lab Group: 
+
+
+I declare that the material I am submitting in this file is entirely
+my own work.  I have not collaborated with anyone to produce it, nor
+have I copied it, in part or in full, from work produced by someone else.
+
+   --------------------------------------------------------------------- */
+
