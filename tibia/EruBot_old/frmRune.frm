@@ -269,12 +269,12 @@ Private Sub tmrRune_Timer()
                 temp = ReadMem(ADR_LEFT_HAND, 2)
                 If temp = ITEM_RUNE_BLANK Then
                     SayStuff txtSpellWords
-                    AddStatusMessage "Casting " & txtSpellWords & " on a blank rune."
+                    LogMsg "Casting " & txtSpellWords & " on a blank rune."
                     Exit Sub
                 ElseIf findItem(ITEM_RUNE_BLANK, blankBP, blankSlot) Then
                     If weapon = 0 Then weapon = temp
                     MoveItem ITEM_RUNE_BLANK, blankBP, blankSlot, &H6, &H0, 1
-                    AddStatusMessage "Moving blank rune to left hand."
+                    LogMsg "Moving blank rune to left hand."
                     Exit Sub
                 Else
                     StopRuneMaking "No blank runes found."
@@ -313,7 +313,7 @@ Private Sub tmrRune_Timer()
 End Sub
 
 Private Sub StopRuneMaking(reason As String)
-    AddStatusMessage reason
+    LogMsg reason
     If chkLogFinished Then LogOut: frmMain.chkLogOut = Unchecked
     frmMain.chkRune.Value = Unchecked
     Valid

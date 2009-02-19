@@ -71,7 +71,7 @@ Public Sub cmdSave_Click()
     On Error GoTo fucked
     statements = Split(txtScript.Text, ";")
     scriptLoaded = True
-    AddStatusMessage "Script loaded."
+    LogMsg "Script loaded."
     Exit Sub
 fucked:
     MsgBox "Invalid script! Seperate commands by semicolon.", vbCritical
@@ -84,7 +84,7 @@ End Sub
 Private Sub tmrScript_Timer()
     Dim line() As String
     If curLine > UBound(statements) Then
-        AddStatusMessage "Completed Script."
+        LogMsg "Completed Script."
         tmrScript.Enabled = False
         Exit Sub
     End If
@@ -95,11 +95,11 @@ Private Sub tmrScript_Timer()
     On Error GoTo noScript
     line = Split(statements(curLine), ",")
     Select Case line(0)
-        Case "say": SayStuff line(1): AddStatusMessage "Scripted message."
-        Case "wait": waitTime = GetTickCount() + CLng(line(1)): AddStatusMessage "Scripted wait, " & line(1) & "ms."
-        Case "pm": SendPM line(1), line(2): AddStatusMessage "Scripted PM sent."
-        Case "log": frmMain.chkLogOut = Checked: AddStatusMessage "Scripted Log ASAP."
-        Case "walk": Step Int(line(1)): AddStatusMessage "Scripted walk in direction " & line(1) & "."
+        Case "say": SayStuff line(1): LogMsg "Scripted message."
+        Case "wait": waitTime = GetTickCount() + CLng(line(1)): LogMsg "Scripted wait, " & line(1) & "ms."
+        Case "pm": SendPM line(1), line(2): LogMsg "Scripted PM sent."
+        Case "log": frmMain.chkLogOut = Checked: LogMsg "Scripted Log ASAP."
+        Case "walk": Step Int(line(1)): LogMsg "Scripted walk in direction " & line(1) & "."
     End Select
     curLine = curLine + 1
     Exit Sub

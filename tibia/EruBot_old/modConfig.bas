@@ -70,7 +70,7 @@ Public Sub Config_ListBox(fileNumber As Integer, writeElseRead As Boolean, title
         With target
             If .ListCount > 0 Then
                 For i = 0 To .ListCount - 1
-                    Write #fileNumber, .list(i)
+                    Write #fileNumber, .List(i)
                 Next i
             End If
         End With
@@ -80,10 +80,11 @@ Public Sub Config_ListBox(fileNumber As Integer, writeElseRead As Boolean, title
         getNext fileNumber
         With target
             .Clear
-            Do
+            temp = getNext(fileNumber)
+            While temp <> "<End List>"
+                If temp <> "<End List>" And temp <> "" Then .AddItem temp
                 temp = getNext(fileNumber)
-                If temp <> "<End List>" Then .AddItem temp
-            Loop Until temp = "<End List>"
+            Wend
         End With
     End If
 End Sub

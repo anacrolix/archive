@@ -1,5 +1,5 @@
 VERSION 5.00
-Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
+Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
 Begin VB.Form frmBroadcast 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Broadcast"
@@ -272,8 +272,8 @@ Private Sub cmdBroadcast_Click()
     End If
     With progbarBroadcast
         .Value = 0
-        .Min = 0
-        .Max = numPlayers
+        .min = 0
+        .max = numPlayers
     End With
     curPlayer = 0
     tmrBroadcast.Enabled = True
@@ -340,17 +340,17 @@ Private Sub BroadCast()
         If send Then
             If levels(curPlayer) >= CInt(txtMinLevel) And levels(curPlayer) <= CInt(txtMaxLevel) Then
                 SendPM names(curPlayer), txtMessage
-                AddStatusMessage "Broadcasted to " & names(curPlayer) & " a level " & levels(curPlayer) & " " & vocations(curPlayer)
+                LogMsg "Broadcasted to " & names(curPlayer) & " a level " & levels(curPlayer) & " " & vocations(curPlayer)
                 curPlayer = curPlayer + 1
                 Exit Sub
             End If
         End If
         curPlayer = curPlayer + 1
-        If curPlayer <= progbarBroadcast.Max Then progbarBroadcast = curPlayer
+        If curPlayer <= progbarBroadcast.max Then progbarBroadcast = curPlayer
     Loop Until curPlayer > numPlayers
     cmdBroadcast.Enabled = True
     tmrBroadcast.Enabled = False
-    progbarBroadcast.Value = progbarBroadcast.Max
+    progbarBroadcast.Value = progbarBroadcast.max
 End Sub
 
 Private Sub tmrBroadcast_Timer()

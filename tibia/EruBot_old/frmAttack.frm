@@ -160,7 +160,7 @@ Private Sub tmrAttack_Timer()
     HitPoints = ReadMem(ADR_CUR_HP, 2)
     If HitPoints > HitPoints2 Then HitPoints2 = HitPoints
     If HitPoints < HitPoints2 Then
-        'AddStatusMessage "Damage was taken."
+        'LogMsg "Damage was taken."
         If chkWalk Then
             For i = optWalk.LBound To optWalk.UBound
                 If optWalk(i) Then
@@ -173,7 +173,7 @@ Private Sub tmrAttack_Timer()
                         Case 2: s = s & "South"
                         Case 3: s = s & "West"
                     End Select
-                    AddStatusMessage s
+                    LogMsg s
                     Exit For
                 End If
             Next i

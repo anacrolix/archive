@@ -1,55 +1,75 @@
 Attribute VB_Name = "modVals"
-'character array
-Public Const ADR_CHAR_NAME = &H5A3CA4
-Public Const ADR_PLAYER_X = &H127078
-Public Const ADR_HOTKEY = &H5F4720
-Public Const ADR_BP_NAME = &H5AC208
-Public Const ADR_VIP_NAME = &H5A1964
-Public Const ADR_WHITE_TEXT = &H6FB050
-Public Const ADR_ACCOUNT_NUMBER = &H5F99D4 'note, short 0x100000
-Public Const ADR_SERVER_IP = &H6F2710
+'character array +0x5a000
+Public Const ADR_ENCRYPTION_KEY = &H719D78
+Public Const ADR_CHAR_FIRST = &H5C68B0
+Public Const ADR_PLAYER_X = &H5D16F0
+Public Const ADR_HOTKEY = &H719EF0
+Public Const ADR_BP_NAME = &H5CEDE8
+Public Const ADR_VIP_NAME = &H5C4574
+Public Const ADR_WHITE_TEXT = &H71DBE0
+Public Const ADR_ACCOUNT_NUMBER = &H71C574 'note, short 0x100000
+Public Const ADR_LOGIN_SERVER_IP = &H7152F8
 Public Const ADR_GFX_VIEW_X = &H4ABF48
+Public Const ADR_LOGIN_CHAR = &H71C548
+Public Const ADR_MAP_POINTER = &H5D4C20
+Public Const ADR_FRAMERATE = &H71C2F4
+'public const adr_rsa_key = &h6BFD70
 
-Public Const LEN_CHAR = 148
+Public Const LEN_CHAR = 150
 Public Const SIZE_CHAR = 156
 
-Public Const ADR_CHAR_ID = ADR_CHAR_NAME - 4
-Public Const ADR_CHAR_X = ADR_CHAR_NAME + 32
-Public Const ADR_CHAR_Y = ADR_CHAR_NAME + 36
-Public Const ADR_CHAR_Z = ADR_CHAR_NAME + 40
-Public Const ADR_CHAR_GFX_DX = ADR_CHAR_NAME + 44
-Public Const ADR_CHAR_GFX_DY = ADR_CHAR_NAME + 48
-Public Const ADR_CHAR_WALKING = ADR_CHAR_NAME + 72
-Public Const ADR_CHAR_DIRECTION = ADR_CHAR_NAME + 76
-Public Const ADR_CHAR_FACING = ADR_CHAR_NAME + 80
-Public Const ADR_CHAR_OUTFIT = ADR_CHAR_NAME + 92
-Public Const ADR_CHAR_LIGHT = ADR_CHAR_NAME + 112
-Public Const ADR_CHAR_COLOR = ADR_CHAR_NAME + 116
-Public Const ADR_CHAR_HP = ADR_CHAR_NAME + 128
-Public Const ADR_CHAR_ONSCREEN = ADR_CHAR_NAME + 136
-Public Const ADR_CHAR_SKULL = ADR_CHAR_NAME + 140
-Public Const ADR_CHAR_PARTY = ADR_CHAR_NAME + 144
+Public Const ADR_CHAR_ID = ADR_CHAR_FIRST
+Public Const ADR_CHAR_NAME = ADR_CHAR_FIRST + 4
+Public Const ADR_CHAR_X = ADR_CHAR_FIRST + 36
+Public Const ADR_CHAR_Y = ADR_CHAR_FIRST + 40
+Public Const ADR_CHAR_Z = ADR_CHAR_FIRST + 44
+Public Const ADR_CHAR_GFX_DX = ADR_CHAR_FIRST + 48
+Public Const ADR_CHAR_GFX_DY = ADR_CHAR_FIRST + 52
+Public Const ADR_CHAR_WALKING = ADR_CHAR_FIRST + 76
+Public Const ADR_CHAR_DIRECTION = ADR_CHAR_FIRST + 80
+Public Const ADR_CHAR_FACING = ADR_CHAR_FIRST + 84
+Public Const ADR_CHAR_OUTFIT = ADR_CHAR_FIRST + 96
+Public Const ADR_CHAR_LIGHT = ADR_CHAR_FIRST + 116
+Public Const ADR_CHAR_COLOR = ADR_CHAR_FIRST + 120
+Public Const ADR_CHAR_HP = ADR_CHAR_FIRST + 132
+Public Const ADR_CHAR_ONSCREEN = ADR_CHAR_FIRST + 140
+Public Const ADR_CHAR_SKULL = ADR_CHAR_FIRST + 144
+Public Const ADR_CHAR_PARTY = ADR_CHAR_FIRST + 148
 
 'character details
-Public Const ADR_SWORD_PERCENT = ADR_CHAR_NAME - &HD0
-Public Const ADR_SWORD = ADR_CHAR_NAME - &HB4
-Public Const ADR_BATTLE_SIGN = ADR_CHAR_NAME - &HDC
-Public Const ADR_TARGET_ID = ADR_CHAR_NAME - &H98
-Public Const ADR_FOLLOW_ID = ADR_CHAR_NAME - &H9C
-Public Const ADR_CUR_SOUL = ADR_CHAR_NAME - &H90
-Public Const ADR_MAX_MANA = ADR_CHAR_NAME - &H8C
-Public Const ADR_CUR_MANA = ADR_CHAR_NAME - &H88
-Public Const ADR_MAG_LEVEL = ADR_CHAR_NAME - &H7C
-Public Const ADR_LEVEL = ADR_CHAR_NAME - &H78
-Public Const ADR_EXP = ADR_CHAR_NAME - &H74
-Public Const ADR_LEVEL_PERCENT = ADR_CHAR_NAME - &H70
-Public Const ADR_CUR_HP = ADR_CHAR_NAME - &H6C
-Public Const ADR_MAX_HP = ADR_CHAR_NAME - &H70
-Public Const ADR_PLAYER_ID = ADR_CHAR_NAME - &H68
+Public Const ADR_FIST_PERCENT = ADR_CHAR_FIRST - &HD4
+Public Const ADR_CLUB_PERCENT = ADR_CHAR_FIRST - &HD0
+Public Const ADR_SWORD_PERCENT = ADR_CHAR_FIRST - &HCC
+Public Const ADR_AXE_PERCENT = ADR_CHAR_FIRST - &HC8
+Public Const ADR_DISTANCE_PERCENT = ADR_CHAR_FIRST - &HC4
+Public Const ADR_SHIELD_PERCENT = ADR_CHAR_FIRST - &HC0
+Public Const ADR_FISH_PERCENT = ADR_CHAR_FIRST - &HBC
+Public Const ADR_FIST = ADR_CHAR_FIRST - &HB8
+Public Const ADR_CLUB = ADR_CHAR_FIRST - &HB4
+Public Const ADR_SWORD = ADR_CHAR_FIRST - &HB0
+Public Const ADR_AXE = ADR_CHAR_FIRST - &HAC
+Public Const ADR_DISTANCE = ADR_CHAR_FIRST - &HA8
+Public Const ADR_SHIELD = ADR_CHAR_FIRST - &HA4
+Public Const ADR_FISH = ADR_CHAR_FIRST - &HA0
+Public Const ADR_BATTLE_SIGN = ADR_CHAR_FIRST - &HD8
+Public Const ADR_TARGET_ID = ADR_CHAR_FIRST - &H94
+Public Const ADR_FOLLOW_ID = ADR_CHAR_FIRST - &H98
+Public Const ADR_CUR_CAP = ADR_CHAR_FIRST - &H90
+Public Const ADR_CUR_SOUL = ADR_CHAR_FIRST - &H8C
+Public Const ADR_MAX_MANA = ADR_CHAR_FIRST - &H88
+Public Const ADR_CUR_MANA = ADR_CHAR_FIRST - &H84
+Public Const ADR_MAGIC_PERCENT = ADR_CHAR_FIRST - &H80
+Public Const ADR_LEVEL_PERCENT = ADR_CHAR_FIRST - &H7C
+Public Const ADR_MAGIC = ADR_CHAR_FIRST - &H78
+Public Const ADR_LEVEL = ADR_CHAR_FIRST - &H74
+Public Const ADR_EXP = ADR_CHAR_FIRST - &H70
+Public Const ADR_CUR_HP = ADR_CHAR_FIRST - &H68
+Public Const ADR_MAX_HP = ADR_CHAR_FIRST - &H6C
+Public Const ADR_PLAYER_ID = ADR_CHAR_FIRST - &H64
 
 'player position
-Public Const ADR_PLAYER_Y = ADR_PLAYER_X + 4
-Public Const ADR_PLAYER_Z = ADR_PLAYER_X + 8
+Public Const ADR_PLAYER_Y = ADR_PLAYER_X - 4
+Public Const ADR_PLAYER_Z = ADR_PLAYER_X - 8
 
 'hotkeys
 
@@ -62,7 +82,7 @@ Public Const ADR_HOTKEY_SENDAUTO = ADR_HOTKEY - (LEN_HOTKEY + 1)
 
 
 Public Const SIZE_BP = 492
-Public Const LEN_BP = 15
+Public Const LEN_BP = 16
 Public Const SIZE_ITEM = 12
 
 Public Const ADR_BP_OPEN = ADR_BP_NAME - &H10
@@ -82,11 +102,13 @@ Public Const SLOT_LEGS = &H7
 Public Const SLOT_BOOTS = &H8
 Public Const SLOT_RING = &H9
 Public Const SLOT_AMMO = &HA
+Public Const SLOT_INV = &H40
 
 Public Const ADR_AMMO = ADR_BP_NAME - &H1C
 Public Const ADR_RIGHT_HAND = ADR_AMMO + (SLOT_RIGHT_HAND - SLOT_AMMO) * SIZE_ITEM
 Public Const ADR_LEFT_HAND = ADR_AMMO + (SLOT_LEFT_HAND - SLOT_AMMO) * SIZE_ITEM
 Public Const ADR_RING = ADR_AMMO + (SLOT_RING - SLOT_AMMO) * SIZE_ITEM
+Public Const ADR_NECK = ADR_AMMO + (SLOT_NECK - SLOT_AMMO) * SIZE_ITEM
 
 'vip list
 
@@ -96,6 +118,25 @@ Public Const LEN_VIP = 99 '100 vips
 Public Const ADR_VIP_ID = ADR_VIP_NAME - &H4
 Public Const ADR_VIP_ONLINE = ADR_VIP_NAME + &H1E
 Public Const ADR_VIP_SYMBOL = ADR_VIP_NAME + &H24
+
+'log masks
+Public Const MASK_SWORDS = &H80
+Public Const MASK_POISONED = &H1
+Public Const MASK_HASTED = &H40
+Public Const MASK_SHIELDED = &H10
+
+'outfit colors
+Public Const OUTFIT_WHITE = 0
+Public Const OUTFIT_PALEBLUE = 9
+Public Const OUTFIT_PALEYELLOW = 3
+Public Const OUTFIT_DIMYELLOW = 60
+Public Const OUTFIT_YELLOW = 79
+Public Const OUTFIT_CYAN = 85
+Public Const OUTFIT_LIGHTBLUE = 86
+Public Const OUTFIT_BLUE = 87
+Public Const OUTFIT_RED = 94
+Public Const OUTFIT_DARKYELLOW = 98
+Public Const OUTFIT_BLACK = 114
 
 'other addresses
 
@@ -110,14 +151,19 @@ Public Const ADR_GFX_VIEW_Y = ADR_GFX_VIEW_X - 4
 '    USE_DRAG                = 6,    // drag object
 '    USE_OBJECT              = 7,    // use object (fishing rod)
 
-Public Const ADR_PASSWORD = ADR_ACCOUNT_NUMBER + &H2C 'note, short 0x100000
-Public Const ADR_SERVER_PORT = ADR_SERVER_IP + &H64
+Public Const SIZE_LOGIN_SERVER = &H70
+Public Const LEN_LOGIN_SERVER = 5
+Public Const ADR_LOGIN_SERVER_PORT = ADR_LOGIN_SERVER_IP + &H64
+
+Public Const ADR_PASSWORD = ADR_ACCOUNT_NUMBER - &H20 'note, short 0x100000
 
 'item values
 Public Const ITEM_RUNE_UH = &HC58
 Public Const ITEM_RUNE_SD = &HC53
 Public Const ITEM_RUNE_BLANK = &HC4B
 Public Const ITEM_RUNE_HMM = &HC7E
+Public Const ITEM_RUNE_LMM = 3174
+
 Public Const ITEM_RUNE_EXPLO = &HC80
 Public Const ITEM_RUNE_GFB = &HC77
 Public Const ITEM_RUNE_FBB = &HC3A
@@ -131,6 +177,8 @@ Public Const ITEM_GOLD = &HBD7
 Public Const ITEM_BOLT = &HD76
 Public Const ITEM_ROPE = &HBBB
 Public Const ITEM_BAG = 2853
+
+Public Const ITEM_BACKPACK_BLACK = 2870
 'distance items
 Public Const ITEM_SPEAR = &HCCD
 Public Const ITEM_SMALL_STONE = &H6F5
@@ -147,10 +195,13 @@ Public Const ITEM_DRAGON_HAMMER = &HCFA
 Public Const ITEM_DRAGON_LANCE = &HCE6
 Public Const ITEM_ICE_RAPIER = 3284
 
+'anni stuff
+Public Const ITEM_ELVEN_AMULET = 3082
+Public Const ITEM_MIGHT_RING = 3048
+
 Public Const ITEM_FOOD_FISH = &HDFA
 
 'tiles
-Public Const TILE_LADDER = &H79C
 
 'OLD UNUSED CONSTANTS
 'Public Const adrXGo = &H5F2AF0

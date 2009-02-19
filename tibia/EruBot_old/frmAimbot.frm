@@ -2,14 +2,14 @@ VERSION 5.00
 Begin VB.Form frmAimbot 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Aimbot"
-   ClientHeight    =   5595
+   ClientHeight    =   8925
    ClientLeft      =   45
    ClientTop       =   315
    ClientWidth     =   13665
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   5595
+   ScaleHeight     =   8925
    ScaleWidth      =   13665
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
@@ -20,7 +20,7 @@ Begin VB.Form frmAimbot
       Left            =   4680
       List            =   "frmAimbot.frx":003D
       Style           =   2  'Dropdown List
-      TabIndex        =   45
+      TabIndex        =   43
       Top             =   3480
       Width           =   1600
    End
@@ -31,7 +31,7 @@ Begin VB.Form frmAimbot
       Left            =   4680
       List            =   "frmAimbot.frx":00E4
       Style           =   2  'Dropdown List
-      TabIndex        =   44
+      TabIndex        =   42
       Top             =   3000
       Width           =   1600
    End
@@ -42,7 +42,7 @@ Begin VB.Form frmAimbot
       Left            =   4680
       List            =   "frmAimbot.frx":018B
       Style           =   2  'Dropdown List
-      TabIndex        =   43
+      TabIndex        =   41
       Top             =   2280
       Width           =   1600
    End
@@ -53,7 +53,7 @@ Begin VB.Form frmAimbot
       Left            =   4680
       List            =   "frmAimbot.frx":0232
       Style           =   2  'Dropdown List
-      TabIndex        =   42
+      TabIndex        =   40
       Top             =   1200
       Width           =   1600
    End
@@ -64,7 +64,7 @@ Begin VB.Form frmAimbot
       Left            =   4680
       List            =   "frmAimbot.frx":02D9
       Style           =   2  'Dropdown List
-      TabIndex        =   41
+      TabIndex        =   39
       Top             =   120
       Width           =   1600
    End
@@ -75,7 +75,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":0380
       Style           =   2  'Dropdown List
-      TabIndex        =   40
+      TabIndex        =   38
       Top             =   3960
       Width           =   1600
    End
@@ -86,7 +86,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":0427
       Style           =   2  'Dropdown List
-      TabIndex        =   39
+      TabIndex        =   37
       Top             =   3480
       Width           =   1600
    End
@@ -97,7 +97,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":04CE
       Style           =   2  'Dropdown List
-      TabIndex        =   38
+      TabIndex        =   36
       Top             =   3000
       Width           =   1600
    End
@@ -108,7 +108,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":0575
       Style           =   2  'Dropdown List
-      TabIndex        =   37
+      TabIndex        =   35
       Top             =   2520
       Width           =   1600
    End
@@ -119,7 +119,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":061C
       Style           =   2  'Dropdown List
-      TabIndex        =   36
+      TabIndex        =   34
       Top             =   2040
       Width           =   1600
    End
@@ -130,7 +130,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":06C3
       Style           =   2  'Dropdown List
-      TabIndex        =   35
+      TabIndex        =   33
       Top             =   1560
       Width           =   1600
    End
@@ -141,7 +141,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":076A
       Style           =   2  'Dropdown List
-      TabIndex        =   34
+      TabIndex        =   32
       Top             =   1080
       Width           =   1600
    End
@@ -152,7 +152,7 @@ Begin VB.Form frmAimbot
       Left            =   1440
       List            =   "frmAimbot.frx":0811
       Style           =   2  'Dropdown List
-      TabIndex        =   33
+      TabIndex        =   31
       Top             =   600
       Width           =   1600
    End
@@ -160,7 +160,7 @@ Begin VB.Form frmAimbot
       Caption         =   "Heal self at AutoHeal.HP"
       Height          =   255
       Left            =   240
-      TabIndex        =   32
+      TabIndex        =   30
       Top             =   4320
       Width           =   2775
    End
@@ -168,7 +168,7 @@ Begin VB.Form frmAimbot
       Caption         =   "Heal friends with lowest hp"
       Height          =   255
       Left            =   240
-      TabIndex        =   31
+      TabIndex        =   29
       Top             =   4560
       Width           =   2775
    End
@@ -178,34 +178,10 @@ Begin VB.Form frmAimbot
       Left            =   240
       Max             =   90
       Min             =   10
-      TabIndex        =   29
+      TabIndex        =   27
       Top             =   5040
       Value           =   70
       Width           =   2775
-   End
-   Begin EruBot.listFancy listEnemies 
-      Height          =   5295
-      Left            =   10080
-      TabIndex        =   28
-      Top             =   120
-      Width           =   3495
-      _extentx        =   6165
-      _extenty        =   9340
-      title           =   "Enemies"
-      caption         =   "Enemies"
-      listindex       =   -1
-   End
-   Begin EruBot.listFancy listFriends 
-      Height          =   5295
-      Left            =   6480
-      TabIndex        =   27
-      Top             =   120
-      Width           =   3495
-      _extentx        =   6165
-      _extenty        =   9340
-      title           =   "Friends"
-      caption         =   "Friends"
-      listindex       =   -1
    End
    Begin VB.CheckBox chkFluidMoveUpBP 
       Caption         =   "Move up backpack when empty."
@@ -218,7 +194,7 @@ Begin VB.Form frmAimbot
    Begin VB.Timer tmrExura 
       Enabled         =   0   'False
       Interval        =   1200
-      Left            =   8760
+      Left            =   3720
       Top             =   5160
    End
    Begin VB.CheckBox chkGetShield 
@@ -298,7 +274,7 @@ Begin VB.Form frmAimbot
    Begin VB.Timer tmrTime 
       Enabled         =   0   'False
       Interval        =   4
-      Left            =   7200
+      Left            =   5640
       Top             =   5160
    End
    Begin VB.ComboBox comboButton 
@@ -330,7 +306,7 @@ Begin VB.Form frmAimbot
       Caption         =   "Heal at xx% hp"
       Height          =   255
       Left            =   240
-      TabIndex        =   30
+      TabIndex        =   28
       Top             =   4800
       Width           =   2775
    End
@@ -692,15 +668,15 @@ Dim healStop As Long
 Dim healMana As Long
 Dim healSpell As String
 
-Private Sub combobutton_Click(Index As Integer)
+Private Sub combobutton_Click(index As Integer)
   Dim c As Integer
-  If comboButton(Index).ListIndex = -1 Then Exit Sub
-  If comboButton(Index).ListIndex = 6 Then
-    comboButton(Index).ListIndex = -1
+  If comboButton(index).ListIndex = -1 Then Exit Sub
+  If comboButton(index).ListIndex = 6 Then
+    comboButton(index).ListIndex = -1
     Exit Sub
   End If
-  For c = comboButton.LBound To comboButton.ubound
-    If comboButton(c).ListIndex = comboButton(Index).ListIndex And c <> Index Then
+  For c = comboButton.LBound To comboButton.UBound
+    If comboButton(c).ListIndex = comboButton(index).ListIndex And c <> index Then
       comboButton(c).ListIndex = -1
       Exit Sub
     End If
@@ -730,7 +706,7 @@ End Sub
 Private Sub tmrTime_Timer()
     On Error Resume Next 'Error Handling
     'To check if delete key is pressed
-    If GetForegroundWindow <> tHWND Then Exit Sub
+    If GetForegroundWindow <> hwnd_Tibia Then Exit Sub
   
     If GetPressedKey(vbKeyDelete) Then ButtonDown "Delete": Exit Sub
     If GetPressedKey(vbKeyPageDown) Then ButtonDown "PageDown": Exit Sub
@@ -768,7 +744,7 @@ End Sub
 
 Private Sub ButtonDown(Button As String)
     Dim c As Integer
-    For c = comboButton.LBound To comboButton.ubound
+    For c = comboButton.LBound To comboButton.UBound
         If comboButton(c).Text = Button Then
             Select Case c
                 Case 0 To 8: AimbotRune lblAction(c).Caption
@@ -846,11 +822,11 @@ Private Sub DrinkFluid()
             End If
             DoEvents
         Else
-            AddStatusMessage "No fluid found."
+            LogMsg "No fluid found."
             Beep 400, 100
         End If
     Else
-        AddStatusMessage "Mana not low enough to require fluid"
+        LogMsg "Mana not low enough to require fluid"
     End If
 End Sub
 
@@ -907,7 +883,7 @@ Private Sub AimbotRune(runeToFire As String)
         If chkHealSelf.Value = Checked And ReadMem(ADR_CUR_HP, 2) < frmHeal.txtHP Then
             targetPos = UserPos
         ElseIf listFriends.ListCount > 0 Then
-            targetPos = FindPosByHP(listFriends, hscrHealAt.Value, chkHealLowest.Value)
+            targetPos = GetIndexByHP(listFriends, hscrHealAt.Value, chkHealLowest.Value)
         Else
             Exit Sub
         End If
@@ -915,14 +891,14 @@ Private Sub AimbotRune(runeToFire As String)
         Dim targetID As Long
         targetID = -1
         
-        targetPos = FindPosByHP(listEnemies, 40, True) 'shoot the lowest guy under 40%
+        targetPos = GetIndexByHP(listEnemies, 40, True) 'shoot the lowest guy under 40%
         If targetPos < 0 Then 'if none found
             targetID = ReadMem(ADR_TARGET_ID, 4) 'shoot the current target
             If targetID <= 0 Then 'if no current target
-                targetPos = FindPosByHP(listEnemies, 101, False) 'shoot the first person on the list
+                targetPos = GetIndexByHP(listEnemies, 101, False) 'shoot the first person on the list
                 If targetPos < 0 Then Exit Sub
             Else
-                targetPos = findPosByID(targetID)
+                targetPos = GetIndexByID(targetID)
             End If
         End If
         
@@ -937,10 +913,10 @@ Private Sub AimbotRune(runeToFire As String)
     End If
     
     If ShootRune(runeID, targetPos, optLead.Value) = False Then
-        If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Aimbot failed to shoot"
+        If frmMain.mnuDebug.Checked = True Then LogMsg "Aimbot failed to shoot"
     End If
     
-    If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Time taken to perform action: " & runeToFire & " = " & GetTickCount - runeTick & " ms."
+    If frmMain.mnuDebug.Checked = True Then LogMsg "Time taken to perform action: " & runeToFire & " = " & GetTickCount - runeTick & " ms."
 End Sub
 
 Private Sub txtFriendName_Click()

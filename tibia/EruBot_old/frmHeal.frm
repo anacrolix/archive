@@ -213,7 +213,7 @@ Private Sub tmrHeal_Timer()
         ElseIf chkHealFriends.Value = Checked Then
             Dim targetPos As Long
             targetPos = -1
-            targetPos = FindPosByHP(frmAimbot.listFriends, frmAimbot.hscrHealAt.Value, frmAimbot.chkHealLowest.Value)
+            targetPos = GetIndexByHP(frmAimbot.listFriends, frmAimbot.hscrHealAt.Value, frmAimbot.chkHealLowest.Value)
             If targetPos >= 0 Then ShootRune ITEM_RUNE_UH, targetPos
         End If
     End If
@@ -261,7 +261,7 @@ Private Sub UseRune()
 
             UseAt ITEM_RUNE_UH, bpIndex, itemIndex, pX, pY, pZ 'throw the uh
             lastHeal = GetTickCount 'set last heal time to now
-            AddStatusMessage "Auto healed: Used a UH."
+            LogMsg "Auto healed: Used a UH."
             Pause 50 'slight pause for server to process uh
             If runesLeft = False Then UpBpLevel bpIndex - &H40 'if no uhs left, then move up bp
             

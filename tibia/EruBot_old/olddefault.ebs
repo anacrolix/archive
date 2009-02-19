@@ -1,18 +1,20 @@
 "***ERUBOT SETTINGS FILE***"
-"0.9.119"
+"0.9.127"
 "***MAIN***"
 1
-1
-0
-1
-0
 0
 0
 1
-1
-1
 0
-1
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 0
 0
@@ -22,8 +24,8 @@
 "***AIMBOT***"
 0
 -1
-2
 -1
+2
 -1
 -1
 -1
@@ -38,7 +40,7 @@
 -1
 0
 1
-50
+70
 0
 "AIMBOT.FRIENDS"
 "Snarkz"
@@ -48,6 +50,7 @@
 "Dargola Sack"
 "Loco enigma"
 "Roo Jerky"
+"Aphisun"
 "<End List>"
 "AIMBOT.ENEMIES"
 "Sho jin"
@@ -60,13 +63,11 @@
 "Xeberus"
 "Peter Lee"
 "Mouseys"
-"Fire Devil"
-"Hydra"
 "<End List>"
 "***LOOTER***"
 "LOOTER.DONTLOOT"
 "Worms,3492"
-"Brass legs,3372"
+"Arrows,3447"
 "<End List>"
 "LOOTER.NONSTACK"
 "Sword rings,3091"
@@ -101,6 +102,7 @@
 "Brass armor,3359"
 "Might ring,3048"
 "Elven amulet,3082"
+"Brass legs,3372"
 "<End List>"
 "LOOTER.STACKABLE"
 "Power bolts,3450"
@@ -115,7 +117,7 @@
 "Scarab coin,3042"
 "Small emerald,3032"
 "Talon,3034"
-"Arrows,3447"
+"Throwing star,3287"
 "<End List>"
 "***RUNE MAKER***"
 "adura vita"
@@ -125,17 +127,17 @@
 0
 "***SPELL CASTER***"
 "exura"
-"385"
+"490"
 "***HEALER***"
-"1000"
+"900"
 1
 0
 #TRUE#
 #FALSE#
 "exura"
 "25"
-"200"
-1
+"1100"
+0
 0
 "***INTRUDER RXT***"
 1
@@ -146,12 +148,12 @@
 0
 "0, 0, 0"
 "0, 0, 0"
-0
-14
-0
+1
 14
 0
 1
+0
+2
 1
 0
 "INTRUDER RXT.SAFE LIST"
@@ -164,9 +166,6 @@
 "Boz Axath"
 "Fat'Head"
 "Roo Jerky"
-"Loco enigma"
-"Lenny Limeblossom"
-"Dargola Sack"
 "<End List>"
 "***ATTACK RXT***"
 0
@@ -178,6 +177,8 @@
 0
 0
 0
+1
+"800"
 "***FISHER***"
 "-7"
 "-5"
@@ -224,4 +225,11 @@
 "Awesome Possum"
 "Hiko Tao Shin"
 "<End List>"
+"***AUTO ATTACKER***"
+3
+0
+1
+"***CAVE BOT***"
+6
+0
 ""

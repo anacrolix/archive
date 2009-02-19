@@ -215,5 +215,5 @@ Private Sub tmrOutfit_Timer()
         buff(3 + i) = newOutfit(i)
     Next
     
-    If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
+    If frmMain.sckServer.State = sckConnected Then frmMain.sckServer.SendData buff
 End Sub

@@ -130,7 +130,7 @@ End Sub
 
 Private Function IsFriend(pos As Integer) As Boolean
     If chkIgnoreFriends Then
-        If frmAimbot.listFriends.Contains(MemToStr(ADR_CHAR_NAME + pos * SIZE_CHAR, 32)) >= 0 Then
+        If frmAimbot.listFriends.Contains(ReadMemStr(ADR_CHAR_NAME + pos * SIZE_CHAR, 32)) >= 0 Then
             IsFriend = True
         End If
     End If
@@ -147,7 +147,7 @@ Private Sub tmrAutoAttack_Timer()
     If txtTarget <> "" Then
         For i = 0 To LEN_CHAR
             If ReadMem(ADR_CHAR_ONSCREEN + i * SIZE_CHAR, 1) = 1 Then
-                If MemToStr(ADR_CHAR_NAME + i * SIZE_CHAR, 32) = txtTarget Then
+                If ReadMemStr(ADR_CHAR_NAME + i * SIZE_CHAR, 32) = txtTarget Then
                     PutAttack ReadMem(ADR_CHAR_ID + i * SIZE_CHAR, 4)
                     Exit For
                 End If
@@ -162,7 +162,7 @@ Private Sub tmrAutoAttack_Timer()
     distance = -1
     
     If curID <> 0 And chkTargetClosest Then 'someone already targetted
-        pos = findPosByID(curID)
+        pos = GetIndexByID(curID)
         If pos < 0 Then Exit Sub
         getCharXYZ cX, cY, cZ, pos
         If Abs(pX - cX) > hscrAttackDistance + 1 Or Abs(pY - cY) > hscrAttackDistance + 1 Then
@@ -205,7 +205,7 @@ Private Sub tmrAutoAttack_Timer()
         id = ReadMem(ADR_CHAR_ID + pos * SIZE_CHAR, 4)
         If id <> curID Then
             PutAttack id
-            'AddStatusMessage "putting attack on " & MemToStr(ADR_CHAR_NAME + pos * SIZE_CHAR, 32)
+            'LogMsg "putting attack on " & ReadMemStr(ADR_CHAR_NAME + pos * SIZE_CHAR, 32)
             Exit Sub
         End If
     End If

@@ -18,7 +18,7 @@ Begin VB.Form frmIntruder
       Caption         =   "Ignore all *except* skull and spark players"
       Height          =   255
       Left            =   4080
-      TabIndex        =   22
+      TabIndex        =   21
       Top             =   4200
       Width           =   3495
    End
@@ -26,22 +26,9 @@ Begin VB.Form frmIntruder
       Caption         =   "Ignore Monsters"
       Height          =   255
       Left            =   4080
-      TabIndex        =   21
+      TabIndex        =   20
       Top             =   3960
       Width           =   3615
-   End
-   Begin EruBot.listFancy listSafe 
-      Height          =   3735
-      Left            =   4080
-      TabIndex        =   20
-      Top             =   120
-      Width           =   3615
-      _ExtentX        =   6376
-      _ExtentY        =   6588
-      Title           =   "Safe List"
-      Caption         =   "Safe List"
-      ListIndex       =   -1
-      Prioritized     =   0   'False
    End
    Begin VB.CheckBox chkBattleSign 
       Caption         =   "Detect Battle Sign"
@@ -355,28 +342,28 @@ Public Sub IntruderReaction(detectMethod As String, intName As String, intZ As L
     
     If GetTickCount < lastReact + 3000 Then Exit Sub
     lastReact = GetTickCount
-    AddStatusMessage "Detect intruder via " & detectMethod & ":" & vbCrLf & ">" & intName & "< on level " _
+    LogMsg "Detect intruder via " & detectMethod & ":" & vbCrLf & ">" & intName & "< on level " _
     & intZ & ", " & intZ - ReadMem(ADR_PLAYER_Z, 4) & " levels offset."
     
     'walk
     If chkWalk Then
-        Dim x As Long, y As Long, z As Long, stepDir As Integer
-        getCharXYZ x, y, z, UserPos
-        If safeX - x <> 0 Or safeY - y <> 0 Then
-            stepDir = GetStepValue(safeX - x, safeY - y)
+        Dim X As Long, Y As Long, z As Long, stepDir As Integer
+        getCharXYZ X, Y, z, UserPos
+        If safeX - X <> 0 Or safeY - Y <> 0 Then
+            stepDir = GetStepValue(safeX - X, safeY - Y)
             If stepDir < 0 Then
                 StartAlert
                 LogOut
-                AddStatusMessage "Invalid position, too far from safe position or error"
+                LogMsg "Invalid position, too far from safe position or error"
             Else
                 Step stepDir
-                'AddStatusMessage "Stepping in direction " & stepDir
+                'LogMsg "Stepping in direction " & stepDir
                 'Pause 2000
             End If
         End If
     End If
     
-    If frmMain.sckS.State <> sckConnected Then Exit Sub
+    If frmMain.sckServer.State <> sckConnected Then Exit Sub
     'script
     If chkScript.Value = Checked Then frmScript.StartScript
     'autolog
@@ -405,7 +392,7 @@ Private Sub tmrAppear_Timer()
     intName = isIntruderOnscreen(intZ)
     If intName <> "" Or (chkBattleSign And ReadMem(ADR_BATTLE_SIGN, 4) <> 0) Then
         If intName = "" Then intName = "Battle Sign"
-        'AddStatusMessage "Onscreen intruder detected:" & vbCrLf & ">" & intName & "<"
+        'LogMsg "Onscreen intruder detected:" & vbCrLf & ">" & intName & "<"
         IntruderReaction "Memory", intName, intZ
     End If
 End Sub
@@ -421,7 +408,7 @@ Public Function isIntruderOnscreen(Optional ByRef intZ As Long = 0) As String
     For i = 0 To LEN_CHAR
         'find onscreen char
         If ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * i, 1) = 1 Then
-            intName = MemToStr(ADR_CHAR_NAME + SIZE_CHAR * i, 32)
+            intName = ReadMemStr(ADR_CHAR_NAME + SIZE_CHAR * i, 32)
             intZ = ReadMem(ADR_CHAR_Z + i * SIZE_CHAR, 4)
             If (plyrZ = intZ Or (chkDetectOffscreen And ((chkBelow And intZ > plyrZ And intZ - plyrZ <= hscrNumBelow) Or (chkAbove And intZ < plyrZ And plyrZ - intZ <= hscrNumAbove)))) And CheckSafe(intName, i) = False Then
                 isIntruderOnscreen = intName
@@ -448,8 +435,8 @@ Public Sub IntruderOffscreen(buff() As Byte)
     intX = CLng(buff(4)) * 256 + CLng(buff(3))
     intY = CLng(buff(6)) * 256 + CLng(buff(5))
     intZ = CLng(buff(7))
-    intPos = findPosByXYZ(intX, intY, intZ)
-    intName = MemToStr(ADR_CHAR_NAME + SIZE_CHAR * intPos, 32)
+    intPos = GetIndexByCoords(intX, intY, intZ)
+    intName = ReadMemStr(ADR_CHAR_NAME + SIZE_CHAR * intPos, 32)
     If CheckSafe(intName, CInt(intPos)) Then Exit Sub
     
     plyrZ = ReadMem(ADR_CHAR_Z + UserPos * SIZE_CHAR, 4)
@@ -467,8 +454,8 @@ Public Sub IntruderOffscreen(buff() As Byte)
     'If plyrX = intX And plyrY = intY And plyrZ = intZ Then doLog = False
     
       'If intName = "Troll" Then MsgBox "fuck troll!"
-    If doLog And frmMain.sckS.State = sckConnected Then
-      'AddStatusMessage "Offscreen intruder detected:" & vbCrLf & ">" & intName & "< on level " & intZ & ", " & intZ - plyrZ & " levels offset."
+    If doLog And frmMain.sckServer.State = sckConnected Then
+      'LogMsg "Offscreen intruder detected:" & vbCrLf & ">" & intName & "< on level " & intZ & ", " & intZ - plyrZ & " levels offset."
       IntruderReaction "Packet", intName, intZ
     End If
 End Sub
@@ -489,16 +476,16 @@ Private Sub tmrCheckSkulls_Timer()
         Next i
     End If
     If chkWalk = Checked And ReadMem(ADR_BATTLE_SIGN, 4) = 0 And isIntruderOnscreen = "" Then
-        Dim x As Long, y As Long, z As Long, stepVal As Integer
-        x = ReadMem(ADR_PLAYER_X, 4)
-        y = ReadMem(ADR_PLAYER_Y, 4)
+        Dim X As Long, Y As Long, z As Long, stepVal As Integer
+        X = ReadMem(ADR_PLAYER_X, 4)
+        Y = ReadMem(ADR_PLAYER_Y, 4)
         z = ReadMem(ADR_PLAYER_Z, 4)
-        If x <> afkX Or y <> afkY Or z <> afkZ Then
-            stepVal = GetStepValue(afkX - x, afkY - y)
+        If X <> afkX Or Y <> afkY Or z <> afkZ Then
+            stepVal = GetStepValue(afkX - X, afkY - Y)
             If stepVal >= 0 Then
                 Step stepVal
             Else
-                stepVal = GetStepValue(safeX - x, safeY - y)
+                stepVal = GetStepValue(safeX - X, safeY - Y)
                 If stepVal >= 0 Then
                     Step stepVal
                 Else

@@ -141,6 +141,7 @@ End Sub
 
 Private Sub cmdRemove_Click()
     Dim lastIndex As Integer
+    If theList.ListCount <= 0 Then Exit Sub
     lastIndex = theList.ListIndex
     theList.RemoveItem lastIndex
     If theList.ListCount > 0 Then
@@ -299,9 +300,9 @@ End Sub
 
 'WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
 'MappingInfo=theList,theList,-1,AddItem
-Public Sub AddItem(ByVal Item As String, Optional ByVal Index As Variant)
+Public Sub AddItem(ByVal item As String, Optional ByVal Index As Variant)
 Attribute AddItem.VB_Description = "Adds an item to a Listbox or ComboBox control or a row to a Grid control."
-    theList.AddItem Item, Index
+    theList.AddItem item, Index
 End Sub
 
 'WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
@@ -349,7 +350,8 @@ Public Function Contains(strTest As String) As Integer
     If theList.ListCount <= 0 Or strTest = "" Then Exit Function
     Dim i As Integer
     For i = 0 To theList.ListCount - 1
-        If theList.List(i) = strTest Then
+        If theList.List(i) = Left(strTest, Len(theList.List(i))) _
+        Or strTest = Left(theList.List(i), Len(strTest)) Then
             Contains = i
             Exit Function
         End If
@@ -400,5 +402,12 @@ Public Property Let Prioritized(ByVal New_Prioritized As Boolean)
     m_Prioritized = New_Prioritized
     PropertyChanged "Prioritized"
     UserControl_Resize
+End Property
+
+'WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
+'MappingInfo=theList,theList,-1,MultiSelect
+Public Property Get MultiSelect() As Integer
+Attribute MultiSelect.VB_Description = "Returns/sets a value that determines whether a user can make multiple selections in a control."
+    MultiSelect = theList.MultiSelect
 End Property
 

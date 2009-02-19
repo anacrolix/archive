@@ -241,7 +241,7 @@ Private Sub tmrGrabber_Timer()
         'grab from under target
         targetID = ReadMem(ADR_TARGET_ID, 4)
         If targetID = 0 Then Exit Sub
-        targetPos = findPosByID(targetID)
+        targetPos = GetIndexByID(targetID)
         
         pX = ReadMem(ADR_CHAR_X + targetPos * SIZE_CHAR, 4)
         pY = ReadMem(ADR_CHAR_Y + targetPos * SIZE_CHAR, 4)
