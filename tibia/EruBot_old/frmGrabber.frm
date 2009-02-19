@@ -212,6 +212,10 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Private Sub chkGrabUnderTarget_Click()
+    UpdDirectionControls
+End Sub
+
+Public Sub UpdDirectionControls()
     If chkGrabUnderTarget.Value = Checked Then
         fraDirection.Enabled = False
         For i = optDir.LBound To optDir.UBound
@@ -270,5 +274,5 @@ Private Sub tmrGrabber_Timer()
     ElseIf optThrowingStars Then
         itemID = ITEM_THROWING_STAR
     End If
-    GrabItem itemID, pX, pY, pZ, &H6, &H0, 1
+    GrabItem itemID, pX, pY, pZ, &H6, &H0, 3
 End Sub

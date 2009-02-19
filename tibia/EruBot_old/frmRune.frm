@@ -314,7 +314,7 @@ End Sub
 
 Private Sub StopRuneMaking(reason As String)
     AddStatusMessage reason
-    If chkLogFinished Then LogOut: frmMain.StartLogOut
+    If chkLogFinished Then LogOut: frmMain.chkLogOut = Unchecked
     frmMain.chkRune.Value = Unchecked
     Valid
 End Sub

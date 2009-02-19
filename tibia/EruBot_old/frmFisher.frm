@@ -30,12 +30,12 @@ Begin VB.Form frmFisher
       Width           =   1215
    End
    Begin VB.CheckBox chkFishNoFood 
-      Caption         =   "Fish only if there is no fish."
+      Caption         =   "Fish only if there is no food."
       Height          =   255
       Left            =   120
       TabIndex        =   12
       Top             =   1440
-      Width           =   2175
+      Width           =   2535
    End
    Begin VB.CheckBox chkFishNoWorms 
       Caption         =   "Fish even if there are no worms."
@@ -272,11 +272,20 @@ Private Sub tmrFish_Timer()
     Dim C1 As Integer
     Dim C2 As Integer
     Dim bpOpen As Long
-    Dim ltemp As Long
+    Dim item As Long
     Dim items As Long
     
-    If chkFishNoFood Then If findItem(ITEM_FOOD_FISH, bp, slot) Then Exit Sub
-    
+    If chkFishNoFood Then
+        For bp = 0 To LEN_BP
+            If ReadMem(ADR_BP_OPEN + SIZE_BP * bp, 1) = 1 Then
+                For slot = 0 To ReadMem(ADR_BP_NUM_ITEMS + bp * SIZE_BP, 1) - 1
+                    item = ReadMem(ADR_BP_ITEM + SIZE_BP * bp + SIZE_ITEM * slot, 2)
+                    If IsFood(item) Then Exit Sub
+                Next slot
+            End If
+        Next bp
+    End If
+
     If findItem(ITEM_WORM, bp, slot) Or chkFishNoWorms Then
         If findItem(ITEM_FISHING_ROD, bp, slot) Then
             getCharXYZ pX, pY, pZ, UserPos
@@ -292,7 +301,7 @@ Private Sub tmrFish_Timer()
 End Sub
 
 Public Sub updBoundVals()
-    For i = txtBoundary.LBound To txtBoundary.UBound
+    For i = txtBoundary.LBound To txtBoundary.ubound
         If Index = 0 Or Index = 2 Then If txtBoundary(Index) < -7 Or txtBoundary(Index) > 7 Then ResetBoundaries
         If Index = 1 Or Index = 3 Then If txtBoundary(Index).Text < -5 Or txtBoundary(Index).Text > 5 Then ResetBoundaries
     Next i

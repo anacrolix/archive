@@ -2,46 +2,64 @@ VERSION 5.00
 Begin VB.Form frmAttack 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Attack Reaction"
-   ClientHeight    =   2055
+   ClientHeight    =   2415
    ClientLeft      =   45
    ClientTop       =   315
-   ClientWidth     =   2760
+   ClientWidth     =   2775
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   2055
-   ScaleWidth      =   2760
+   ScaleHeight     =   2415
+   ScaleWidth      =   2775
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkWalk 
+      Caption         =   "Walk"
+      Height          =   255
+      Left            =   120
+      TabIndex        =   12
+      Top             =   480
+      Width           =   735
+   End
+   Begin VB.TextBox txtLowHP 
+      Alignment       =   1  'Right Justify
+      Height          =   285
+      Left            =   2040
+      TabIndex        =   11
+      Text            =   "1"
+      Top             =   2040
+      Width           =   615
+   End
+   Begin VB.CheckBox chkAlertLowHP 
+      Caption         =   "Alert if HP drops below:"
+      Height          =   255
+      Left            =   120
+      TabIndex        =   10
+      Top             =   2040
+      Width           =   2055
+   End
    Begin VB.CheckBox chkAlert 
       Caption         =   "Alert"
       Height          =   255
       Left            =   120
-      TabIndex        =   10
+      TabIndex        =   9
       Top             =   1200
       Width           =   975
    End
    Begin VB.CommandButton cmdDone 
       Caption         =   "Close"
+      Default         =   -1  'True
       Height          =   375
       Left            =   120
-      TabIndex        =   9
+      TabIndex        =   8
       Top             =   1560
       Width           =   1095
    End
    Begin VB.Timer tmrAttack 
       Enabled         =   0   'False
       Interval        =   200
-      Left            =   840
-      Top             =   960
-   End
-   Begin VB.CheckBox chkWalk 
-      Caption         =   "Walk"
-      Height          =   255
-      Left            =   120
-      TabIndex        =   8
-      Top             =   480
-      Width           =   735
+      Left            =   2280
+      Top             =   3720
    End
    Begin VB.TextBox txtSay 
       Height          =   285
@@ -122,8 +140,6 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-
-
 Private Sub chkWalk_Click()
     Dim i As Integer
     If chkWalk.Value = Checked Then
@@ -144,7 +160,7 @@ Private Sub tmrAttack_Timer()
     HitPoints = ReadMem(ADR_CUR_HP, 2)
     If HitPoints > HitPoints2 Then HitPoints2 = HitPoints
     If HitPoints < HitPoints2 Then
-        AddStatusMessage "Damage was taken."
+        'AddStatusMessage "Damage was taken."
         If chkWalk Then
             For i = optWalk.LBound To optWalk.UBound
                 If optWalk(i) Then
@@ -162,9 +178,13 @@ Private Sub tmrAttack_Timer()
                 End If
             Next i
         End If
-        If chkSay Then SayStuff txtSay.Text
+        If chkSay And txtSay <> "" Then SayStuff txtSay.Text
         If chkAlert Then StartAlert
         If chkBeep Then Beep 600, 200
+        If chkAlertLowHP And CLng(txtLowHP) > 0 And IsNumeric(txtLowHP) Then
+            If HitPoints < CLng(txtLowHP) Then StartAlert
+        End If
         HitPoints2 = HitPoints
+        Valid
     End If
 End Sub

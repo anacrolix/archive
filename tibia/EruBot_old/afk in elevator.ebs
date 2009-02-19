@@ -1,5 +1,5 @@
 "***ERUBOT SETTINGS FILE***"
-"0.9.123"
+"0.9.113"
 "***MAIN***"
 1
 1
@@ -7,30 +7,28 @@
 1
 0
 0
+1
+1
+1
+1
+0
+1
+1
 0
 0
 0
 0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
+1
 "***AIMBOT***"
 0
 -1
 -1
-2
 -1
 -1
 -1
 -1
-1
+-1
+-1
 -1
 -1
 4
@@ -39,55 +37,44 @@
 -1
 -1
 0
-1
+0
 70
 0
 "AIMBOT.FRIENDS"
-"Snarkz"
-"Emu jerky"
-"Skeletor the Vicious"
-"Lenny Limeblossom"
-"Dargola Sack"
-"Loco enigma"
-"Roo Jerky"
-"Aphisun"
 "<End List>"
 "AIMBOT.ENEMIES"
-"Sho jin"
-"Bon Para"
-"Thaldon Nataxar"
-"Alyster Dark"
-"Arysta"
-"Cypherus"
-"Marv Wells"
-"Xeberus"
-"Peter Lee"
-"Mouseys"
 "<End List>"
 "***LOOTER***"
 "LOOTER.DONTLOOT"
 "Worms,3492"
+"Brass legs,3372"
+"Morning star,3282"
+"Battle shield,3413"
+"Battle hammer,3305"
+"Steel shield,3409"
+"Brass armor,3359"
 "Arrows,3447"
-"<End List>"
-"LOOTER.NONSTACK"
-"Sword rings,3091"
 "Halberd,3269"
-"Axe ring,3092"
 "Steel helmet,3351"
-"Ice rapier,3284"
-"Club ring,3093"
 "Plate armor,3357"
 "Two handed sword,3265"
-"Serpent sword,3297"
-"Broad sword,3301"
-"Wand of inferno,3071"
 "Double axe,3275"
-"Dragon shield,3416"
 "Strange helmet,3373"
 "Black shield,3429"
 "Dwarven shield,3425"
 "Bow,3350"
 "Crossbow,3349"
+"Bolts,3446"
+"<End List>"
+"LOOTER.NONSTACK"
+"Sword rings,3091"
+"Axe ring,3092"
+"Ice rapier,3284"
+"Club ring,3093"
+"Serpent sword,3297"
+"Broad sword,3301"
+"Wand of inferno,3071"
+"Dragon shield,3416"
 "Ring of healing,3098"
 "Stone skin amulet,3081"
 "Warrior helmet,3369"
@@ -95,20 +82,11 @@
 "Dragon necklace,3085"
 "Energy ring,3051"
 "Giant sword,3281"
-"Morning star,3282"
-"Battle shield,3413"
-"Battle hammer,3305"
-"Steel shield,3409"
-"Brass armor,3359"
-"Might ring,3048"
-"Elven amulet,3082"
-"Brass legs,3372"
 "<End List>"
 "LOOTER.STACKABLE"
 "Power bolts,3450"
 "Gold,3031"
 "White mushroom,3723"
-"Bolts,3446"
 "Burst arrows,3449"
 "Small amethyst,3033"
 "Black pearl,3027"
@@ -117,43 +95,42 @@
 "Scarab coin,3042"
 "Small emerald,3032"
 "Talon,3034"
-"Throwing star,3287"
 "<End List>"
 "***RUNE MAKER***"
 "adura vita"
 400
 3
 "0"
-0
-"***SPELL CASTER***"
-"exura"
-"490"
-"***HEALER***"
-"900"
 1
-0
-#TRUE#
+"***SPELL CASTER***"
+"exevo pan"
+"420"
+"***HEALER***"
+"200"
+1
+1
 #FALSE#
-"exura"
-"25"
+#TRUE#
+"exura gran"
+"40"
 "1100"
-0
+1
 0
 "***INTRUDER RXT***"
-1
-0
-0
 0
 1
 0
-"0, 0, 0"
-"0, 0, 0"
 1
-14
-0
 1
 0
-2
+"32650, 31890, 2"
+"32651, 31890, 2"
+1
+1
+1
+3
+0
+1
 1
 0
 "INTRUDER RXT.SAFE LIST"
@@ -166,6 +143,9 @@
 "Boz Axath"
 "Fat'Head"
 "Roo Jerky"
+"Eruanno"
+"Lossefalme"
+"Lady Molatov"
 "<End List>"
 "***ATTACK RXT***"
 0
@@ -177,8 +157,6 @@
 0
 0
 0
-1
-"800"
 "***FISHER***"
 "-7"
 "-5"
@@ -191,6 +169,7 @@
 #FALSE#
 #FALSE#
 #FALSE#
+#TRUE#
 #FALSE#
 #FALSE#
 #FALSE#
@@ -198,10 +177,9 @@
 #FALSE#
 #TRUE#
 #FALSE#
-#TRUE#
 #FALSE#
 #FALSE#
-0
+1
 "***OUTFIT CHANGER***"
 0
 0
@@ -225,11 +203,4 @@
 "Awesome Possum"
 "Hiko Tao Shin"
 "<End List>"
-"***AUTO ATTACKER***"
-3
-0
-1
-"***CAVE BOT***"
-6
-0
 ""

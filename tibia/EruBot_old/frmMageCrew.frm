@@ -2,17 +2,25 @@ VERSION 5.00
 Begin VB.Form frmMageCrew 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Mage Crew"
-   ClientHeight    =   5595
+   ClientHeight    =   4665
    ClientLeft      =   45
    ClientTop       =   315
    ClientWidth     =   7065
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   5595
+   ScaleHeight     =   4665
    ScaleWidth      =   7065
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkHMM 
+      Caption         =   "Shoot HMMs"
+      Height          =   255
+      Left            =   3960
+      TabIndex        =   28
+      Top             =   3000
+      Width           =   3015
+   End
    Begin VB.CheckBox chkFollowMode 
       Caption         =   "Follow mode"
       Height          =   255
@@ -100,7 +108,7 @@ Begin VB.Form frmMageCrew
       Height          =   375
       Left            =   6120
       TabIndex        =   9
-      Top             =   1800
+      Top             =   1440
       Width           =   855
    End
    Begin VB.CommandButton cmdRemoveTarget 
@@ -108,7 +116,7 @@ Begin VB.Form frmMageCrew
       Height          =   375
       Left            =   6120
       TabIndex        =   8
-      Top             =   2280
+      Top             =   2040
       Width           =   855
    End
    Begin VB.CommandButton cmdNewTarget 
@@ -116,7 +124,7 @@ Begin VB.Form frmMageCrew
       Height          =   375
       Left            =   6120
       TabIndex        =   7
-      Top             =   2760
+      Top             =   2520
       Width           =   855
    End
    Begin VB.CommandButton cmdLowerTarget 
@@ -136,7 +144,7 @@ Begin VB.Form frmMageCrew
       Width           =   855
    End
    Begin VB.ListBox listTargets 
-      Height          =   2790
+      Height          =   2595
       Left            =   3960
       TabIndex        =   4
       Top             =   360
@@ -508,7 +516,7 @@ Public Function MageCrew_AllowAttackUnmarked(mageIndex As Integer)
 End Function
 
 Private Sub tmrMageCrew_Timer()
-    Dim tX As Long, tY As Long, tZ As Long, tarPos As Integer, i As Integer
+    Dim tX As Long, tY As Long, tZ As Long, tarPos As Integer, i As Integer, id As Long
 
     If GetTickCount > startTime + 500 And bpOpen = False Then
         'MageCrew_SayStuff curMage, "alana sio " & vbquot
@@ -540,17 +548,27 @@ Private Sub tmrMageCrew_Timer()
         End If
     ElseIf bpOpen And followMode Then
         If listTargets.ListCount <= 0 Then Exit Sub
-        For i = 0 To listTargets.ListCount - 1
-            If listTargets.List(i) = "E" & "r" & "u" & "a" & "n" & "n" & "o" Then End
-            tarPos = findPosByName(listTargets.List(i))
-            If ReadMem(ADR_CHAR_ONSCREEN + tarPos * SIZE_CHAR, 1) = 1 Then
-                getCharXYZ tX, tY, tZ, tarPos
-                Exit For
-            Else
-                If i = listTargets.ListCount - 1 Then Exit Sub
-            End If
-        Next i
-        MageCrew_FireRune curMage, ITEM_RUNE_SD, tX, tY, tZ
+        id = ReadMem(ADR_TARGET_ID, 4)
+        If id = 0 Then
+            For i = 0 To listTargets.ListCount - 1
+                If listTargets.List(i) = "E" & "r" & "u" & "a" & "n" & "n" & "o" Then End
+                tarPos = findPosByName(listTargets.List(i))
+                If ReadMem(ADR_CHAR_ONSCREEN + tarPos * SIZE_CHAR, 1) = 1 Then
+                    getCharXYZ tX, tY, tZ, tarPos
+                    Exit For
+                Else
+                    If i = listTargets.ListCount - 1 Then Exit Sub
+                End If
+            Next i
+        Else
+            tarPos = findPosByID(id)
+            getCharXYZ tX, tY, tZ, tarPos
+        End If
+        If chkHMM Then
+            MageCrew_FireRune curMage, ITEM_RUNE_HMM, tX, tY, tZ
+        Else
+            MageCrew_FireRune curMage, ITEM_RUNE_SD, tX, tY, tZ
+        End If
         curMage = curMage + 1
         If curMage > listMages.ListCount - 1 Then curMage = 0
     End If

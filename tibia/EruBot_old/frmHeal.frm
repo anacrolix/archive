@@ -204,7 +204,7 @@ Private Sub tmrHeal_Timer()
         triedSpell = False
         
         If ReadMem(ADR_CUR_HP, 2) <= CLng(txtHP) And txtHP <> "" And CLng(txtHP) > 1 Then
-            If chkAlertLowHP.Value = Checked Then StartAlert
+            If chkAlertLowHP.Value = Checked Then StartAlert: Valid
             If optRuneFirst.Value = True Then
                 UseRune
             Else
@@ -260,9 +260,11 @@ Private Sub UseRune()
             End If
 
             UseAt ITEM_RUNE_UH, bpIndex, itemIndex, pX, pY, pZ 'throw the uh
+            lastHeal = GetTickCount 'set last heal time to now
+            AddStatusMessage "Auto healed: Used a UH."
             Pause 50 'slight pause for server to process uh
             If runesLeft = False Then UpBpLevel bpIndex - &H40 'if no uhs left, then move up bp
-            lastHeal = GetTickCount 'set last heal time to now
+            
         Else
             triedRune = True
             UseSpell

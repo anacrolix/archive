@@ -1,25 +1,25 @@
 "***ERUBOT SETTINGS FILE***"
-"0.9.123"
+"0.9.122"
 "***MAIN***"
 1
 1
-0
+1
 1
 0
 0
 0
+1
+1
+1
+1
+1
+1
 0
 0
 0
-0
-0
-0
-0
-0
-0
-0
-0
-0
+1
+1
+1
 0
 "***AIMBOT***"
 0
@@ -150,9 +150,9 @@
 "0, 0, 0"
 1
 14
-0
 1
-0
+14
+1
 2
 1
 0
@@ -166,6 +166,10 @@
 "Boz Axath"
 "Fat'Head"
 "Roo Jerky"
+"Loco enigma"
+"Lenny Limeblossom"
+"Dargola Sack"
+"Scorpion"
 "<End List>"
 "***ATTACK RXT***"
 0
@@ -178,7 +182,7 @@
 0
 0
 1
-"800"
+"700"
 "***FISHER***"
 "-7"
 "-5"
@@ -226,10 +230,10 @@
 "Hiko Tao Shin"
 "<End List>"
 "***AUTO ATTACKER***"
-3
+2
 0
 1
 "***CAVE BOT***"
-6
+2
 0
 ""

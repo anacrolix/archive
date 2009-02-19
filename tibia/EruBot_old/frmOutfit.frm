@@ -163,7 +163,7 @@ Private Sub Form_Load()
   hscrOutfit_Change
 End Sub
 
-Private Sub hscrOutfit_Change()
+Public Sub hscrOutfit_Change()
     tmrOutfit.Interval = hscrOutfit
     lblInterval = "Interval: " & hscrOutfit & " ms"
 End Sub

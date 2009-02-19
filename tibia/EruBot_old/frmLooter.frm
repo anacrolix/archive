@@ -2,14 +2,14 @@ VERSION 5.00
 Begin VB.Form frmLooter 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Looter"
-   ClientHeight    =   3705
+   ClientHeight    =   5550
    ClientLeft      =   45
    ClientTop       =   315
    ClientWidth     =   7065
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   3705
+   ScaleHeight     =   5550
    ScaleWidth      =   7065
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
@@ -18,15 +18,15 @@ Begin VB.Form frmLooter
       Height          =   375
       Left            =   3840
       TabIndex        =   18
-      Top             =   3240
+      Top             =   5040
       Width           =   975
    End
    Begin VB.CommandButton cmdRemove 
       Caption         =   "Remove"
       Height          =   375
-      Left            =   2640
+      Left            =   2520
       TabIndex        =   17
-      Top             =   3240
+      Top             =   5040
       Width           =   975
    End
    Begin VB.CommandButton cmdClose 
@@ -34,7 +34,7 @@ Begin VB.Form frmLooter
       Height          =   375
       Left            =   5400
       TabIndex        =   16
-      Top             =   3240
+      Top             =   5040
       Width           =   1095
    End
    Begin VB.CommandButton cmdNewItem 
@@ -100,21 +100,21 @@ Begin VB.Form frmLooter
       Width           =   495
    End
    Begin VB.ListBox listItems 
-      Height          =   2985
+      Height          =   4740
       Left            =   2520
       TabIndex        =   2
       Top             =   240
       Width           =   2295
    End
    Begin VB.ListBox listLoot 
-      Height          =   2010
+      Height          =   2400
       Left            =   120
       TabIndex        =   1
-      Top             =   1560
+      Top             =   2880
       Width           =   1935
    End
    Begin VB.ListBox listStack 
-      Height          =   1035
+      Height          =   2400
       Left            =   120
       TabIndex        =   0
       Top             =   240
@@ -149,7 +149,7 @@ Begin VB.Form frmLooter
       Height          =   255
       Left            =   120
       TabIndex        =   4
-      Top             =   1320
+      Top             =   2640
       Width           =   1935
    End
    Begin VB.Label Label1 
@@ -228,7 +228,7 @@ Private Function ItemInListBox(str As String, theList As ListBox) As Boolean
     If UBound(str1) < 1 Then Exit Function
     
     For i = 0 To theList.ListCount - 1
-        str2 = Split(theList.list(i), ",")
+        str2 = Split(theList.List(i), ",")
         itemVal2 = CInt(str2(1))
         
         If itemVal1 = itemVal2 Then
@@ -246,7 +246,7 @@ End Sub
 Private Sub ListToList(fromList As ListBox, toList As ListBox)
     Dim str As String
     If fromList.ListIndex < 0 Then Exit Sub
-    toList.AddItem fromList.list(fromList.ListIndex)
+    toList.AddItem fromList.List(fromList.ListIndex)
     fromList.RemoveItem (fromList.ListIndex)
 End Sub
 
@@ -255,7 +255,7 @@ Public Function IsLootable(itemValue As Long) As Boolean
     IsLootable = False
     If listLoot.ListCount > 0 Then
         For i = 0 To listLoot.ListCount - 1
-            str = Split(listLoot.list(i), ",")
+            str = Split(listLoot.List(i), ",")
             If CInt(str(1)) = itemValue Then
                 IsLootable = True
                 Exit Function
@@ -264,7 +264,7 @@ Public Function IsLootable(itemValue As Long) As Boolean
     End If
     If listStack.ListCount > 0 Then
         For i = 0 To listStack.ListCount - 1
-            str = Split(listStack.list(i), ",")
+            str = Split(listStack.List(i), ",")
             If CInt(str(1)) = itemValue Then
                 IsLootable = True
                 Exit Function
@@ -278,7 +278,7 @@ Public Function IsStackable(itemValue As Long) As Boolean
     IsStackable = False
     If listStack.ListCount > 0 Then
         For i = 0 To listStack.ListCount - 1
-            str = Split(listStack.list(i), ",")
+            str = Split(listStack.List(i), ",")
             If CInt(str(1)) = itemValue Then
                 IsStackable = True
                 Exit Function

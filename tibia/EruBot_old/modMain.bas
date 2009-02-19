@@ -29,7 +29,7 @@ Public Declare Function TerminateProcess Lib "kernel32" (ByVal hProcess As Long,
 Public Declare Function ReadMemory Lib "erudll.dll" (ByVal processHandle As Long, ByVal address As Long, ByVal size As Long) As Long
 Public Declare Function WriteMemory Lib "erudll.dll" (ByVal processHandle As Long, ByVal address As Long, ByVal size As Long, ByVal val As Long) As Integer
 Public Declare Function ReadMemoryString Lib "erudll.dll" (ByVal processHandle As Long, ByVal address As Long, ByVal size As Long) As String
-
+Public Declare Function FullLight Lib "erudll.dll" (ByVal processHandle As Long) As Long
 
 Public Declare Function playa Lib "winmm.dll" Alias "sndPlaySoundA" (ByVal lpszSoundName As String, ByVal uFlags As Long) As Long
 Public Const SND_FLAG = &H2 '&H1 'Or
@@ -75,7 +75,6 @@ Public processHandle As Long
 Public tibDir As String
 Public tibFileName As String
 Public wavLoc As String
-Public lastPing As Long
 
 Public stHitPoints As Long
 Public stMana As Long
@@ -86,7 +85,7 @@ Public stMagicLevel As Long
 
 Public HitPoints As Long
 Public HitPoints2 As Long
-Public Mana As Long
+Public mana As Long
 Public Soul As Long
 Public ExpCur As Long
 Public ExpStart As Long
@@ -183,6 +182,7 @@ Public Function MemToStr(address As Long, length As Integer) As String
     '        tempString = Left(tempString, i - 1) & Right(tempString, Len(tempString) - i)
     '    End If
     'Next i
+    If tempString = "" Then Exit Function
     If Asc(Mid(tempString, Len(tempString), 1)) = 0 Then tempString = Left(tempString, Len(tempString) - 1)
     'MemToStr = tempString
     MemToStr = tempString
@@ -212,8 +212,6 @@ Public Function Valid()
         If frmMain.chkAimbot.Value <> Checked Then frmAimbot.tmrTime.Enabled = False: frmMain.chkAimbot.ForeColor = vbRed
         If frmMain.chkExpHour.Value = Checked And frmMain.tmrExp.Enabled = False Then Exp_Start
         If frmMain.chkExpHour.Value <> Checked Then Exp_Stop
-        If frmMain.chkMana.Value = Checked Then frmMain.tmrManaFluid.Enabled = True: frmMain.chkMana.ForeColor = vbGreen
-        If frmMain.chkMana.Value <> Checked Then frmMain.tmrManaFluid.Enabled = False: frmMain.chkMana.ForeColor = vbRed
         If frmMain.chkFisher.Value = Checked Then frmFisher.tmrFish.Enabled = True: frmMain.chkFisher.ForeColor = vbGreen
         If frmMain.chkFisher.Value <> Checked Then frmFisher.tmrFish.Enabled = False: frmMain.chkFisher.ForeColor = vbRed
         If frmMain.chkIntruder.Value = Checked Then frmMain.chkIntruder.ForeColor = vbGreen: frmIntruder.tmrAppear.Enabled = True: frmIntruder.tmrCheckSkulls.Enabled = True
@@ -234,6 +232,8 @@ Public Function Valid()
         If frmMain.chkRevealInvis <> Checked Then frmMain.tmrRevealInvis.Enabled = False: frmMain.chkRevealInvis.ForeColor = vbRed
         If frmMain.chkAutoAttack = Checked Then frmAutoAttack.tmrAutoAttack.Enabled = True: frmMain.chkAutoAttack.ForeColor = vbGreen
         If frmMain.chkAutoAttack <> Checked Then frmAutoAttack.tmrAutoAttack.Enabled = False: frmMain.chkAutoAttack.ForeColor = vbRed
+        If frmMain.chkCaveBot = Checked Then frmCaveBot.tmrCaveBot.Enabled = True: frmMain.chkCaveBot.ForeColor = vbGreen
+        If frmMain.chkCaveBot <> Checked Then frmCaveBot.tmrCaveBot.Enabled = False: frmMain.chkCaveBot.ForeColor = vbRed
     Else
         frmRune.tmrRune.Enabled = False: frmMain.chkRune.ForeColor = vbRed
         frmSpell.tmrTime.Enabled = False: frmMain.chkSpell.ForeColor = vbRed
@@ -242,7 +242,6 @@ Public Function Valid()
         frmMain.tmrEat.Enabled = False: frmMain.chkEat.ForeColor = vbRed
         frmAimbot.tmrTime.Enabled = False: frmMain.chkAimbot.ForeColor = vbRed
         Exp_Stop
-        frmMain.tmrManaFluid.Enabled = False: frmMain.chkMana.ForeColor = vbRed
         frmFisher.tmrFish.Enabled = False: frmMain.chkFisher.ForeColor = vbRed
         frmMain.chkIntruder.ForeColor = vbRed: frmIntruder.tmrAppear.Enabled = False: frmIntruder.tmrCheckSkulls.Enabled = False
         frmMain.tmrAlert.Enabled = False: frmMain.chkAlert.ForeColor = vbRed
@@ -253,6 +252,7 @@ Public Function Valid()
         frmMain.tmrLight.Enabled = False: frmMain.chkLight.ForeColor = vbRed
         frmMain.tmrRevealInvis.Enabled = False: frmMain.chkRevealInvis.ForeColor = vbRed
         frmAutoAttack.tmrAutoAttack.Enabled = False: frmMain.chkAutoAttack.ForeColor = vbRed
+        frmCaveBot.tmrCaveBot.Enabled = False: frmMain.chkCaveBot.ForeColor = vbRed
     End If
 End Function
 
@@ -312,6 +312,29 @@ Public Function GrabItem(Item As Long, fromX As Long, fromY As Long, fromZ As Lo
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
+Public Function UseGround(id As Long, x As Long, y As Long, z As Long, Optional newLoc As Integer = 0)
+'0A 00 82 C0 80 2D 7D 06 98 01 00 01 floor
+'0A 00 82 C0 80 2E 7D 06 36 0B 01 01 bp y+1
+'0A 00 82 BF 80 2D 7D 06 9C 07 01 02 ladder x-1
+    Dim buff(11) As Byte, bytes() As Byte
+    buff(0) = &HA 'len-2
+    buff(1) = 0 '?
+    buff(2) = &H82 'command usehere
+    ConvertLongToBytes x, bytes, 2
+    buff(3) = bytes(0)
+    buff(4) = bytes(1)
+    ConvertLongToBytes y, bytes, 2
+    buff(5) = bytes(0)
+    buff(6) = bytes(1)
+    buff(7) = z
+    ConvertLongToBytes id, bytes, 2
+    buff(8) = bytes(0)
+    buff(9) = bytes(1)
+    buff(10) = 0 'quantity?
+    buff(11) = newLoc
+    If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
+End Function
+
 Public Function UseHere(Item As Long, fromLoc As Integer, fromSlot As Integer, Optional newLoc As Integer = 0)
     Dim buff(11) As Byte
     Dim byte1 As Byte
@@ -342,7 +365,10 @@ Public Function UpBpLevel(bpIndex As Integer)
     buff(2) = &H88
     buff(3) = bpIndex
     
-    If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
+    If frmMain.sckS.State = sckConnected Then
+        frmMain.sckS.SendData buff
+        AddStatusMessage "UpBpLevel, bp: " & bpIndex - &H40
+    End If
     lastUp(bpIndex) = GetTickCount
 End Function
 
@@ -359,6 +385,29 @@ Public Function SayStuff(message As String)
     For C1 = 6 To Len(message) + 5
         buff(C1) = Asc(Right(message, Len(message) - (C1 - 6)))
     Next
+    If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
+End Function
+
+Public Function UseAtMonster(Item As Long, fromLoc As Integer, fromSlot As Integer, id As Long)
+    '0D 00 84 FF FF 45 00 00 7E 0C 00 A3 A9 00 40
+    Dim buff(14) As Byte, bytID() As Byte, i As Integer
+    buff(0) = &HD
+    buff(1) = &H0
+    buff(2) = &H84
+    buff(3) = &HFF
+    buff(4) = &HFF
+    buff(5) = fromLoc
+    buff(6) = &H0
+    buff(7) = fromSlot
+    'rune id
+    buff(9) = Fix(Item / 256)
+    buff(8) = Item - (Fix(Item / 256) * 256)
+    buff(10) = fromSlot
+    ConvertIDtoBytes id, bytID
+    For i = 0 To 3
+        buff(11 + i) = bytID(i)
+    Next i
+    
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
@@ -393,6 +442,10 @@ Public Function UseAt(Item As Long, fromLoc As Integer, fromSlot As Integer, toX
         buff(16) = &HF5 + Int(Rnd * 6)
         buff(17) = &H11
         buff(18) = &H0
+    ElseIf Item = ITEM_ROPE Then
+        buff(16) = &H82
+        buff(17) = 1
+        buff(18) = 0
     Else
         buff(16) = &H63
         buff(17) = &H0
@@ -606,32 +659,37 @@ Public Function ShootRune(runeID As Long, pos As Long, Optional lead As Boolean 
     End If
     
     'LOCATE TARGET
-    Dim pX As Long, pY As Long, pZ As Long, dG As Long
-    pX = -1: pY = -1: pZ = -1
-    
-    getCharXYZ pX, pY, pZ, pos
-    If pX < 0 Or pY < 0 Or pZ < 0 Then If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error locating target coordinates.": Exit Function
-    
-    If lead Then
-        If ReadMem(ADR_CHAR_GFX_DX + pos * SIZE_CHAR, 1) <> 0 Then
-            dG = ReadMem(ADR_CHAR_GFX_DX + pos * SIZE_CHAR + 2, 1)
-            Select Case dG
-                Case Is = 0: pX = pX - 1
-                Case Is = &HFF: pX = pX + 1
-                Case Else: If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error attempting to lead target. Unexpected value."
-            End Select
+    If IsMonster(pos) Then
+        UseAtMonster runeID, bpIndex, itemIndex, ReadMem(ADR_CHAR_ID + pos * SIZE_CHAR, 4)
+    Else
+        Dim pX As Long, pY As Long, pZ As Long, dG As Long
+        pX = -1: pY = -1: pZ = -1
+        
+        getCharXYZ pX, pY, pZ, pos
+        If pX < 0 Or pY < 0 Or pZ < 0 Then If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error locating target coordinates.": Exit Function
+        
+        If lead Then
+            If ReadMem(ADR_CHAR_GFX_DX + pos * SIZE_CHAR, 1) <> 0 Then
+                dG = ReadMem(ADR_CHAR_GFX_DX + pos * SIZE_CHAR + 2, 1)
+                Select Case dG
+                    Case Is = 0: pX = pX - 1
+                    Case Is = &HFF: pX = pX + 1
+                    Case Else: If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error attempting to lead target. Unexpected value."
+                End Select
+            End If
+            If ReadMem(ADR_CHAR_GFX_DY + pos * SIZE_CHAR, 1) <> 0 Then
+            dG = ReadMem(ADR_CHAR_GFX_DY + pos * SIZE_CHAR + 2, 1)
+                Select Case dG
+                    Case Is = 0: pY = pY - 1
+                    Case Is = &HFF: pY = pY + 1
+                    Case Else: If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error attempting to lead target. Unexpected value."
+                End Select
+            End If
         End If
-        If ReadMem(ADR_CHAR_GFX_DY + pos * SIZE_CHAR, 1) <> 0 Then
-        dG = ReadMem(ADR_CHAR_GFX_DY + pos * SIZE_CHAR + 2, 1)
-            Select Case dG
-                Case Is = 0: pY = pY - 1
-                Case Is = &HFF: pY = pY + 1
-                Case Else: If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error attempting to lead target. Unexpected value."
-            End Select
-        End If
+        UseAt runeID, bpIndex, itemIndex, pX, pY, pZ
     End If
 
-    UseAt runeID, bpIndex, itemIndex, pX, pY, pZ
+    If frmMain.mnuDebug.Checked Then AddStatusMessage "Shoot rune, type: " & runeID & ", bp: " & bpIndex - &H40 & " slot: " & itemIndex & "."
     Pause 50
     
     If runesLeft = False Then UpBpLevel bpIndex - &H40
@@ -639,11 +697,14 @@ Public Function ShootRune(runeID As Long, pos As Long, Optional lead As Boolean 
 End Function
 
 Public Function IsFood(Item As Long) As Boolean
-  IsFood = False
-  Select Case Item
-    Case &HDF9 To &HE17, &HE8B To &HE94: IsFood = True
-    Case Else
-  End Select
+    Select Case Item
+        Case &HDF9 To &HE17, &HE8B To &HE94: IsFood = True
+        Case Else: IsFood = False
+    End Select
+End Function
+
+Public Function IsMonster(pos As Long) As Boolean
+    If ReadMem(ADR_CHAR_ID + pos * SIZE_CHAR + 3, 1) = &H40 Then IsMonster = True
 End Function
 
 Public Function findLoot() As Boolean
@@ -901,38 +962,57 @@ Public Function Step(dir As Integer, Optional numSteps As Integer = 1)
   If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
-Public Function FollowHim(byt1 As Long, byt2 As Long, byt3 As Long, byt4 As Long)
-    Dim buff(6) As Byte
+Public Function FollowHim(id As Long)
+    Dim buff(6) As Byte, idBytes() As Byte, i As Integer
     buff(0) = &H5
     buff(1) = &H0
-    buff(2) = byt1
-    buff(3) = byt2
-    buff(4) = byt3
-    buff(5) = byt4
-    buff(6) = &H0
+    buff(2) = &HA2
+    ConvertIDtoBytes id, idBytes
+    For i = 0 To 3
+        buff(3 + i) = idBytes(i)
+    Next i
+    WriteMem ADR_FOLLOW_ID, id, 4
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
+Public Function ConvertIDtoBytes(id As Long, bytes() As Byte)
+    ReDim bytes(3)
+    bytes(3) = Fix(id / 16777216)
+    bytes(2) = Fix((id - bytes(3) * 16777216) / 65536)
+    bytes(1) = Fix((id - bytes(3) * 16777216 - bytes(2) * 65536) / 256)
+    bytes(0) = Fix(id - Fix(id / 16777216) * 16777216 - Fix((id - bytes(3) * 16777216) / 65536) * 65536 - Fix((id - bytes(3) * 16777216 - bytes(2) * 65536) / 256) * 256)
+End Function
+
+Public Function ConvertLongToBytes(ByVal id As Long, bytes() As Byte, ByVal numBytes As Integer)
+    ReDim bytes(numBytes - 1)
+    Dim i As Integer, j As Integer, temp As Long
+    If numBytes = 1 And id < &H100 Then
+        bytes(0) = id
+    Else
+        bytes(numBytes - 1) = Fix(id / &H100 ^ (numBytes - 1))
+        For i = numBytes - 2 To 0 Step -1
+            temp = id
+            For j = i + 1 To numBytes - 1
+                temp = temp - Fix(bytes(j) * &H100 ^ j)
+            Next j
+            temp = Fix(temp / &H100 ^ i)
+            bytes(i) = temp
+        Next i
+    End If
+End Function
+
 Public Function PutAttack(id As Long)
-    Dim buff(6) As Byte
-    Dim byte1 As Byte, byte2 As Byte, byte3 As Byte, byte4 As Byte
+    Dim buff(6) As Byte, idByte() As Byte, i As Integer
     
     buff(0) = &H5
     buff(1) = &H0
     buff(2) = &HA1
-    
-    byte1 = Fix(id / 16777216)
-    byte2 = Fix((id - byte1 * 16777216) / 65536)
-    byte3 = Fix((id - byte1 * 16777216 - byte2 * 65536) / 256)
-    byte4 = Fix(id - Fix(id / 16777216) * 16777216 - Fix((id - byte1 * 16777216) / 65536) * 65536 - Fix((id - byte1 * 16777216 - byte2 * 65536) / 256) * 256)
-    
-    buff(3) = byte4
-    buff(4) = byte3
-    buff(5) = byte2
-    buff(6) = byte1
+    ConvertIDtoBytes id, idByte
+    For i = 0 To 3
+        buff(3 + i) = idByte(i)
+    Next i
     
     WriteMem ADR_TARGET_ID, id, 4
-    
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
@@ -957,7 +1037,6 @@ Public Sub StartAlert()
     If frmMain.chkAlert.Value = Unchecked Then
         frmMain.chkAlert = Checked
         AddStatusMessage "Starting Alert."
-        Valid
     End If
     'SetForegroundWindow Thwnd
 End Sub
@@ -966,7 +1045,7 @@ Public Sub StopAlert()
     If frmMain.chkAlert.Value = Checked Then
         frmMain.chkAlert.Value = Unchecked
         AddStatusMessage "Stopping Alert."
-        Valid
+        'Valid
     End If
 End Sub
 
@@ -1026,319 +1105,177 @@ Public Sub LogOut()
   AddStatusMessage "Sent Logout packet."
 End Sub
 
-Public Sub SaveSettings(setLoc As String)
+Public Sub ConfigUpdate(fileLoc As String, wer As Boolean)
+    Dim FN As Integer
+    FN = FreeFile
     On Error GoTo Cancel
-    Open setLoc For Output As #1
-        'version details
-            Write #1, App.Major & "." & App.Minor & "." & App.Revision
-        'aimbot
-            Write #1, frmMain.chkAimbot.Value
-            For i = frmAimbot.comboButton.LBound To frmAimbot.comboButton.UBound
-                Write #1, frmAimbot.comboButton(i).ListIndex
-            Next i
-            Write #1, frmAimbot.chkHealSelf.Value
-            Write #1, frmAimbot.chkHealLowest.Value
-            Write #1, frmAimbot.hscrHealAt.Value
-            For i = frmAimbot.comboWeapon.LBound To frmAimbot.comboWeapon.UBound
-                Write #1, frmAimbot.comboWeapon(i).ListIndex
-                Write #1, frmAimbot.chkGetShield(i).Value
-            Next i
-            Write #1, frmAimbot.chkFluidMoveUpBP.Value
-            'list friends
-            With frmAimbot.listFriends
-                If .ListCount > 0 Then
-                    For i = 0 To .ListCount - 1
-                        Write #1, .List(i)
-                    Next i
-                End If
-            End With
-            Write #1, "<End List>"
-            'list enemies
-            With frmAimbot.listEnemies
-                If .ListCount > 0 Then
-                    For i = 0 To .ListCount - 1
-                        Write #1, .List(i)
-                    Next i
-                End If
-            End With
-            Write #1, "<End List>"
-        'healer
-            'Write #1, frmMain.chkHeal.Value
-            Write #1, frmHeal.txtHP.Text
-            Write #1, frmHeal.chkUseRune.Value
-            Write #1, frmHeal.chkUseSpell.Value
-            Write #1, frmHeal.optRuneFirst.Value
-            Write #1, frmHeal.optSpellFirst.Value
-            Write #1, frmHeal.txtSpell.Text
-            Write #1, frmHeal.txtMana.Text
-            Write #1, frmHeal.txtRuneDelay.Text
-            Write #1, frmHeal.chkAlertLowHP.Value
-            Write #1, frmHeal.chkHealFriends.Value
-        'rune maker
-            'Write #1, frmMain.chkRune
-            Write #1, frmRune.txtSpellWords
-            Write #1, frmRune.hscrManaReq
-            Write #1, frmRune.hscrSoulReq
-            Write #1, frmRune.txtReserveMana
-            Write #1, frmRune.chkLogFinished
-        'intruder rxt
-            'Write #1, frmMain.chkIntruder.Value
-            Write #1, frmIntruder.chkAlert
-            Write #1, frmIntruder.chkAutoLog
-            Write #1, frmIntruder.chkScript
-            Write #1, frmIntruder.chkWalk
-            Write #1, frmIntruder.chkDetectOffscreen
-            For i = frmIntruder.optWalk.LBound To frmIntruder.optWalk.UBound
-                Write #1, frmIntruder.optWalk(i).Value
-            Next i
-            Write #1, frmIntruder.chkBelow
-            Write #1, frmIntruder.hscrNumBelow
-            Write #1, frmIntruder.chkAbove
-            Write #1, frmIntruder.hscrNumAbove
-            Write #1, frmIntruder.chkIgnoreMonsters
-            If frmIntruder.listSafe.ListCount > 0 Then
-                For i = 0 To frmIntruder.listSafe.ListCount - 1
-                    Write #1, frmIntruder.listSafe.List(i)
-                Next i
-            End If
-            Write #1, "<End List>"
-        'attack rxt
-            'Write #1, frmMain.chkAttack
-            Write #1, frmAttack.chkSay
-            Write #1, frmAttack.txtSay
-            For i = frmAttack.optWalk.LBound To frmAttack.optWalk.UBound
-                Write #1, frmAttack.optWalk(i)
-            Next i
-            Write #1, frmAttack.chkWalk
-            Write #1, frmAttack.chkBeep
-            Write #1, frmAttack.chkAlert
-        'fisher
-            'Write #1, frmMain.chkFisher
-            For i = frmFisher.txtBoundary.LBound To frmFisher.txtBoundary.UBound
-                Write #1, frmFisher.txtBoundary(i).Text
-            Next i
-            Write #1, frmFisher.chkSpeedFish
-            Write #1, frmFisher.chkFishNoWorms
-            Write #1, frmFisher.chkFishNoFood
-        'spell caster
-            Write #1, frmMain.chkSpell.Value
-            Write #1, frmSpell.txtSpell.Text
-            Write #1, frmSpell.txtMana.Text
-        'script
-            Write #1, frmScript.txtScript.Text
-        'mage crew
-            If frmMageCrew.listMages.ListCount > 0 Then
-                For i = 0 To frmMageCrew.listMages.ListCount - 1
-                    Write #1, frmMageCrew.listMages.List(i)
-                Next i
-            End If
-            Write #1, "<End List>"
-            If frmMageCrew.listTargets.ListCount > 0 Then
-                For i = 0 To frmMageCrew.listTargets.ListCount - 1
-                    Write #1, frmMageCrew.listTargets.List(i)
-                Next i
-            End If
-            Write #1, "<End List>"
-        'looter
-            'item list
-            With frmLooter.listItems
-                If .ListCount > 0 Then
-                    For i = 0 To .ListCount - 1
-                        Write #1, .List(i)
-                    Next i
-                End If
-            End With
-            Write #1, "<End List>"
-            'loot list
-            With frmLooter.listLoot
-                If .ListCount > 0 Then
-                    For i = 0 To .ListCount - 1
-                        Write #1, .List(i)
-                    Next i
-                End If
-            End With
-            Write #1, "<End List>"
-            'stackable list
-            With frmLooter.listStack
-                If .ListCount > 0 Then
-                    For i = 0 To .ListCount - 1
-                        Write #1, .List(i)
-                    Next i
-                End If
-            End With
-            Write #1, "<End List>"
-        'non-configurables
-            'Write #1, frmMain.chkEat
-            Write #1, frmMain.chkAlertLogged
-            Write #1, frmMain.chkEatLog
-            Write #1, frmMain.chkLootWorms
-            Write #1, frmMain.chkLight
-            'Write #1, frmMain.chkAutoAttack
-    AddStatusMessage "Settings file saved to " & vbCrLf & setLoc
-Cancel:
-    Close #1
-End Sub
-Public Sub LoadSettings(setLoc As String)
-    Dim temp As String
-    
-    On Error GoTo Cancel
-    Open setLoc For Input As #1
-        'version details
-            temp = getNext
-            If temp <> App.Major & "." & App.Minor & "." & App.Revision Then
-                MsgBox "Settings file and application version do not match. There may be errors in loading file:" & vbCrLf _
-                & setLoc & vbCrLf & "Check loaded settings and resave file with newer version.", vbCritical, "Potential version conflict."
-                'Exit Sub
-            End If
-        'aimbot
-            frmMain.chkAimbot.Value = getNext
-            For i = frmAimbot.comboButton.LBound To frmAimbot.comboButton.UBound
-                frmAimbot.comboButton(i).ListIndex = getNext
-            Next i
-            frmAimbot.chkHealSelf.Value = getNext
-            frmAimbot.chkHealLowest.Value = getNext
-            frmAimbot.hscrHealAt.Value = getNext
-            For i = frmAimbot.comboWeapon.LBound To frmAimbot.comboWeapon.UBound
-                frmAimbot.comboWeapon(i).ListIndex = getNext
-                frmAimbot.chkGetShield(i).Value = getNext
-            Next i
-            frmAimbot.chkFluidMoveUpBP.Value = getNext
-            'list friends
-            With frmAimbot.listFriends
-                .Clear
-                Do
-                    temp = getNext
-                    If temp <> "<End List>" Then .AddItem temp
-                Loop Until temp = "<End List>"
-            End With
-            'list enemies
-            With frmAimbot.listEnemies
-                .Clear
-                Do
-                    temp = getNext
-                    If temp <> "<End List>" Then .AddItem temp
-                Loop Until temp = "<End List>"
-            End With
-        'healer
-            'frmMain.chkHeal.Value = getNext
-            frmHeal.txtHP.Text = getNext
-            frmHeal.chkUseRune.Value = getNext
-            frmHeal.chkUseSpell.Value = getNext
-            frmHeal.optRuneFirst.Value = getNext
-            frmHeal.optSpellFirst.Value = getNext
-            frmHeal.txtSpell.Text = getNext
-            frmHeal.txtMana.Text = getNext
-            frmHeal.txtRuneDelay.Text = getNext
-            frmHeal.chkAlertLowHP.Value = getNext
-            frmHeal.chkHealFriends.Value = getNext
-        'rune maker
-            'frmMain.chkRune.Value = getNext
-            frmRune.txtSpellWords.Text = getNext
-            frmRune.hscrManaReq.Value = getNext
-            frmRune.hscrSoulReq.Value = getNext
-            frmRune.txtReserveMana.Text = getNext
-            frmRune.chkLogFinished.Value = getNext
-            frmRune.hscrManaReq_Change
-            frmRune.hscrSoulReq_Change
-        'intruder rxt
-            'frmMain.chkIntruder.Value = getNext
-            frmIntruder.chkAlert.Value = getNext
-            frmIntruder.chkAutoLog.Value = getNext
-            frmIntruder.chkScript.Value = getNext
-            frmIntruder.chkWalk.Value = getNext
-            frmIntruder.chkDetectOffscreen.Value = getNext
-            For i = frmIntruder.optWalk.LBound To frmIntruder.optWalk.UBound
-                frmIntruder.optWalk(i).Value = getNext
-            Next i
-            frmIntruder.chkBelow.Value = getNext
-            frmIntruder.hscrNumBelow.Value = getNext
-            frmIntruder.chkAbove.Value = getNext
-            frmIntruder.hscrNumAbove.Value = getNext
-            frmIntruder.chkIgnoreMonsters.Value = getNext
-            frmIntruder.listSafe.Clear
-            Do
-                temp = getNext
-                If temp <> "<End List>" Then frmIntruder.listSafe.AddItem temp
-            Loop Until temp = "<End List>"
-            frmIntruder.hscrNumBelow_Change
-            frmIntruder.hscrNumAbove_Change
-        'attack rxt
-            'frmMain.chkAttack.Value = getNext
-            frmAttack.chkSay.Value = getNext
-            frmAttack.txtSay.Text = getNext
-            For i = frmAttack.optWalk.LBound To frmAttack.optWalk.UBound
-                frmAttack.optWalk(i).Value = getNext
-            Next i
-            frmAttack.chkWalk.Value = getNext
-            frmAttack.chkBeep.Value = getNext
-            frmAttack.chkAlert.Value = getNext
-        'fisher
-            'frmMain.chkFisher.Value = getNext
-            For i = frmFisher.txtBoundary.LBound To frmFisher.txtBoundary.UBound
-                frmFisher.txtBoundary(i).Text = getNext
-            Next i
-            frmFisher.chkSpeedFish.Value = getNext
-            frmFisher.chkFishNoWorms.Value = getNext
-            frmFisher.chkFishNoFood.Value = getNext
-            frmFisher.updBoundVals
-        'spell caster
-            frmMain.chkSpell.Value = getNext
-            frmSpell.txtSpell.Text = getNext
-            frmSpell.txtMana.Text = getNext
-        'script
-            frmScript.txtScript.Text = getNext
-            frmScript.cmdSave_Click
-        'mage crew
-            frmMageCrew.listMages.Clear
-            Do
-                temp = getNext
-                If temp <> "<End List>" Then frmMageCrew.listMages.AddItem temp
-            Loop Until temp = "<End List>"
-            frmMageCrew.listTargets.Clear
-            Do
-                temp = getNext
-                If temp <> "<End List>" Then frmMageCrew.listTargets.AddItem temp
-            Loop Until temp = "<End List>"
-        'looter
-            With frmLooter.listItems
-                .Clear
-                Do
-                    temp = getNext
-                    If temp <> "<End List>" Then .AddItem temp
-                Loop Until temp = "<End List>"
-            End With
-            With frmLooter.listLoot
-                .Clear
-                Do
-                    temp = getNext
-                    If temp <> "<End List>" Then .AddItem temp
-                Loop Until temp = "<End List>"
-            End With
-            With frmLooter.listStack
-                .Clear
-                Do
-                    temp = getNext
-                    If temp <> "<End List>" Then .AddItem temp
-                Loop Until temp = "<End List>"
-            End With
-        'non-configurables
-            'frmMain.chkEat.Value = getNext
-            frmMain.chkAlertLogged.Value = getNext
-            frmMain.chkEatLog.Value = getNext
-            frmMain.chkLootWorms.Value = getNext
-            frmMain.chkLight.Value = getNext
-            'frmMain.chkAutoAttack.Value = getNext
-    AddStatusMessage "Settings file loaded from " & vbCrLf & setLoc
-    Valid
-Cancel:
-    Close #1
-End Sub
+    If wer Then
+        Open fileLoc For Output As #FN
+        Write #FN, "***ERUBOT SETTINGS FILE***"
+        Write #FN, App.Major & "." & App.Minor & "." & App.Revision
+    Else
+        Open fileLoc For Input As #FN
+        getNext FN
+        temp = getNext(FN)
+        'If temp <> App.Major & "." & App.Minor & "." & App.Revision Then MsgBox "Settings file and application version do not match. There may be errors in loading file:" & vbCrLf & setLoc & vbCrLf & "Check loaded settings and resave file with newer version.", vbCritical, "Potential version conflict."
+    End If
 
-Public Function getNext()
-    Dim temp As String
-    Input #1, temp
-    getNext = temp
-End Function
+    Config_Title FN, wer, "***MAIN***"
+    Config_Control FN, wer, frmMain.chkAimbot
+    Config_Control FN, wer, frmMain.chkLight
+    Config_Control FN, wer, frmMain.chkExpHour
+    Config_Control FN, wer, frmMain.chkExpBeep
+    Config_Control FN, wer, frmMain.chkLooter
+    Config_Control FN, wer, frmMain.chkRevealInvis
+    Config_Control FN, wer, frmMain.chkRune
+    Config_Control FN, wer, frmMain.chkSpell
+    Config_Control FN, wer, frmMain.chkHeal
+    Config_Control FN, wer, frmMain.chkIntruder
+    Config_Control FN, wer, frmMain.chkAttack
+    Config_Control FN, wer, frmMain.chkEat
+    Config_Control FN, wer, frmMain.chkEatLog
+    Config_Control FN, wer, frmMain.chkFisher
+    Config_Control FN, wer, frmMain.chkGrabber
+    Config_Control FN, wer, frmMain.chkOutfit
+    Config_Control FN, wer, frmMain.chkAlertLogged
+    Config_Control FN, wer, frmMain.chkAutoAttack
+    Config_Control FN, wer, frmMain.chkCaveBot
+    Config_Control FN, wer, frmMain.chkGM
+    
+    Config_Title FN, wer, "***AIMBOT***"
+    Config_ControlArray FN, wer, frmAimbot.comboButton
+    Config_ControlArray FN, wer, frmAimbot.comboWeapon
+    Config_Control FN, wer, frmAimbot.chkHealSelf
+    Config_Control FN, wer, frmAimbot.chkHealLowest
+    Config_Control FN, wer, frmAimbot.hscrHealAt
+    Config_Control FN, wer, frmAimbot.chkFluidMoveUpBP
+    Config_ListBox FN, wer, "AIMBOT.FRIENDS", frmAimbot.listFriends
+    Config_ListBox FN, wer, "AIMBOT.ENEMIES", frmAimbot.listEnemies
+    
+    Config_Title FN, wer, "***LOOTER***"
+    Config_ListBox FN, wer, "LOOTER.DONTLOOT", frmLooter.listItems
+    Config_ListBox FN, wer, "LOOTER.NONSTACK", frmLooter.listLoot
+    Config_ListBox FN, wer, "LOOTER.STACKABLE", frmLooter.listStack
+    
+    Config_Title FN, wer, "***RUNE MAKER***"
+    Config_Control FN, wer, frmRune.txtSpellWords
+    Config_Control FN, wer, frmRune.hscrManaReq
+    Config_Control FN, wer, frmRune.hscrSoulReq
+    Config_Control FN, wer, frmRune.txtReserveMana
+    Config_Control FN, wer, frmRune.chkLogFinished
+    If wer = False Then
+        frmRune.hscrManaReq_Change
+        frmRune.hscrSoulReq_Change
+    End If
+    
+    Config_Title FN, wer, "***SPELL CASTER***"
+    Config_Control FN, wer, frmSpell.txtSpell
+    Config_Control FN, wer, frmSpell.txtMana
+    
+    Config_Title FN, wer, "***HEALER***"
+    Config_Control FN, wer, frmHeal.txtHP
+    Config_Control FN, wer, frmHeal.chkUseRune
+    Config_Control FN, wer, frmHeal.chkUseSpell
+    Config_Control FN, wer, frmHeal.optRuneFirst
+    Config_Control FN, wer, frmHeal.optSpellFirst
+    Config_Control FN, wer, frmHeal.txtSpell
+    Config_Control FN, wer, frmHeal.txtMana
+    Config_Control FN, wer, frmHeal.txtRuneDelay
+    Config_Control FN, wer, frmHeal.chkAlertLowHP
+    Config_Control FN, wer, frmHeal.chkHealFriends
+    
+    Config_Title FN, wer, "***INTRUDER RXT***"
+    Config_Control FN, wer, frmIntruder.chkAlert
+    Config_Control FN, wer, frmIntruder.chkAutoLog
+    Config_Control FN, wer, frmIntruder.chkScript
+    Config_Control FN, wer, frmIntruder.chkBattleSign
+    Config_Control FN, wer, frmIntruder.chkDetectOffscreen
+    Config_Control FN, wer, frmIntruder.chkWalk
+    Config_Control FN, wer, frmIntruder.lblAfkSpot
+    Config_Control FN, wer, frmIntruder.lblSafeSpot
+    'Config_Variable FN, wer, frmIntruder.afkX
+    'Config_Variable FN, wer, frmIntruder.afkY
+    'Config_Variable FN, wer, frmIntruder.afkZ
+    'Config_Variable FN, wer, frmIntruder.safeX
+    'Config_Variable FN, wer, frmIntruder.safeY
+    'Config_Variable FN, wer, frmIntruder.safeZ
+    Config_Control FN, wer, frmIntruder.chkBelow
+    Config_Control FN, wer, frmIntruder.hscrNumBelow
+    Config_Control FN, wer, frmIntruder.chkAbove
+    Config_Control FN, wer, frmIntruder.hscrNumAbove
+    Config_Control FN, wer, frmIntruder.chkAlertSkulls
+    Config_Control FN, wer, frmIntruder.hscrNumSkulls
+    Config_Control FN, wer, frmIntruder.chkIgnoreMonsters
+    Config_Control FN, wer, frmIntruder.chkIgnoreAll
+    Config_ListBox FN, wer, "INTRUDER RXT.SAFE LIST", frmIntruder.listSafe
+    If wer = False Then
+        frmIntruder.UpdAfkLbl
+        frmIntruder.UpdSafeLbl
+        frmIntruder.hscrNumAbove_Change
+        frmIntruder.hscrNumBelow_Change
+    End If
+    
+    Config_Title FN, wer, "***ATTACK RXT***"
+    Config_Control FN, wer, frmAttack.chkSay
+    Config_Control FN, wer, frmAttack.txtSay
+    Config_ControlArray FN, wer, frmAttack.optWalk
+    Config_Control FN, wer, frmAttack.chkWalk
+    Config_Control FN, wer, frmAttack.chkBeep
+    Config_Control FN, wer, frmAttack.chkAlert
+    Config_Control FN, wer, frmAttack.chkAlertLowHP
+    Config_Control FN, wer, frmAttack.txtLowHP
+    
+    Config_Title FN, wer, "***FISHER***"
+    Config_ControlArray FN, wer, frmFisher.txtBoundary
+    Config_Control FN, wer, frmFisher.chkSpeedFish
+    Config_Control FN, wer, frmFisher.chkFishNoFood
+    Config_Control FN, wer, frmFisher.chkFishNoWorms
+    If wer = False Then frmFisher.updBoundVals
+    
+    Config_Title FN, wer, "***AMMO GRABBER***"
+    Config_ControlArray FN, wer, frmGrabber.optDir
+    Config_Control FN, wer, frmGrabber.optSpears
+    Config_Control FN, wer, frmGrabber.optThrowingStars
+    Config_Control FN, wer, frmGrabber.optSmallStones
+    Config_Control FN, wer, frmGrabber.optThrowingKnives
+    Config_Control FN, wer, frmGrabber.chkGrabUnderTarget
+    If wer = False Then frmGrabber.UpdDirectionControls
+    
+    Config_Title FN, wer, "***OUTFIT CHANGER***"
+    Config_ControlArray FN, wer, frmOutfit.chkColor
+    Config_Control FN, wer, frmOutfit.chkRainbow
+    Config_Control FN, wer, frmOutfit.hscrOutfit
+    If wer = False Then frmOutfit.hscrOutfit_Change
+    
+    Config_Title FN, wer, "***MAGE CREW***"
+    Config_ListBox FN, wer, "MAGE CREW.MAGE LIST", frmMageCrew.listMages
+    Config_ListBox FN, wer, "MAGE CREW.TARGETS", frmMageCrew.listTargets
+    
+    Config_Title FN, wer, "***AUTO ATTACKER***"
+    Config_Control FN, wer, frmAutoAttack.hscrAttackDistance
+    Config_Control FN, wer, frmAutoAttack.chkIgnoreFriends
+    Config_Control FN, wer, frmAutoAttack.chkTargetClosest
+    If wer = False Then frmAutoAttack.hscrAttackDistance_Change
+    
+    Config_Title FN, wer, "***CAVE BOT***"
+    Config_Control FN, wer, frmCaveBot.hscrStopDistance
+    Config_Control FN, wer, frmCaveBot.chkIgnoreFriends
+    If wer = False Then frmCaveBot.hscrStopDistance_Change
+    
+    
+    
+    Config_Control FN, wer, frmScript.txtScript
+    If wer = False Then frmScript.cmdSave_Click
+
+    If wer Then
+        AddStatusMessage "Settings file saved to " & vbCrLf & fileLoc
+    Else
+        AddStatusMessage "Settings file loaded from " & vbCrLf & fileLoc
+        Valid
+    End If
+Cancel:
+    Close FN
+End Sub
 
 Public Sub Exp_Stop()
     frmMain.chkExpHour.Value = Unchecked
@@ -1431,3 +1368,346 @@ Public Sub CalculateExperience()
     If ExpCur = ExpStart And ExpTime > 0 Then Exp_Stop: Exp_Start: Valid
 End Sub
 
+Public Function GetStepValue(dX As Long, dY As Long) As Integer
+    If dX = 0 And dY = -1 Then
+        GetStepValue = 0
+    ElseIf dX = 1 And dY = -1 Then
+        GetStepValue = 5
+    ElseIf dX = 1 And dY = 0 Then
+        GetStepValue = 1
+    ElseIf dX = 1 And dY = 1 Then
+        GetStepValue = 6
+    ElseIf dX = 0 And dY = 1 Then
+        GetStepValue = 2
+    ElseIf dX = -1 And dY = 1 Then
+        GetStepValue = 7
+    ElseIf dX = -1 And dY = 0 Then
+        GetStepValue = 3
+    ElseIf dX = -1 And dY = -1 Then
+        GetStepValue = 8
+    Else
+        GetStepValue = -1
+    End If
+End Function
+
+Public Sub ProcessHotkey(command As String)
+    Dim temp() As String, i As Integer, pos As Long, more As Integer
+    Dim hpPercent As Long, hp As Long, lowest As Boolean, mana As Long
+    Dim slot As Integer, Item As Long, bp As Long
+    Dim getSlot As Integer, getBP As Integer, idBytes(3) As Byte
+    Dim spell As String
+    
+    AddStatusMessage "Processing: '" & command & "'"
+    temp = Split(command, " ")
+    If UBound(temp) = 0 Then
+        AddStatusMessage "Unspecified command"
+    'Else
+    '    For i = LBound(temp) To UBound(temp)
+    '        AddStatusMessage "Token(" & i & "): '" & temp(i) & "'"
+    '    Next i
+    End If
+    If temp(1) = "repeat" Then
+        If UBound(temp) >= 6 Then
+            hp = 0
+            If temp(2) = "-hp" Then
+                If IsNumeric(temp(3)) And CLng(temp(3)) >= 1 Then
+                    hp = CLng(temp(3))
+                Else
+                    GoTo ErrorRepeatHealSpell
+                End If
+            ElseIf temp(2) = "-%hp" Or temp(2) = "-hp%" Then
+                If IsNumeric(temp(3)) And CLng(temp(3)) <= 100 And CLng(temp(3)) >= 1 Then
+                    hp = CLng(Int(CLng(temp(3)) * ReadMem(ADR_MAX_HP, 4) / 100))
+                Else
+                    GoTo ErrorRepeatHealSpell
+                End If
+            Else
+                GoTo ErrorRepeatHealSpell
+            End If
+            If temp(4) = "-mana" Then
+                If IsNumeric(temp(5)) And CLng(temp(5)) >= 1 Then
+                    mana = CLng(temp(5))
+                Else
+                    GoTo ErrorRepeatHealSpell
+                End If
+            ElseIf temp(4) = "-%mana" Then
+                If IsNumeric(temp(5)) And CLng(temp(5)) <= 100 And CLng(temp(5)) >= 1 Then
+                    mana = CLng(Int(CLng(temp(5)) * ReadMem(ADR_MAX_MANA, 4) / 100))
+                Else
+                    GoTo ErrorRepeatHealSpell
+                End If
+            Else
+                GoTo ErrorRepeatHealSpell
+            End If
+            spell = temp(6)
+            If UBound(temp) > 6 Then
+                For i = 7 To UBound(temp)
+                    spell = spell & " " & temp(i)
+                Next i
+            End If
+            SayStuff spell
+            frmAimbot.ToggleHealToFull hp, mana, spell
+            Exit Sub
+        Else
+ErrorRepeatHealSpell:
+            AddStatusMessage "!eb repeat (-hp|-%hp) x (-mana|-%mana) x s {s}"
+            Exit Sub
+        End If
+    ElseIf temp(1) = "follow" Then
+        If UBound(temp) >= 2 Then
+            pos = -1
+            Select Case temp(2)
+                Case "-friend": pos = FindPosByHP(frmAimbot.listFriends, 101)
+                Case "-enemy": pos = FindPosByHP(frmAimbot.listEnemies, 101)
+                Case "-anyone":
+                    For i = 0 To LEN_CHAR
+                        If ReadMem(ADR_CHAR_ONSCREEN + i * SIZE_CHAR, 1) = 1 And i <> UserPos Then
+                            If ReadMem(ADR_CHAR_ID + i * SIZE_CHAR + 3, 1) = 0 _
+                            And ReadMem(ADR_PLAYER_Z, 2) = ReadMem(ADR_CHAR_Z + i * SIZE_CHAR, 2) Then
+                                pos = i
+                                Exit For
+                            End If
+                        End If
+                    Next i
+                Case Else:
+                    spell = temp(2)
+                    If UBound(temp) > 2 Then
+                        For i = 3 To UBound(temp)
+                            spell = spell & " " & temp(i)
+                        Next i
+                    End If
+                    pos = findPosByName(spell)
+            End Select
+            If pos >= 0 Then
+                FollowHim ReadMem(ADR_CHAR_ID + pos * SIZE_CHAR, 4)
+                Exit Sub
+            Else
+                AddStatusMessage "No follow-targets found."
+                Exit Sub
+            End If
+        Else
+ErrorFollow:
+            AddStatusMessage "!eb follow (-friend|-enemy|-anyone|s)"
+            Exit Sub
+        End If
+    ElseIf temp(1) = "equip" Then
+        If UBound(temp) >= 5 Then
+            If temp(2) = "-slot" Then
+                If IsNumeric(temp(3)) Then
+                    slot = CLng(temp(3))
+                Else
+                    'convert word to slot
+                    Select Case temp(3)
+                        Case "neck", "amulet", "ammy": slot = SLOT_NECK
+                        Case "ring": slot = SLOT_RING
+                        Case "ammo", "belt": slot = SLOT_AMMO
+                        Case "helmet", "head": slot = SLOT_HELMET
+                        Case "armor", "body", "torso": slot = SLOT_ARMOR
+                        Case "legs", "leggings": slot = SLOT_LEGS
+                        Case "boots", "boot", "feet": slot = SLOT_BOOTS
+                        Case "left": slot = SLOT_LEFT_HAND
+                        Case "right": slot = SLOT_RIGHT_HAND
+                        Case "backpack": slot = SLOT_BACKPACK
+                    End Select
+                End If
+            Else
+                GoTo ErrorEquipItemToSlot
+            End If
+            Item = 0
+            For i = 4 To UBound(temp) - 1
+                If temp(i) = "-item" Then
+                    If IsNumeric(temp(i + 1)) Then
+                        Item = CLng(temp(i + 1))
+                    Else
+                        'convert word to item
+                        GoTo ErrorEquipItemToSlot
+                    End If
+                    Exit For
+                End If
+            Next i
+            If Item = 0 Then GoTo ErrorEquipItemToSlot
+            If findItem(Item, getBP, getSlot, False, False) Then
+                MoveItem Item, getBP, getSlot, slot, 0, 100
+            Else
+                AddStatusMessage "item of type " & Item & " not found."
+            End If
+            Exit Sub
+        Else
+ErrorEquipItemToSlot:
+            AddStatusMessage "!eb equip -slot (x|s) -item (x|s)"
+            Exit Sub
+        End If
+    ElseIf temp(1) = "uh" Then
+        If UBound(temp) >= 2 Then
+            If temp(2) = "self" Then
+                If UBound(temp) >= 3 Then
+                    If temp(3) = "-hp" And UBound(temp) >= 4 Then
+                        If IsNumeric(temp(4)) And CLng(temp(4)) >= 1 Then
+                            If ReadMem(ADR_CUR_HP, 4) < CLng(temp(4)) Then
+                                '!eb uh self -hp x
+                                ShootRune ITEM_RUNE_UH, UserPos
+                            Else
+                                AddStatusMessage "Healing not required."
+                            End If
+                            Exit Sub
+                        Else
+                            GoTo ErrorUhSelf
+                        End If
+                    ElseIf temp(3) = "-%hp" And UBound(temp) >= 4 Then
+                        If IsNumeric(temp(4)) And CLng(temp(4)) <= 100 And CLng(temp(4)) >= 1 Then
+                            If ReadMem(ADR_CUR_HP, 4) <= Int(CLng(temp(4)) * ReadMem(ADR_CUR_HP, 4) / ReadMem(ADR_MAX_HP, 4)) Then
+                                '!eb uh self -%hp x
+                                ShootRune ITEM_RUNE_UH, UserPos
+                            Else
+                                AddStatusMessage "Healing not required."
+                            End If
+                            Exit Sub
+                        Else
+                            GoTo ErrorUhSelf
+                        End If
+                    ElseIf temp(3) = "-nowaste" Then
+                        If ReadMem(ADR_CUR_HP, 4) <= ReadMem(ADR_MAX_HP, 4) - 2.8 * (ReadMem(ADR_MAG_LEVEL, 4) * 3 + ReadMem(ADR_LEVEL, 4) * 2) Then
+                            '!eb uh self -nowaste
+                            ShootRune ITEM_RUNE_UH, UserPos
+                        End If
+                        Exit Sub
+                    End If
+                Else
+                    ShootRune ITEM_RUNE_UH, UserPos
+                    Exit Sub
+                End If
+ErrorUhSelf:
+                AddStatusMessage "!eb uh self [-hp x|-%hp x|-nowaste]"
+                Exit Sub
+            ElseIf temp(2) = "friend" Then
+                If UBound(temp) >= 3 Then
+                    hpPercent = 100
+                    hp = 0
+                    i = 3
+                    Do
+                        If temp(i) = "-%hp" And UBound(temp) >= i + 1 Then
+                            If IsNumeric(temp(i + 1)) And CLng(temp(i + 1)) <= 100 And CLng(temp(i + 1)) >= 1 Then
+                                hpPercent = CLng(temp(i + 1))
+                            Else
+                                GoTo ErrorUhFriend
+                            End If
+                            i = i + 2
+                        ElseIf temp(i) = "-lowest" Then
+                            lowest = True
+                            i = i + 1
+                        ElseIf temp(i) = "-self" And UBound(temp) >= i + 1 Then
+                            If IsNumeric(temp(i + 1)) And CLng(temp(i + 1)) >= 1 Then
+                                hp = CLng(temp(i + 1))
+                            Else
+                                GoTo ErrorUhFriend
+                            End If
+                            i = i + 2
+                        Else
+                            GoTo ErrorUhFriend
+                        End If
+                    Loop Until i > UBound(temp)
+                End If
+                If hp > 0 Then
+                    If ReadMem(ADR_CUR_HP, 4) <= hp Then
+                        ShootRune ITEM_RUNE_UH, UserPos
+                        Exit Sub
+                    End If
+                End If
+                pos = FindPosByHP(frmAimbot.listFriends, CInt(hpPercent), lowest)
+                If pos >= 0 Then
+                    ShootRune ITEM_RUNE_UH, pos
+                    Exit Sub
+                Else
+                    AddStatusMessage command & " -> nobody required healing."
+                    Exit Sub
+                End If
+ErrorUhFriend:
+                AddStatusMessage "!eb uh friend {-%hp x|-lowest|-self x}"
+                Exit Sub
+            Else
+                pos = findPosByName(temp(2))
+                If pos >= 0 Then
+                    ShootRune ITEM_RUNE_UH, pos
+                    Exit Sub
+                Else
+                    AddStatusMessage command & " -> target not available."
+                    Exit Sub
+                End If
+            End If
+        Else
+            AddStatusMessage "!eb uh (self|friend|name) ..."
+            Exit Sub
+        End If
+    End If
+End Sub
+
+Public Sub DetectGM()
+    Dim i As Integer, intName As String
+    Dim intZ As Long, plyrZ As Long
+    Static GMfound As Long, response As Integer
+    
+    plyrZ = ReadMem(ADR_PLAYER_Z, 4)
+    For i = 0 To LEN_CHAR
+        If ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * i, 1) = 1 Then
+            intName = MemToStr(ADR_CHAR_NAME + SIZE_CHAR * i, 32)
+            If Left(intName, 3) = "GM " Or Left(intName, 5) = "Erig " Then
+                If GMfound = 0 Then
+                    frmMain.chkRune = Unchecked
+                    frmMain.chkSpell = Unchecked
+                    frmMain.chkAttack = Unchecked
+                    frmMain.chkFisher = Unchecked
+                    frmMain.chkGrabber = Unchecked
+                    frmMain.chkOutfit = Unchecked
+                    frmMain.chkAutoAttack = Unchecked
+                    StartAlert
+                    Valid
+                    GMfound = GetTickCount
+                    response = 0
+                End If
+                intZ = ReadMem(ADR_CHAR_Z + i * SIZE_CHAR, 4)
+                GoTo ReactToGM
+            End If
+        End If
+    Next i
+    GMfound = 0
+    Exit Sub
+ReactToGM:
+    If intZ <> plyrZ And ReadMem(ADR_BATTLE_SIGN, 4) = 0 Then
+        LogOut
+        frmMain.chkLogOut = Checked
+        Valid
+    Else
+        If GMfound > 2000 And response = 0 Then
+            i = Rnd() * 5
+            Select Case i
+                Case 0: SayStuff "hi"
+                Case 1: SayStuff ":O"
+                Case 2: SayStuff "omg"
+                Case 3: SayStuff "wow"
+            End Select
+        ElseIf GMfound > 7000 And response = 1 Then
+            i = Rnd() * 7
+            Select Case i
+                Case 0: SayStuff "can you summon monsters?"
+                Case 1: SayStuff "first GM i've seen!"
+                Case 2: SayStuff "you are very cool"
+                Case 3: SayStuff "what can I do for you?"
+                Case 4: SayStuff "screenshot!!! ololol!"
+            End Select
+        ElseIf GMfound > 10000 And response = 2 Then
+            i = Rnd() * 5
+            Select Case i
+                Case 0: SayStuff "oh"
+                Case 1: SayStuff "wait lol"
+                Case 2: SayStuff "plz"
+                Case 3: SayStuff "um"
+                Case 4: SayStuff "what?"
+            End Select
+        End If
+        response = response + 1
+    End If
+End Sub
+
+Public Function NoFood() As Boolean
+
+End Function

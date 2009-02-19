@@ -2,7 +2,7 @@ Attribute VB_Name = "modVals"
 'character array
 Public Const ADR_CHAR_NAME = &H4A12AC
 
-Public Const LEN_CHAR = 147
+Public Const LEN_CHAR = 148
 Public Const SIZE_CHAR = 156
 
 Public Const ADR_CHAR_ID = ADR_CHAR_NAME - 4
@@ -11,21 +11,30 @@ Public Const ADR_CHAR_Y = ADR_CHAR_NAME + 36
 Public Const ADR_CHAR_Z = ADR_CHAR_NAME + 40
 Public Const ADR_CHAR_GFX_DX = ADR_CHAR_NAME + 44
 Public Const ADR_CHAR_GFX_DY = ADR_CHAR_NAME + 48
+Public Const ADR_CHAR_WALKING = ADR_CHAR_NAME + 72
+Public Const ADR_CHAR_DIRECTION = ADR_CHAR_NAME + 76
 Public Const ADR_CHAR_FACING = ADR_CHAR_NAME + 80
 Public Const ADR_CHAR_OUTFIT = ADR_CHAR_NAME + 92
 Public Const ADR_CHAR_LIGHT = ADR_CHAR_NAME + 112
 Public Const ADR_CHAR_COLOR = ADR_CHAR_NAME + 116
 Public Const ADR_CHAR_HP = ADR_CHAR_NAME + 128
 Public Const ADR_CHAR_ONSCREEN = ADR_CHAR_NAME + 136
+Public Const ADR_CHAR_SKULL = ADR_CHAR_NAME + 140
+Public Const ADR_CHAR_PARTY = ADR_CHAR_NAME + 144
 
 'character details
+Public Const ADR_SWORD_PERCENT = ADR_CHAR_NAME - &HD0
+Public Const ADR_SWORD = ADR_CHAR_NAME - &HB4
 Public Const ADR_BATTLE_SIGN = ADR_CHAR_NAME - &HDC
 Public Const ADR_TARGET_ID = ADR_CHAR_NAME - &H98
+Public Const ADR_FOLLOW_ID = ADR_CHAR_NAME - &H9C
 Public Const ADR_CUR_SOUL = ADR_CHAR_NAME - &H90
 Public Const ADR_MAX_MANA = ADR_CHAR_NAME - &H8C
 Public Const ADR_CUR_MANA = ADR_CHAR_NAME - &H88
+Public Const ADR_MAG_LEVEL = ADR_CHAR_NAME - &H7C
 Public Const ADR_LEVEL = ADR_CHAR_NAME - &H78
 Public Const ADR_EXP = ADR_CHAR_NAME - &H74
+Public Const ADR_LEVEL_PERCENT = ADR_CHAR_NAME - &H70
 Public Const ADR_CUR_HP = ADR_CHAR_NAME - &H6C
 Public Const ADR_MAX_HP = ADR_CHAR_NAME - &H70
 Public Const ADR_PLAYER_ID = ADR_CHAR_NAME - &H68
@@ -57,11 +66,16 @@ Public Const ADR_BP_ITEM = ADR_BP_NAME + &H2C
 Public Const ADR_BP_ITEM_QUANTITY = ADR_BP_ITEM + 4
 
 'inventory
-Public Const SLOT_LEFT_HAND = &H6
+Public Const SLOT_HELMET = &H1
+Public Const SLOT_NECK = &H2
+Public Const SLOT_BACKPACK = &H3
+Public Const SLOT_ARMOR = &H4
 Public Const SLOT_RIGHT_HAND = &H5
-Public Const SLOT_AMMO = &HA
+Public Const SLOT_LEFT_HAND = &H6
+Public Const SLOT_LEGS = &H7
+Public Const SLOT_BOOTS = &H8
 Public Const SLOT_RING = &H9
-Public Const SLOT_BAG = &H3
+Public Const SLOT_AMMO = &HA
 
 Public Const ADR_AMMO = &H4A9624
 Public Const ADR_RIGHT_HAND = ADR_AMMO + (SLOT_RIGHT_HAND - SLOT_AMMO) * SIZE_ITEM
@@ -84,9 +98,16 @@ Public Const ADR_GFX_VIEW_X = &H4ABF48
 Public Const ADR_GFX_VIEW_Z = ADR_GFX_VIEW_X - 8
 'Public Const ADR_GFX_UNIDENT_Z = &HD025DC
 Public Const ADR_GFX_VIEW_Y = ADR_GFX_VIEW_X - 4
+'#define PLAYER_NAME         0x005F3DA6 // string
+Public Const ADR_MOUSE_OP = &H5F6D44
+'    USE_LEFT_CLICK          = 1,    // finish use object, walk, click interface
+'    USE_RIGHT_CLICK         = 2,    // prepare use object
+'    USE_LEFT_RIGHT_CLICK    = 3,    // look; "You see..."
+'    USE_DRAG                = 6,    // drag object
+'    USE_OBJECT              = 7,    // use object (fishing rod)
 
-Public Const ADR_ACCOUNT_NUMBER = &H5F6CDC
-Public Const ADR_PASSWORD = &H5F6CBC
+Public Const ADR_ACCOUNT_NUMBER = &H4F6CDC 'note, short 0x100000
+Public Const ADR_PASSWORD = &H4F6CBC 'note, short 0x100000
 Public Const ADR_SERVER_IP = &H5EFB50
 Public Const ADR_SERVER_PORT = &H5EFBB4
 
@@ -112,7 +133,7 @@ Public Const ITEM_BAG = 2853
 Public Const ITEM_SPEAR = &HCCD
 Public Const ITEM_SMALL_STONE = &H6F5
 Public Const ITEM_THROWING_KNIFE = &HCE2
-Public Const ITEM_THROWING_STAR = &HC99
+Public Const ITEM_THROWING_STAR = 3287
 'weapons
 Public Const ITEM_GIANT_SWORD = &HCD1
 Public Const ITEM_BRIGHT_SWORD = &HCDF
@@ -125,6 +146,9 @@ Public Const ITEM_DRAGON_LANCE = &HCE6
 Public Const ITEM_ICE_RAPIER = 3284
 
 Public Const ITEM_FOOD_FISH = &HDFA
+
+'tiles
+Public Const TILE_LADDER = &H79C
 
 'OLD UNUSED CONSTANTS
 'Public Const adrXGo = &H5F2AF0

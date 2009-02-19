@@ -98,7 +98,7 @@ Private Sub tmrScript_Timer()
         Case "say": SayStuff line(1): AddStatusMessage "Scripted message."
         Case "wait": waitTime = GetTickCount() + CLng(line(1)): AddStatusMessage "Scripted wait, " & line(1) & "ms."
         Case "pm": SendPM line(1), line(2): AddStatusMessage "Scripted PM sent."
-        Case "log": frmMain.StartLogOut: AddStatusMessage "Scripted Log ASAP."
+        Case "log": frmMain.chkLogOut = Checked: AddStatusMessage "Scripted Log ASAP."
         Case "walk": Step Int(line(1)): AddStatusMessage "Scripted walk in direction " & line(1) & "."
     End Select
     curLine = curLine + 1

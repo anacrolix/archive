@@ -92,6 +92,16 @@ Const LIST_HEIGHT = 255
 Const TWIXT_SPACE = 50
 Const HOR_PADDING = 30
 Const VERT_PADDING = 30
+'Default Property Values:
+Const m_def_Prioritized = 1
+'Const m_def_Prioritized = True
+'Const m_def_Prioritized = 1
+'Property Variables:
+Dim m_Prioritized As Boolean
+'Dim m_Prioritized As Boolean
+'Dim m_Prioritized As Boolean
+
+
 
 Private Sub cmdAdd_Click()
     Dim temp As String
@@ -141,6 +151,7 @@ End Sub
 
 Private Sub UserControl_Initialize()
     theList.Clear
+    UserControl_Resize
 End Sub
 
 Private Sub UserControl_ReadProperties(PropBag As PropertyBag)
@@ -153,20 +164,28 @@ Dim Index As Integer
 '   line is shown next:
     theList.List(Index) = PropBag.ReadProperty("List" & Index, "")
     theList.ListIndex = PropBag.ReadProperty("ListIndex", 0)
+'    m_Prioritized = PropBag.ReadProperty("Prioritized", m_def_Prioritized)
+'    m_Prioritized = PropBag.ReadProperty("Prioritized", m_def_Prioritized)
+    m_Prioritized = PropBag.ReadProperty("Prioritized", m_def_Prioritized)
 End Sub
 
 Private Sub UserControl_Resize()
+If Me.Prioritized = True Then
     With cmdRaise
         .Height = BUTTON_HEIGHT
         .Width = BUTTON_WIDTH
         .Top = VERT_PADDING
         .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+        .Visible = True
+        .Enabled = True
     End With
     With cmdLower
         .Height = BUTTON_HEIGHT
         .Width = BUTTON_WIDTH
         .Top = VERT_PADDING + BUTTON_HEIGHT + BUTTON_SPACE
         .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+        .Visible = True
+        .Enabled = True
     End With
     With cmdAdd
         .Height = BUTTON_HEIGHT
@@ -186,6 +205,42 @@ Private Sub UserControl_Resize()
         .Top = UserControl.Height - VERT_PADDING - BUTTON_HEIGHT
         .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
     End With
+Else
+    With cmdRaise
+        .Height = BUTTON_HEIGHT
+        .Width = BUTTON_WIDTH
+        .Top = VERT_PADDING
+        .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+        .Visible = False
+        .Enabled = False
+    End With
+    With cmdLower
+        .Height = BUTTON_HEIGHT
+        .Width = BUTTON_WIDTH
+        .Top = VERT_PADDING + BUTTON_HEIGHT + BUTTON_SPACE
+        .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+        .Visible = False
+        .Enabled = False
+    End With
+    With cmdAdd
+        .Height = BUTTON_HEIGHT
+        .Width = BUTTON_WIDTH
+        .Top = VERT_PADDING
+        .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+    End With
+    With cmdRemove
+        .Height = BUTTON_HEIGHT
+        .Width = BUTTON_WIDTH
+        .Top = VERT_PADDING + BUTTON_HEIGHT + BUTTON_SPACE
+        .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+    End With
+    With cmdClear
+        .Height = BUTTON_HEIGHT
+        .Width = BUTTON_WIDTH
+        .Top = VERT_PADDING + 2 * (BUTTON_HEIGHT + BUTTON_SPACE)
+        .Left = UserControl.Width - BUTTON_WIDTH - HOR_PADDING
+    End With
+End If
     With lblTitle
         .Height = LIST_HEIGHT
         .Width = UserControl.Width - BUTTON_WIDTH
@@ -206,6 +261,10 @@ Private Sub UserControl_Resize()
     End With
 End Sub
 
+Private Sub UserControl_Show()
+    UserControl_Resize
+End Sub
+
 Private Sub UserControl_WriteProperties(PropBag As PropertyBag)
 Dim Index As Integer
      PropBag.WriteProperty "Title", lblTitle.Caption
@@ -215,6 +274,9 @@ Dim Index As Integer
 '   line is shown next:
     Call PropBag.WriteProperty("List" & Index, theList.List(Index), "")
     Call PropBag.WriteProperty("ListIndex", theList.ListIndex, 0)
+'    Call PropBag.WriteProperty("Prioritized", m_Prioritized, m_def_Prioritized)
+'    Call PropBag.WriteProperty("Prioritized", m_Prioritized, m_def_Prioritized)
+    Call PropBag.WriteProperty("Prioritized", m_Prioritized, m_def_Prioritized)
 End Sub
 'WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
 'MappingInfo=lblTitle,lblTitle,-1,Caption
@@ -293,4 +355,50 @@ Public Function Contains(strTest As String) As Integer
         End If
     Next i
 End Function
+'
+''WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
+''MemberInfo=0,3,0,1
+'Public Property Get Prioritized() As Boolean
+'    If Ambient.UserMode Then Err.Raise 393
+'    Prioritized = m_Prioritized
+'End Property
+'
+'Public Property Let Prioritized(ByVal New_Prioritized As Boolean)
+'    If Ambient.UserMode Then Err.Raise 382
+'    m_Prioritized = New_Prioritized
+'    PropertyChanged "Prioritized"
+'End Property
+
+'Initialize Properties for User Control
+Private Sub UserControl_InitProperties()
+'    m_Prioritized = m_def_Prioritized
+'    m_Prioritized = m_def_Prioritized
+    m_Prioritized = m_def_Prioritized
+    UserControl_Resize
+End Sub
+'
+''WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
+''MemberInfo=0,1,0,true
+'Public Property Get Prioritized() As Boolean
+'    Prioritized = m_Prioritized
+'End Property
+'
+'Public Property Let Prioritized(ByVal New_Prioritized As Boolean)
+'    If Ambient.UserMode Then Err.Raise 382
+'    m_Prioritized = New_Prioritized
+'    PropertyChanged "Prioritized"
+'End Property
+'
+'WARNING! DO NOT REMOVE OR MODIFY THE FOLLOWING COMMENTED LINES!
+'MemberInfo=0,1,0,1
+Public Property Get Prioritized() As Boolean
+    Prioritized = m_Prioritized
+End Property
+
+Public Property Let Prioritized(ByVal New_Prioritized As Boolean)
+    If Ambient.UserMode Then Err.Raise 382
+    m_Prioritized = New_Prioritized
+    PropertyChanged "Prioritized"
+    UserControl_Resize
+End Property
 

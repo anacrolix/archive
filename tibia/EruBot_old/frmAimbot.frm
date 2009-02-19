@@ -5,12 +5,12 @@ Begin VB.Form frmAimbot
    ClientHeight    =   5595
    ClientLeft      =   45
    ClientTop       =   315
-   ClientWidth     =   10050
+   ClientWidth     =   13665
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
    ScaleHeight     =   5595
-   ScaleWidth      =   10050
+   ScaleWidth      =   13665
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
    Begin VB.ComboBox comboButton 
@@ -184,28 +184,28 @@ Begin VB.Form frmAimbot
       Width           =   2775
    End
    Begin EruBot.listFancy listEnemies 
-      Height          =   2415
-      Left            =   6480
+      Height          =   5295
+      Left            =   10080
       TabIndex        =   28
-      Top             =   2640
+      Top             =   120
       Width           =   3495
-      _ExtentX        =   6165
-      _ExtentY        =   4260
-      Title           =   "Enemies"
-      Caption         =   "Enemies"
-      ListIndex       =   -1
+      _extentx        =   6165
+      _extenty        =   9340
+      title           =   "Enemies"
+      caption         =   "Enemies"
+      listindex       =   -1
    End
    Begin EruBot.listFancy listFriends 
-      Height          =   2415
+      Height          =   5295
       Left            =   6480
       TabIndex        =   27
       Top             =   120
       Width           =   3495
-      _ExtentX        =   6165
-      _ExtentY        =   4260
-      Title           =   "Friends"
-      Caption         =   "Friends"
-      ListIndex       =   -1
+      _extentx        =   6165
+      _extenty        =   9340
+      title           =   "Friends"
+      caption         =   "Friends"
+      listindex       =   -1
    End
    Begin VB.CheckBox chkFluidMoveUpBP 
       Caption         =   "Move up backpack when empty."
@@ -688,6 +688,9 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Dim keysDown(255) As Boolean
+Dim healStop As Long
+Dim healMana As Long
+Dim healSpell As String
 
 Private Sub combobutton_Click(Index As Integer)
   Dim c As Integer
@@ -696,7 +699,7 @@ Private Sub combobutton_Click(Index As Integer)
     comboButton(Index).ListIndex = -1
     Exit Sub
   End If
-  For c = comboButton.LBound To comboButton.UBound
+  For c = comboButton.LBound To comboButton.ubound
     If comboButton(c).ListIndex = comboButton(Index).ListIndex And c <> Index Then
       comboButton(c).ListIndex = -1
       Exit Sub
@@ -717,8 +720,8 @@ Private Sub hscrHealAt_Change()
 End Sub
 
 Private Sub tmrExura_Timer()
-    If ReadMem(ADR_CUR_HP, 2) < ReadMem(ADR_MAX_HP, 2) - 75 And ReadMem(ADR_CUR_MANA, 2) >= 25 Then
-        SayStuff "exura"
+    If ReadMem(ADR_CUR_HP, 2) < healStop And ReadMem(ADR_CUR_MANA, 2) >= healMana Then
+        SayStuff healSpell
     Else
         tmrExura.Enabled = False
     End If
@@ -752,9 +755,20 @@ Private Function GetPressedKey(key As Long) As Boolean
     End If
 End Function
 
+Public Sub ToggleHealToFull(hp As Long, mana As Long, spell As String)
+    healStop = hp
+    healMana = mana
+    healSpell = spell
+    If tmrExura.Enabled = False Then
+        tmrExura.Enabled = True
+    Else
+        tmrExura.Enabled = False
+    End If
+End Sub
+
 Private Sub ButtonDown(Button As String)
     Dim c As Integer
-    For c = comboButton.LBound To comboButton.UBound
+    For c = comboButton.LBound To comboButton.ubound
         If comboButton(c).Text = Button Then
             Select Case c
                 Case 0 To 8: AimbotRune lblAction(c).Caption
@@ -766,12 +780,7 @@ Private Sub ButtonDown(Button As String)
                     Else
                         frmMageCrew.LogOutMageCrew
                     End If
-                Case 13:
-                    If tmrExura.Enabled = False Then
-                        tmrExura.Enabled = True
-                    Else
-                        tmrExura.Enabled = False
-                    End If
+                Case 13: ToggleHealToFull 0.95 * ReadMem(ADR_MAX_HP, 4), 25, "exura"
             End Select
             Exit Sub
         End If
@@ -788,20 +797,20 @@ Private Sub DrinkFluid()
     curMana = ReadMem(ADR_CUR_MANA, 2)
     maxMana = ReadMem(ADR_MAX_MANA, 2)
     
-    If curMana < maxMana * 0.8 And curMana < maxMana - 60 Then
+    If curMana < maxMana * 0.8 Or curMana < maxMana - 60 Then
         foundFluid = False
         'have fluided b4 from bp, and current fluid is not last in bp and bp still open
-        If bpIndex >= &H40 And slotIndex + 1 < ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) - 1 _
-        And ReadMem(ADR_BP_OPEN + (bpIndex - &H40) * SIZE_BP, 1) = 1 Then
-            If confirmItem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + (slotIndex + 1) * SIZE_ITEM, ITEM_VIAL) Then
-                foundFluid = True
-                slotIndex = slotIndex + 1
-            End If
-        End If
+        'If bpIndex >= &H40 And slotIndex + 1 < ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) - 1 _
+        'And ReadMem(ADR_BP_OPEN + (bpIndex - &H40) * SIZE_BP, 1) = 1 Then
+        '    If confirmItem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + (slotIndex + 1) * SIZE_ITEM, ITEM_VIAL) Then
+        '        foundFluid = True
+        '        slotIndex = slotIndex + 1
+        '    End If
+        'End If
         
-        If Not foundFluid Then
-            If findItem(ITEM_VIAL, bpIndex, slotIndex, True, True) Then foundFluid = True
-        End If
+        'If Not foundFluid Then
+        If findItem(ITEM_VIAL, bpIndex, slotIndex, True, True) Then foundFluid = True
+        'End If
         
         If foundFluid Then
             'send use fluid packet
@@ -910,7 +919,7 @@ Private Sub AimbotRune(runeToFire As String)
         If targetPos < 0 Then 'if none found
             targetID = ReadMem(ADR_TARGET_ID, 4) 'shoot the current target
             If targetID <= 0 Then 'if no current target
-                targetPos = FindPosByHP(listEnemies, 100, False) 'shoot the first person on the list
+                targetPos = FindPosByHP(listEnemies, 101, False) 'shoot the first person on the list
                 If targetPos < 0 Then Exit Sub
             Else
                 targetPos = findPosByID(targetID)
