@@ -1,9 +1,9 @@
 Type=Exe
-Form=Form1.frm
-Reference=*\G{00020430-0000-0000-C000-000000000046}#2.0#0#C:\WINDOWS\system32\STDOLE2.TLB#OLE Automation
-Module=Module1; Module1.bas
-IconForm="Form1"
-Startup="Form1"
+Form=frmDerek.frm
+Reference=*\G{00020430-0000-0000-C000-000000000046}#2.0#0#..\..\WINDOWS\system32\stdole2.tlb#OLE Automation
+IconForm="frmDerek"
+Startup="frmDerek"
+ExeName32="Derek.exe"
 Command32=""
 Name="Project1"
 HelpContextID="0"
