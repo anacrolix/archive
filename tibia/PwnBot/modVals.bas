@@ -231,3 +231,11 @@ Public Function IsFood(id As Long) As Boolean
         Case Else: IsFood = False
     End Select
 End Function
+
+Public Function TIME_ATTACK_RUNE(isEnforced As Boolean) As Long
+    If isEnforced Then
+        TIME_ATTACK_RUNE = 1000
+    Else
+        TIME_ATTACK_RUNE = 2000
+    End If
+End Function

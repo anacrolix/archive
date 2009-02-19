@@ -18,31 +18,6 @@ End Type
 Dim bombChars(MAX_BOMBCHARS - 1) As typBombChar
 Dim bestTarPos As Long
 
-Private Function GetFileName_CharList() As String
-    On Error GoTo Cancel
-    With frmBomb.cdlgBomb
-        .fileName = "*." & FILEEXT_CHARLIST
-        .Filter = "EruBomb Character List, *." & FILEEXT_CHARLIST
-        .DialogTitle = "Load Character List"
-        .InitDir = App.Path
-        .DefaultExt = FILEEXT_CHARLIST
-        .ShowOpen
-        GetFileName_CharList = .fileName
-    End With
-Cancel:
-End Function
-
-Private Sub BombChars_ClearList()
-    Dim i As Integer
-    frmBomb.listChars.Clear
-    For i = 0 To MAX_BOMBCHARS - 1
-        With bombChars(i)
-            .used = False
-            .name = ""
-        End With
-    Next i
-End Sub
-
 Private Sub BombChar_Reset(charIndex As Integer)
     With bombChars(charIndex)
         .connectTime = 0

@@ -711,7 +711,7 @@ Spell_PutBackOriginalItem:
     
     'EAT
     
-    If IsGameActive And frmMain.chkEat And bLogOut = False And IsAtSafeSpot = False And bLogOut = False _
+    If IsGameActive And frmMain.chkEat And bLogOut = False And IsAtSafeSpot = False _
         And curTick >= nextEatTick And curTick >= nextActionTick _
     Then
         Dim resEatFood As Long

@@ -11,6 +11,7 @@ Private Type typ_bomb_char
     nextRuneTick As Long
     sentLogin As Boolean
     copiedOutfit As Boolean
+    allowUnmarked As Boolean
 End Type
 
 Public bombing As Boolean
@@ -116,7 +117,8 @@ Public Sub StopBombing()
     'wait for sockets to close
     For i = frmMain.sckChar.LBound To frmMain.sckChar.UBound
         While frmMain.sckChar(i).State <> sckClosed
-'            DoEvents
+            frmMain.sckChar(i).Close
+            DoEvents
         Wend
     Next i
 End Sub
@@ -182,6 +184,7 @@ Public Sub BombSock_Connect(charIndex As Long)
         .serverFirstReplyTick = 0
         .nextRuneTick = 0
         .copiedOutfit = False
+        .allowUnmarked = False
     End With
 End Sub
 
@@ -278,7 +281,22 @@ Public Sub DoBombing()
         With bombChars(i)
             If frmMain.sckChar(i).State = sckConnected Then
                 If .sentLogin And .serverReplied Then
-                    If GetTickCount >= .nextRuneTick Then
+                    If .allowUnmarked = False And frmMain.chkPvpEnforcedWorld.value <> Checked Then
+                        BombSock_SendXtea i, Packet_AttackUnmarkedPlayers(True)
+                        .allowUnmarked = True
+                        Debug.Print .name & " sent allow attack unmarked players packet @ "; GetTickCount - bombStartTick
+                    ElseIf .copiedOutfit = False And GetPlayerIndex >= 0 And frmMain.chkCopySummonerColors Then
+                        Dim outfit(5) As Long, j As Long
+                        ReadProcessMemory hProcClient, ADR_CHAR_OUTFIT + GetPlayerIndex * SIZE_CHAR, outfit(0), Len(outfit(0)) * 6, 0
+                        UpdateCharMem
+                        j = GetChar_ByName(.name)
+                        If j >= 0 Then
+                            outfit(0) = charMem.char(j).outfit
+                            outfit(5) = 0
+                            BombSock_SendXtea i, Packet_ChangeOutfitEx(outfit)
+                            .copiedOutfit = True
+                        End If
+                    ElseIf GetTickCount >= .nextRuneTick Then
                         UpdateCharMem
                         Dim id As Long
                         If frmMain.optSayTarget Then
@@ -301,14 +319,14 @@ Public Sub DoBombing()
                                     rune = ITEM_RUNE_SD
                                 End If
                                 BombSock_SendXtea i, Packet_UseAt(rune, 0, id)
-                                .nextRuneTick = GetTickCount + 1000
+                                .nextRuneTick = GetTickCount + TIME_ATTACK_RUNE(frmMain.chkPvpEnforcedWorld.value = Checked)
                             End If
                         ElseIf frmMain.optSpam And frmMain.txtSpamee <> "" And frmMain.txtSpamMsg <> "" Then
                             BombSock_SendXtea i, Packet_PrivateMessage(frmMain.txtSpamee, frmMain.txtSpamMsg)
                             .nextRuneTick = GetTickCount + 3000
                         ElseIf frmMain.optBestCase Then
                             BombSock_SendXtea i, Packet_SayDefault("exori")
-                            .nextRuneTick = GetTickCount + 1000
+                            .nextRuneTick = GetTickCount + TIME_ATTACK_RUNE(frmMain.chkPvpEnforcedWorld.value = Checked)
                         End If
 '                        Static hiCount As Long
 '                        Dim msg As String
@@ -317,18 +335,6 @@ Public Sub DoBombing()
 '                        BombSock_SendXtea i, Packet_PrivateMessage("Raamboxx", msg)
 '                        .nextRuneTick = GetTickCount + 3500
 '                        hiCount = hiCount + 1
-                    End If
-                    If .copiedOutfit = False And GetPlayerIndex >= 0 And frmMain.chkCopySummonerColors Then
-                        Dim outfit(5) As Long, j As Long
-                        ReadProcessMemory hProcClient, ADR_CHAR_OUTFIT + GetPlayerIndex * SIZE_CHAR, outfit(0), Len(outfit(0)) * 6, 0
-                        UpdateCharMem
-                        j = GetChar_ByName(.name)
-                        If j >= 0 Then
-                            outfit(0) = charMem.char(j).outfit
-                            outfit(5) = 0
-                            BombSock_SendXtea i, Packet_ChangeOutfitEx(outfit)
-                            .copiedOutfit = True
-                        End If
                     End If
                 ElseIf .sentLogin = False Then
                     Debug.Print .name & " sending login packet @ " & GetTickCount - bombStartTick

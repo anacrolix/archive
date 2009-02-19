@@ -18,7 +18,7 @@ Begin VB.Form frmBomb
       Alignment       =   2  'Center
       Height          =   285
       Left            =   4320
-      TabIndex        =   18
+      TabIndex        =   16
       Text            =   "3155"
       Top             =   6480
       Width           =   615
@@ -27,7 +27,7 @@ Begin VB.Form frmBomb
       Caption         =   "Send stay alive packets"
       Height          =   255
       Left            =   120
-      TabIndex        =   17
+      TabIndex        =   15
       Top             =   6600
       Width           =   3255
    End
@@ -35,7 +35,7 @@ Begin VB.Form frmBomb
       Caption         =   "Form brigade"
       Height          =   255
       Left            =   120
-      TabIndex        =   16
+      TabIndex        =   14
       Top             =   6360
       Width           =   3375
    End
@@ -43,7 +43,7 @@ Begin VB.Form frmBomb
       Caption         =   "Follow first target"
       Height          =   255
       Left            =   120
-      TabIndex        =   15
+      TabIndex        =   13
       Top             =   6120
       Width           =   3255
    End
@@ -77,7 +77,7 @@ Begin VB.Form frmBomb
       Enabled         =   0   'False
       Height          =   255
       Left            =   2760
-      TabIndex        =   12
+      TabIndex        =   10
       Top             =   600
       Width           =   1215
    End
@@ -94,7 +94,7 @@ Begin VB.Form frmBomb
       EndProperty
       Height          =   375
       Left            =   4800
-      TabIndex        =   11
+      TabIndex        =   9
       Top             =   120
       Width           =   1935
    End
@@ -111,14 +111,14 @@ Begin VB.Form frmBomb
       EndProperty
       Height          =   375
       Left            =   2760
-      TabIndex        =   10
+      TabIndex        =   8
       Top             =   120
       Width           =   1935
    End
    Begin VB.TextBox txtServerPort 
       Height          =   285
       Left            =   840
-      TabIndex        =   9
+      TabIndex        =   7
       Text            =   "7171"
       Top             =   480
       Width           =   1695
@@ -126,7 +126,7 @@ Begin VB.Form frmBomb
    Begin VB.TextBox txtServerIP 
       Height          =   285
       Left            =   840
-      TabIndex        =   7
+      TabIndex        =   5
       Text            =   "67.15.99.105"
       Top             =   120
       Width           =   1695
@@ -135,7 +135,7 @@ Begin VB.Form frmBomb
       Caption         =   "Save Target List"
       Height          =   375
       Left            =   5280
-      TabIndex        =   5
+      TabIndex        =   3
       Top             =   960
       Width           =   1575
    End
@@ -143,34 +143,9 @@ Begin VB.Form frmBomb
       Caption         =   "Save Character List"
       Height          =   375
       Left            =   1800
-      TabIndex        =   4
+      TabIndex        =   2
       Top             =   960
       Width           =   1575
-   End
-   Begin EruBomb.listFancy listChars 
-      Height          =   4575
-      Left            =   120
-      TabIndex        =   3
-      Top             =   1440
-      Width           =   3255
-      _ExtentX        =   5741
-      _ExtentY        =   8070
-      Title           =   "Characters"
-      Caption         =   "Characters"
-      ListIndex       =   -1
-      Prioritized     =   0   'False
-   End
-   Begin EruBomb.listFancy listTargets 
-      Height          =   4575
-      Left            =   3600
-      TabIndex        =   2
-      Top             =   1440
-      Width           =   3255
-      _ExtentX        =   5741
-      _ExtentY        =   8070
-      Title           =   "Targets"
-      Caption         =   "Targets"
-      ListIndex       =   -1
    End
    Begin VB.CommandButton cmdLoadTargets 
       Caption         =   "Load Target List"
@@ -505,7 +480,7 @@ Begin VB.Form frmBomb
       Caption         =   "Rune ID"
       Height          =   255
       Left            =   3600
-      TabIndex        =   19
+      TabIndex        =   17
       Top             =   6480
       Width           =   615
    End
@@ -513,7 +488,7 @@ Begin VB.Form frmBomb
       Caption         =   "Optimum Target: NONE"
       Height          =   255
       Left            =   3600
-      TabIndex        =   14
+      TabIndex        =   12
       Top             =   6120
       Width           =   3255
    End
@@ -521,7 +496,7 @@ Begin VB.Form frmBomb
       Caption         =   "Current client: NONE"
       Height          =   255
       Left            =   4080
-      TabIndex        =   13
+      TabIndex        =   11
       Top             =   600
       Width           =   2655
    End
@@ -530,7 +505,7 @@ Begin VB.Form frmBomb
       Caption         =   "Port"
       Height          =   255
       Left            =   0
-      TabIndex        =   8
+      TabIndex        =   6
       Top             =   480
       Width           =   735
    End
@@ -539,7 +514,7 @@ Begin VB.Form frmBomb
       Caption         =   "Server IP"
       Height          =   255
       Left            =   0
-      TabIndex        =   6
+      TabIndex        =   4
       Top             =   120
       Width           =   735
    End

@@ -1,6 +1,7 @@
-LIBRARY PWN
-DESCRIPTION DLL FOR PWN
+LIBRARY ERUDLL
+DESCRIPTION DLL FOR ERUDLL
 
 EXPORTS
 	EncipherXteaPacket		@1
 	DecipherXteaPacket		@2
+	GetTibiaWindow			@3

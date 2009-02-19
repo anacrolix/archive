@@ -10,6 +10,20 @@ Public Function Packet_LogOut() As Byte()
 
     Packet_LogOut = buff
 End Function
+
+Public Function Packet_AttackUnmarkedPlayers(allow As Boolean) As Byte()
+'    Client->Server (10)
+'8000400  A0030000 B24B
+    Dim buff(9) As Byte
+    buff(0) = 8
+    buff(2) = 4
+    buff(4) = &HA0
+    buff(5) = &H3
+    If allow = False Then buff(7) = 1
+    
+    Packet_AttackUnmarkedPlayers = buff
+End Function
+
 '
 'Public Sub SendToClient(buff() As Byte)
 '    If (UBound(buff) - 1) Mod 8 <> 0 Then

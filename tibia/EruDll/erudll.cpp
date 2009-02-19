@@ -38,7 +38,9 @@ int _stdcall DecipherXteaPacket(unsigned char *b, unsigned int len, unsigned cha
 	return 0;
 };
 
-/*
+HWND _stdcall GetTibiaWindow() {
+	return FindWindow("TibiaClient", NULL);
+}
 
 /*
 int _stdcall ReadMemory(HANDLE processHandle, DWORD address, DWORD length, long* val) {
@@ -52,9 +54,7 @@ int _stdcall WriteMemory(HANDLE processHandle, DWORD address, DWORD length, long
   return 0;
 };
 
-/*
 int _stdcall ReadMemoryString(HANDLE processHandle, DWORD address, DWORD length, char* str) {
-	/*
 	if (address >= ADR_CHAR_MEM_START && address + length < ADR_CHAR_MEM_END) {
 		strncpy(str, &charMem[address - ADR_CHAR_MEM_START], length);
 		return 1;

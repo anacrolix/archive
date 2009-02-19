@@ -217,13 +217,13 @@ End Function
 
 Public Function IsImmune(monName As String, damageType As typ_Damage) As Boolean
     If damageType = DAMAGE_FORCE Then
-        If NameInList(DataIniPath, "damage immunities", "force", monName) Then GoTo Yes
+        If NameInList(datainipath, "damage immunities", "force", monName) Then GoTo Yes
     ElseIf damageType = DAMAGE_ENERGY Then
-        If NameInList(DataIniPath, "damage immunities", "energy", monName) Then GoTo Yes
+        If NameInList(datainipath, "damage immunities", "energy", monName) Then GoTo Yes
     ElseIf damageType = DAMAGE_FIRE Then
-        If NameInList(DataIniPath, "damage immunities", "fire", monName) Then GoTo Yes
+        If NameInList(datainipath, "damage immunities", "fire", monName) Then GoTo Yes
     ElseIf damageType = DAMAGE_POISON Then
-        If NameInList(DataIniPath, "damage immunities", "poison", monName) Then GoTo Yes
+        If NameInList(datainipath, "damage immunities", "poison", monName) Then GoTo Yes
     End If
     Exit Function
 Yes:

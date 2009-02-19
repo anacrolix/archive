@@ -1,0 +1,10 @@
+First Battlelist entry H49D08C
+Offsets (decimal)
+light +112 (byte?)
+id -4 (long)
+x coord +32 (long)
+y coord +36 (long)
+z coord +40 (long)
+length of battlelist entries 156
+
+current experience 49D01C
