@@ -1,4 +1,4 @@
-"0.9.99"
+"0.9.103"
 1
 0
 -1
@@ -16,11 +16,11 @@
 17
 0
 1
-70
+80
 4
 0
+8
 0
-1
 1
 "Nyalith"
 "Snarkz"
@@ -109,7 +109,7 @@
 "0"
 "0"
 "0"
-1
+0
 "exura"
 "505"
 ""
@@ -148,6 +148,11 @@
 "Dwarven shield,3425"
 "Bow,3350"
 "Crossbow,3349"
+"Ring of healing,3098"
+"Stone skin amulet,3081"
+"Warrior helmet,3369"
+"Royal helmet,3392"
+"Dragon necklace,3085"
 "<End List>"
 "Power bolts,3450"
 "Gold,3031"

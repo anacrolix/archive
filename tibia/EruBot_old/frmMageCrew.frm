@@ -259,6 +259,7 @@ Public startTime As Long
 Public mageCrewActive As Boolean
 Public bpOpen As Boolean
 Public followMode As Boolean
+
 Const followLines = 2
 Dim curMage As Integer
 
@@ -493,12 +494,27 @@ Public Function MageCrew_Follow(mageIndex As Integer, id As Long)
     If frmMain.sckMC(mageIndex).State = sckConnected Then frmMain.sckMC(mageIndex).SendData buff
 End Function
 
+'04 00 A0 03 00 00
+Public Function MageCrew_AllowAttackUnmarked(mageIndex As Integer)
+    Dim buff(5) As Byte
+    buff(0) = &H4
+    buff(1) = &H0
+    buff(2) = &HA0
+    buff(3) = &H3
+    buff(4) = &H0
+    buff(5) = &H0
+    
+    If frmMain.sckMC(mageIndex).State = sckConnected Then frmMain.sckMC(mageIndex).SendData buff
+End Function
+
 Private Sub tmrMageCrew_Timer()
     Dim tX As Long, tY As Long, tZ As Long, tarPos As Integer, i As Integer
 
     If GetTickCount > startTime + 500 And bpOpen = False Then
         'MageCrew_SayStuff curMage, "alana sio " & vbquot
         MageCrew_OpenBag curMage, &HB36
+        DoEvents
+        MageCrew_AllowAttackUnmarked curMage
         curMage = curMage + 1
         If curMage > listMages.ListCount - 1 Then
             bpOpen = True
