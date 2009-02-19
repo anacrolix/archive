@@ -1,0 +1,6 @@
+LIBRARY PWN
+DESCRIPTION DLL FOR PWN
+
+EXPORTS
+	EncipherXteaPacket		@1
+	DecipherXteaPacket		@2
