@@ -1,9 +1,9 @@
-"0.9.89"
+"0.9.91"
 1
 0
+-1
+-1
 2
--1
--1
 -1
 -1
 -1
@@ -12,30 +12,29 @@
 3
 -1
 4
-5
+-1
 1
-"Friend's Name"
 4
 0
 0
 1
 1
-"180"
+"1000"
 1
-1
-#FALSE#
+0
 #TRUE#
+#FALSE#
 "exura gran"
 "40"
 "1200"
-0
+1
 "adori gran flam"
 "480"
 "3"
 "0"
 "0"
 "1"
-"1"
+"0"
 "0"
 "0"
 "1"
@@ -45,7 +44,7 @@
 #FALSE#
 "1"
 "14"
-"1"
+"0"
 "14"
 "1"
 "Snarkz"
@@ -74,8 +73,8 @@
 "1"
 "0"
 "0"
-1
-"exura gran"
+0
+"exura"
 "500"
 "walk,2;wait,200;walk,2;wait,200;walk,2"
 "Wornie,6554020,lockiesucks1"
@@ -155,6 +154,7 @@
 "Small amethyst,3033"
 "Black pearl,3027"
 "Small diamond,3028"
+"Small sapphire,3029"
 "<End List>"
 "0"
 "0"

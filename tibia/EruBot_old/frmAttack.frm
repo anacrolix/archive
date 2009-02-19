@@ -122,6 +122,17 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
+
+Private Sub chkWalk_Click()
+    Dim i As Integer
+    If chkWalk.Value = Checked Then
+        frameWalk.Visible = True
+    Else
+        frameWalk.Visible = False
+    End If
+End Sub
+
 Private Sub cmdDone_Click()
     Me.Hide
 End Sub
@@ -138,6 +149,7 @@ Private Sub tmrAttack_Timer()
             For i = optWalk.LBound To optWalk.UBound
                 If optWalk(i) Then
                     Step i
+                    DoEvents
                     s = "Walk "
                     Select Case j
                         Case 0: s = s & "North"

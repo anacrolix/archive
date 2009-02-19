@@ -1,13 +1,14 @@
 Attribute VB_Name = "modSck"
 Public Function LogList(buff() As Byte, Port As Long) As Byte()
-    Dim C1 As Integer
-    Dim C2 As Integer
-    Dim C3 As Integer
+    Dim C1 As Long
+    Dim C2 As Long
+    Dim C3 As Long
     Dim strTemp As String
     
     'MsgBox "loglist!! heloo!"
     On Error GoTo Error
     C1 = buff(3) + buff(4) * 256 + 7
+    'If buff(C1 - 1) > 41 Then buff(C1 - 1) = 41
     For C2 = 1 To buff(C1 - 1)
         strTemp = ""
         For C3 = 2 To buff(C1) + 1
@@ -25,11 +26,18 @@ Public Function LogList(buff() As Byte, Port As Long) As Byte()
         buff(C1 + 4) = Port - Fix(Port / 256) * 256
         buff(C1 + 5) = Fix(Port / 256)
         C1 = C1 + 6
+        If C2 >= 41 Then
+            ReDim Preserve buff(C1 + 1)
+            buff(C1) = 0
+            buff(C1 + 1) = 0
+            Exit For
+        End If
     Next
+Error:
     LogList = buff
     Exit Function
-Error:
-    MsgBox "There was a problem logging into the server. It may be offline."
+'Error:
+    'MsgBox "There was a problem logging into the server. It may be offline."
 End Function
 
 Public Function CharLog(buff() As Byte)
@@ -37,7 +45,7 @@ Public Function CharLog(buff() As Byte)
     For C1 = 14 To 13 + buff(12)
         name = name & Chr(buff(C1))
     Next C1
-    For C1 = 1 To 60
+    For C1 = 1 To 100
         If name = CList(C1).CName Then
             frmMain.sckS.Close
             frmMain.sckS.Connect CList(C1).IP, CList(C1).Port

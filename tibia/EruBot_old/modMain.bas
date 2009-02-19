@@ -26,6 +26,11 @@ Public Declare Function SetWindowText Lib "user32" Alias "SetWindowTextA" (ByVal
 Public Declare Function GetExitCodeProcess Lib "kernel32" (ByVal hProcess As Long, lpExitCode As Long) As Long
 Public Declare Function TerminateProcess Lib "kernel32" (ByVal hProcess As Long, ByVal uExitCode As Long) As Long
 
+Public Declare Function ReadMemory Lib "erudll.dll" (ByVal processHandle As Long, ByVal address As Long, ByVal size As Long) As Long
+Public Declare Function WriteMemory Lib "erudll.dll" (ByVal processHandle As Long, ByVal address As Long, ByVal size As Long, ByVal val As Long) As Integer
+Public Declare Function ReadMemoryString Lib "erudll.dll" (ByVal processHandle As Long, ByVal address As Long, ByVal size As Long) As String
+
+
 Public Declare Function playa Lib "winmm.dll" Alias "sndPlaySoundA" (ByVal lpszSoundName As String, ByVal uFlags As Long) As Long
 Public Const SND_FLAG = &H2 '&H1 'Or
 'Public Declare Function Memory Lib "erumem.dll" (ByVal hwnd As Long, ByVal address As Long, ByRef val As Long, ByVal size As Long, ByVal process As Integer) As Integer
@@ -51,12 +56,12 @@ Public Type CharList
 End Type
 
 Public Type typItem
-  item As Long
+  Item As Long
   quantity As Long
 End Type
 
 Public Type typBackpack
-  item() As typItem
+  Item() As typItem
   numItems As Long
   maxItems As Long
 End Type
@@ -66,7 +71,7 @@ Public ServerIP As String
 Public ServerPort As Integer
 Public tHWND As Long
 Public processID As Long
-Public ProcessHandle As Long
+Public processHandle As Long
 Public tibDir As String
 Public tibFileName As String
 Public wavLoc As String
@@ -93,40 +98,44 @@ Public ExpRecordPos As Integer
 
 Public CharName As String
 
-Public CList(60) As CharList
+Public CList(100) As CharList
 
 Public Const PROCESS_ALL_ACCESS = &H1F0FFF
 
 Public Function ReadMem(ByVal address As Long, ByVal size As Long) As Long
-  Dim val As Long
-  Static reads As Long, lastTime As Long
-  
-  If frmMain.mnuDebug.Checked Then
-    If GetTickCount >= lastTime + 3000 Then
-      lastTime = GetTickCount
-      AddStatusMessage "Reads/second: " & reads / 3
-      reads = 0
-    End If
-    reads = reads + 1
-  End If
-  
-  If ReadProcessMemory(ProcessHandle, address, val, size, 0) = 0 Then EndAll
-  ReadMem = val
+    ReadMem = ReadMemory(processHandle, address, size)
+'    Exit Function
+'    Dim val As Long
+'    Static reads As Long, lastTime As Long
+'
+'    If frmMain.mnuDebug.Checked Then
+'      If GetTickCount >= lastTime + 3000 Then
+'       lastTime = GetTickCount
+'        AddStatusMessage "Reads/second: " & reads / 3
+'        reads = 0
+'      End If
+'      reads = reads + 1
+'    End If
+'
+'    If ReadProcessMemory(ProcessHandle, address, val, size, 0) = 0 Then EndAll
+'    ReadMem = val
 End Function
 
 Public Sub WriteMem(ByVal address As Long, ByVal val As Long, ByVal size As Long)
-  Static writes As Long, lastTime As Long
-  
-  If frmMain.mnuDebug.Checked Then
-    If GetTickCount >= lastTime + 3000 Then
-      lastTime = GetTickCount
-      AddStatusMessage "Writes/second: " & writes / 3
-      writes = 0
-    End If
-    writes = writes + 1
-  End If
-  
-  If WriteProcessMemory(ProcessHandle, address, val, size, 0) = 0 Then EndAll
+    WriteMemory processHandle, address, size, val
+'    Exit Sub
+'    Static writes As Long, lastTime As Long
+'
+'    If frmMain.mnuDebug.Checked Then
+'      If GetTickCount >= lastTime + 3000 Then
+'        lastTime = GetTickCount
+'        AddStatusMessage "Writes/second: " & writes / 3
+'        writes = 0
+'      End If
+'      writes = writes + 1
+'    End If
+'
+'    If WriteProcessMemory(ProcessHandle, address, val, size, 0) = 0 Then EndAll
 End Sub
 
 Public Function Pause(milliseconds As Long)
@@ -148,16 +157,35 @@ Public Sub StrToMem(address As Long, str As String)
 End Sub
 
 Public Function MemToStr(address As Long, length As Integer) As String
-    Dim s As String, b As Long, i As Integer
-    
-    s = ""
-    For i = 0 To length - 1
-        b = ReadMem(address + i, 1)
-        If b = 0 Then MemToStr = s: Exit Function
-        s = s & Chr$(b)
-    Next i
-    
-    MemToStr = s
+    Dim tempString As String
+    tempString = ReadMemoryString(processHandle, address, length)
+'    Dim s As String, b As Long, i As Integer
+'
+'    s = ""
+'    For i = 0 To length - 1
+'        b = ReadMem(address + i, 1)
+'        If b = 0 Then MemToStr = s: Exit Function
+'        s = s & Chr$(b)
+'    Next i
+'
+'    MemToStr = s
+    'MemToStr = Left(tempString, Len(tempString) - 1)
+    'If Len(tempString) > 0 Then
+    '    MemToStr = Left(tempString, Len(tempString) - 1)
+    'Else
+    '    MemToStr = ""
+    'End If
+    'tempString = CStr(tempString)
+    'Dim i As Integer
+    'If Len(tempString) <= 0 Then Exit Function
+    'For i = 1 To Len(tempString)
+    '    If Asc(Mid(tempString, i, 1)) = 0 Then
+    '        tempString = Left(tempString, i - 1) & Right(tempString, Len(tempString) - i)
+    '    End If
+    'Next i
+    If Asc(Mid(tempString, Len(tempString), 1)) = 0 Then tempString = Left(tempString, Len(tempString) - 1)
+    'MemToStr = tempString
+    MemToStr = tempString
 End Function
 
 Public Function EndAll()
@@ -228,7 +256,7 @@ Public Function Valid()
     End If
 End Function
 
-Public Function MoveItem(item As Long, fromLoc As Integer, fromSlot As Integer, toLoc As Integer, toSlot As Integer, quant As Long)
+Public Function MoveItem(Item As Long, fromLoc As Integer, fromSlot As Integer, toLoc As Integer, toSlot As Integer, quant As Long)
     Dim buff(16) As Byte
     Dim byte1 As Byte
     Dim byte2 As Byte
@@ -240,8 +268,8 @@ Public Function MoveItem(item As Long, fromLoc As Integer, fromSlot As Integer, 
     buff(5) = fromLoc
     buff(6) = &H0
     buff(7) = fromSlot
-    byte1 = Fix(item / 256)
-    byte2 = item - (Fix(item / 256) * 256)
+    byte1 = Fix(Item / 256)
+    byte2 = Item - (Fix(Item / 256) * 256)
     buff(8) = byte2
     buff(9) = byte1
     buff(10) = fromSlot
@@ -254,7 +282,7 @@ Public Function MoveItem(item As Long, fromLoc As Integer, fromSlot As Integer, 
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
-Public Function GrabItem(item As Long, fromX As Long, fromY As Long, fromZ As Long, toLoc As Integer, toSlot As Integer, quant As Long)
+Public Function GrabItem(Item As Long, fromX As Long, fromY As Long, fromZ As Long, toLoc As Integer, toSlot As Integer, quant As Long)
     Dim buff(16) As Byte
     Dim byte1 As Byte
     Dim byte2 As Byte
@@ -270,8 +298,8 @@ Public Function GrabItem(item As Long, fromX As Long, fromY As Long, fromZ As Lo
     buff(5) = byte1
     buff(6) = byte2
     buff(7) = fromZ
-    byte1 = Fix(item / 256)
-    byte2 = item - (Fix(item / 256) * 256)
+    byte1 = Fix(Item / 256)
+    byte2 = Item - (Fix(Item / 256) * 256)
     buff(8) = byte2
     buff(9) = byte1
     buff(10) = fromSlot
@@ -284,7 +312,7 @@ Public Function GrabItem(item As Long, fromX As Long, fromY As Long, fromZ As Lo
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
-Public Function UseHere(item As Long, fromLoc As Integer, fromSlot As Integer, Optional newLoc As Integer = 0)
+Public Function UseHere(Item As Long, fromLoc As Integer, fromSlot As Integer, Optional newLoc As Integer = 0)
     Dim buff(11) As Byte
     Dim byte1 As Byte
     Dim byte2 As Byte
@@ -296,8 +324,8 @@ Public Function UseHere(item As Long, fromLoc As Integer, fromSlot As Integer, O
     buff(5) = fromLoc
     buff(6) = &H0
     buff(7) = fromSlot
-    byte1 = Fix(item / 256)
-    byte2 = item - (Fix(item / 256) * 256)
+    byte1 = Fix(Item / 256)
+    byte2 = Item - (Fix(Item / 256) * 256)
     buff(8) = byte2
     buff(9) = byte1
     buff(10) = fromSlot
@@ -306,8 +334,8 @@ Public Function UseHere(item As Long, fromLoc As Integer, fromSlot As Integer, O
 End Function
 
 Public Function UpBpLevel(bpIndex As Integer)
-    'Static lastUp(LEN_BP) As Long
-    'If GetTickCount < lastUp(bpIndex) + 1000 Then Exit Function
+    Static lastUp(LEN_BP) As Long
+    If GetTickCount < lastUp(bpIndex) + 1000 Then Exit Function
     Dim buff(3) As Byte
     buff(0) = &H2
     buff(1) = &H0
@@ -315,7 +343,7 @@ Public Function UpBpLevel(bpIndex As Integer)
     buff(3) = bpIndex
     
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
-    'lastUp(bpIndex) = GetTickCount
+    lastUp(bpIndex) = GetTickCount
 End Function
 
 Public Function SayStuff(message As String)
@@ -334,7 +362,7 @@ Public Function SayStuff(message As String)
     If frmMain.sckS.State = sckConnected Then frmMain.sckS.SendData buff
 End Function
 
-Public Function UseAt(item As Long, fromLoc As Integer, fromSlot As Integer, toX As Long, toY As Long, toZ As Long)
+Public Function UseAt(Item As Long, fromLoc As Integer, fromSlot As Integer, toX As Long, toY As Long, toZ As Long)
     '11 00 83 FF FF 06 00 00 5D 0D 00 8F 7E A0 7B 0A 63 01 00
     Dim buff(18) As Byte
     Dim byte1 As Byte
@@ -347,8 +375,8 @@ Public Function UseAt(item As Long, fromLoc As Integer, fromSlot As Integer, toX
     buff(5) = fromLoc
     buff(6) = &H0
     buff(7) = fromSlot
-    byte1 = Fix(item / 256)
-    byte2 = item - (Fix(item / 256) * 256)
+    byte1 = Fix(Item / 256)
+    byte2 = Item - (Fix(Item / 256) * 256)
     buff(8) = byte2
     buff(9) = byte1
     buff(10) = fromSlot
@@ -361,7 +389,7 @@ Public Function UseAt(item As Long, fromLoc As Integer, fromSlot As Integer, toX
     buff(13) = byte2
     buff(14) = byte1
     buff(15) = toZ
-    If item = ITEM_FISHING_ROD Then
+    If Item = ITEM_FISHING_ROD Then
         buff(16) = &HF5 + Int(Rnd * 6)
         buff(17) = &H11
         buff(18) = &H0
@@ -483,7 +511,7 @@ Public Function confirmItem(address As Long, desiredItem As Long) As Boolean
     End If
 End Function
 
-Public Function findItem(item As Long, bpIndex As Integer, itemIndex As Integer, Optional checkEquipped As Boolean = True, Optional confirm As Boolean = True) As Boolean
+Public Function findItem(Item As Long, bpIndex As Integer, itemIndex As Integer, Optional checkEquipped As Boolean = True, Optional confirm As Boolean = True) As Boolean
     Dim bpOpen As Long, bpNumItems As Long
     Dim temp As Long 'current item looked at
     
@@ -494,13 +522,13 @@ Public Function findItem(item As Long, bpIndex As Integer, itemIndex As Integer,
             bpNumItems = ReadMem(ADR_BP_NUM_ITEMS + SIZE_BP * bpIndex, 1)
             For itemIndex = 0 To bpNumItems - 1
                 If confirm Then
-                    If confirmItem(ADR_BP_ITEM + bpIndex * SIZE_BP + itemIndex * SIZE_ITEM, item) Then
+                    If confirmItem(ADR_BP_ITEM + bpIndex * SIZE_BP + itemIndex * SIZE_ITEM, Item) Then
                         findItem = True
                         bpIndex = bpIndex + &H40
                         Exit Function
                     End If
                 Else
-                    If ReadMem(ADR_BP_ITEM + bpIndex * SIZE_BP + itemIndex * SIZE_ITEM, 2) = item Then
+                    If ReadMem(ADR_BP_ITEM + bpIndex * SIZE_BP + itemIndex * SIZE_ITEM, 2) = Item Then
                         findItem = True
                         bpIndex = bpIndex + &H40
                         Exit Function
@@ -512,13 +540,13 @@ Public Function findItem(item As Long, bpIndex As Integer, itemIndex As Integer,
     
     If checkEquipped Then
         itemIndex = 0
-        If confirmItem(ADR_LEFT_HAND, item) Then
+        If confirmItem(ADR_LEFT_HAND, Item) Then
             bpIndex = SLOT_LEFT_HAND
             findItem = True
-        ElseIf confirmItem(ADR_RIGHT_HAND, item) Then
+        ElseIf confirmItem(ADR_RIGHT_HAND, Item) Then
             bpIndex = SLOT_RIGHT_HAND
             findItem = True
-        ElseIf confirmItem(ADR_AMMO, item) Then
+        ElseIf confirmItem(ADR_AMMO, Item) Then
             bpIndex = SLOT_AMMO
             findItem = True
         End If
@@ -530,9 +558,9 @@ End Function
 '
 'End Function
 
-Public Function IsLoot(item As Long) As Boolean
+Public Function IsLoot(Item As Long) As Boolean
     IsLoot = False
-    Select Case item
+    Select Case Item
         Case Is = ITEM_GOLD, ITEM_BOLT: IsLoot = True
         Case Is = ITEM_WORM And frmMain.chkLootWorms = Checked: IsLoot = True
         Case Is = &HD17, &HD61, &HCCB: IsLoot = True
@@ -540,14 +568,79 @@ Public Function IsLoot(item As Long) As Boolean
     End Select
 End Function
 
-Public Function ShootRune(runeMem As Long, X As Long, Y As Long, Z As Long, bpSlot As Integer, itemSlot As Integer)
-  
-  If findItem(runeMem, bpSlot, itemSlot) Then UseAt runeMem, bpSlot, itemSlot, X, Y, Z
+'assumes that the target is already determined to be within range etc.
+Public Function ShootRune(runeID As Long, pos As Long, Optional lead As Boolean = False) As Boolean
+    ShootRune = False
+    
+    If runeID < 0 Or pos < 0 Then
+        If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Invalid rune type or target."
+        Exit Function
+    End If
+    
+    'LOCATE RUNE AND DETERMINE IF ITS THE LAST
+    Dim bpIndex As Integer, itemIndex As Integer, runesLeft As Boolean
+    runesLeft = False
+    
+    'return if no rune of type
+    If findItem(runeID, bpIndex, itemIndex, True, False) = False Then
+        AddStatusMessage "No runes of type " & runeID & " found."
+        Exit Function
+    End If
+    
+    'if this isn't the last rune, and the next rune is another of the same kind, then there are runes left
+    If itemIndex + 1 < ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) _
+    Then If ReadMem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + (itemIndex + 1) * SIZE_ITEM, 2) = runeID _
+    Then runesLeft = True
+    
+    'if no more runes have yet been found
+    If runesLeft = False Then
+        'check the rest of backpack
+        For i = 0 To ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) - 1
+            'if an item is the same rune type and isn't the one we're about to use
+            If ReadMem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, 2) = runeID _
+            And itemIndex <> i Then
+                runesLeft = True
+                Exit For
+            End If
+        Next i
+    End If
+    
+    'LOCATE TARGET
+    Dim pX As Long, pY As Long, pZ As Long, dG As Long
+    pX = -1: pY = -1: pZ = -1
+    
+    getCharXYZ pX, pY, pZ, pos
+    If pX < 0 Or pY < 0 Or pZ < 0 Then If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error locating target coordinates.": Exit Function
+    
+    If lead Then
+        If ReadMem(ADR_CHAR_GFX_DX + pos * SIZE_CHAR, 1) <> 0 Then
+            dG = ReadMem(ADR_CHAR_GFX_DX + pos * SIZE_CHAR + 2, 1)
+            Select Case dG
+                Case Is = 0: pX = pX - 1
+                Case Is = &HFF: pX = pX + 1
+                Case Else: If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error attempting to lead target. Unexpected value."
+            End Select
+        End If
+        If ReadMem(ADR_CHAR_GFX_DY + pos * SIZE_CHAR, 1) <> 0 Then
+        dG = ReadMem(ADR_CHAR_GFX_DY + pos * SIZE_CHAR + 2, 1)
+            Select Case dG
+                Case Is = 0: pY = pY - 1
+                Case Is = &HFF: pY = pY + 1
+                Case Else: If frmMain.mnuDebug.Checked = True Then AddStatusMessage "Error attempting to lead target. Unexpected value."
+            End Select
+        End If
+    End If
+
+    UseAt runeID, bpIndex, itemIndex, pX, pY, pZ
+    Pause 50
+    
+    If runesLeft = False Then UpBpLevel bpIndex - &H40
+    DoEvents
 End Function
 
-Public Function IsFood(item As Long) As Boolean
+Public Function IsFood(Item As Long) As Boolean
   IsFood = False
-  Select Case item
+  Select Case Item
     Case &HDF9 To &HE17, &HE8B To &HE94: IsFood = True
     Case Else
   End Select
@@ -555,7 +648,7 @@ End Function
 
 Public Function findLoot() As Boolean
     Dim i As Integer, i2 As Integer
-    Dim item As Long, bpName As String, numItems As Integer, bpIndex As Integer, itemIndex As Integer, quantity As Long
+    Dim Item As Long, bpName As String, numItems As Integer, bpIndex As Integer, itemIndex As Integer, quantity As Long
     Dim tarNumItems As Long, tarBpIndex As Integer, tarQuant As Long, moved As Boolean
     Dim tarBP As typBackpack
     Dim bagFound As Boolean, bagSlot As Integer
@@ -564,45 +657,45 @@ Public Function findLoot() As Boolean
     
     For bpIndex = 0 To LEN_BP
         If ReadMem(ADR_BP_OPEN + SIZE_BP * bpIndex, 1) = 1 Then
-            bpName = MemToStr(ADR_BP_NAME + SIZE_BP * bpIndex, 6)
-            If Left(bpName, 3) = "Bag" Or Left(bpName, 4) = "Dead" Or Left(bpName, 5) = "Slain" Or Left(bpName, 5) = "Split" Or bpName = "Remain" Then
+            bpName = MemToStr(ADR_BP_NAME + SIZE_BP * bpIndex, 7)
+            If Left(bpName, 3) = "Bag" Or Left(bpName, 4) = "Dead" Or Left(bpName, 5) = "Slain" Or Left(bpName, 5) = "Split" Or Left(bpName, 6) = "Remain" Then
                 numItems = ReadMem(ADR_BP_NUM_ITEMS + SIZE_BP * bpIndex, 1)
                 For itemIndex = numItems - 1 To 0 Step -1
-                    item = ReadMem(ADR_BP_ITEM + SIZE_BP * bpIndex + SIZE_ITEM * itemIndex, 2)
-                    If frmLooter.IsLootable(item) Then
+                    Item = ReadMem(ADR_BP_ITEM + SIZE_BP * bpIndex + SIZE_ITEM * itemIndex, 2)
+                    If frmLooter.IsLootable(Item) Then
                         findLoot = True
                         If tarBpIndex < 0 Then
                             If findItem(ITEM_ROPE, tarBpIndex, i, False, False) = False Then Exit Function
                             tarBP.numItems = ReadMem(ADR_BP_NUM_ITEMS + (tarBpIndex - &H40) * SIZE_BP, 1)
                             tarBP.maxItems = ReadMem(ADR_BP_MAX_ITEMS + (tarBpIndex - &H40) * SIZE_BP, 1)
-                            ReDim tarBP.item(tarBP.maxItems)
+                            ReDim tarBP.Item(tarBP.maxItems)
                             For i = 0 To tarBP.numItems - 1
-                                tarBP.item(i).item = ReadMem(ADR_BP_ITEM + (tarBpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, 2)
-                                If IsLoot(tarBP.item(i).item) Then tarBP.item(i).quantity = ReadMem(ADR_BP_ITEM_QUANTITY + (tarBpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, 1)
+                                tarBP.Item(i).Item = ReadMem(ADR_BP_ITEM + (tarBpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, 2)
+                                If IsLoot(tarBP.Item(i).Item) Then tarBP.Item(i).quantity = ReadMem(ADR_BP_ITEM_QUANTITY + (tarBpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, 1)
                             Next i
                         End If
                         quantity = ReadMem(ADR_BP_ITEM_QUANTITY + SIZE_BP * bpIndex + SIZE_ITEM * itemIndex, 1)
                         moved = False
-                        If frmLooter.IsStackable(item) Then
+                        If frmLooter.IsStackable(Item) Then
                             For i = 0 To tarBP.numItems - 1
-                                If tarBP.item(i).item = item Then
-                                    If tarBP.item(i).quantity < 100 Then
-                                        If tarBP.item(i).quantity + quantity <= 100 Then
-                                            MoveItem item, bpIndex + &H40, itemIndex, tarBpIndex, i, quantity
+                                If tarBP.Item(i).Item = Item Then
+                                    If tarBP.Item(i).quantity < 100 Then
+                                        If tarBP.Item(i).quantity + quantity <= 100 Then
+                                            MoveItem Item, bpIndex + &H40, itemIndex, tarBpIndex, i, quantity
                                             moved = True
-                                            tarBP.item(i).quantity = tarBP.item(i).quantity + quantity
+                                            tarBP.Item(i).quantity = tarBP.Item(i).quantity + quantity
                                             Pause 300
-                                        ElseIf tarBP.item(i).quantity + quantity > 100 And tarBP.numItems < tarBP.maxItems Then
-                                            MoveItem item, bpIndex + &H40, itemIndex, tarBpIndex, i, quantity
+                                        ElseIf tarBP.Item(i).quantity + quantity > 100 And tarBP.numItems < tarBP.maxItems Then
+                                            MoveItem Item, bpIndex + &H40, itemIndex, tarBpIndex, i, quantity
                                             moved = True
                                             Pause 300
                                             'tarBP.item(i).quantity = 100
                                             For i2 = tarBP.numItems To 1 Step -1
-                                              tarBP.item(i2) = tarBP.item(i2 - 1)
+                                              tarBP.Item(i2) = tarBP.Item(i2 - 1)
                                             Next i2
-                                            tarBP.item(0).item = item
-                                            tarBP.item(0).quantity = tarBP.item(i + 1).quantity + quantity - 100
-                                            tarBP.item(i + 1).quantity = 100
+                                            tarBP.Item(0).Item = Item
+                                            tarBP.Item(0).quantity = tarBP.Item(i + 1).quantity + quantity - 100
+                                            tarBP.Item(i + 1).quantity = 100
                                             tarBP.numItems = tarBP.numItems + 1
                                         Else
                                             Exit Function
@@ -612,19 +705,19 @@ Public Function findLoot() As Boolean
                             Next i
                         End If
                         If tarBP.numItems < tarBP.maxItems And moved = False Then
-                            MoveItem item, bpIndex + &H40, itemIndex, tarBpIndex, CInt(tarBP.maxItems), quantity
+                            MoveItem Item, bpIndex + &H40, itemIndex, tarBpIndex, CInt(tarBP.maxItems), quantity
                             Pause 300
                             For i2 = tarBP.numItems To 1 Step -1
-                            tarBP.item(i2) = tarBP.item(i2 - 1)
+                            tarBP.Item(i2) = tarBP.Item(i2 - 1)
                             Next i2
-                            tarBP.item(0).item = item
-                            tarBP.item(0).quantity = quantity
+                            tarBP.Item(0).Item = Item
+                            tarBP.Item(0).quantity = quantity
                             tarBP.numItems = tarBP.numItems + 1
                         ElseIf moved = False Then
                             Exit Function
                         End If
                         If bagFound Then bagSlot = bagSlot - 1
-                    ElseIf item = ITEM_BAG Then
+                    ElseIf Item = ITEM_BAG Then
                         bagFound = True
                         bagSlot = itemIndex
                     End If
@@ -658,9 +751,73 @@ Public Function UserPos() As Long
     End If
 End Function
 
+Public Function findPosByPriority(listNames As ListBox, Optional reqOnScr As Boolean = False) As Long
+    Dim name As String 'current character name
+    Dim iChar As Integer 'current character array index
+    Dim iList As Integer 'current list index being checked
+    Dim iLast As Integer 'index of last found listed character
+    
+    If listNames.ListCount > 0 Then 'if there are names in the priority list
+        iLast = listNames.ListCount 'set the last found character to the length of the list
+        For iChar = 0 To LEN_CHAR 'loop from the first to last character in memory
+            name = MemToStr(ADR_CHAR_NAME + SIZE_CHAR * iChar, 32) 'read the characters name
+            If name = "" Then Exit For 'if the name is blank then we're at the end of the list
+            For iList = 0 To iLast - 1 'loop through the priority list, but not checking past the last found name
+                If listNames.List(iList) = name Then 'if the names match
+                    If reqOnScr Or ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * iChar, 1) = 1 Then 'if they dont need to be onscreen or they're onscreen
+                        iLast = iList 'set the last found character to this one
+                        findPosByPriority = iChar 'set pos of target to
+                        Exit For 'stop searching the priority list
+                    End If
+                End If
+            Next iList
+            If iLast = 0 Then Exit For 'if the char found is of the highest priority, then dont search anymore
+        Next iChar
+        If iLast < listNames.ListCount Then Exit Function 'if a target was found then we're done
+    End If
+    'if a priority target wasn't found, default to the reticle target
+    Dim id As Long
+    
+    id = ReadMem(ADR_TARGET_ID, 4)
+    If id <> 0 Then
+        findPosByPriority = findPosByID(id)
+        Exit Function
+    End If
+    
+    findPosByPriority = -1
+End Function
+
+Public Function FindPosByHP(listNames As listFancy, hp As Integer, Optional lowestHP As Boolean = False) As Long
+    FindPosByHP = -1
+    If listNames.ListCount <= 0 Then Exit Function
+    
+    Dim i As Integer, worstHP As Integer, str As String, thisHP As Integer, plyrZ As Integer
+    worstHP = hp
+    plyrZ = ReadMem(ADR_PLAYER_Z, 2)
+    For i = 0 To LEN_CHAR
+        If ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * i, 1) = 1 Then 'on screen
+            thisHP = ReadMem(ADR_CHAR_HP + SIZE_CHAR * i, 2)
+            If thisHP < worstHP Then 'low hp
+                If ReadMem(ADR_CHAR_Z + SIZE_CHAR * i, 2) = plyrZ Then 'same altitude
+                    str = MemToStr(ADR_CHAR_NAME + SIZE_CHAR * i, 32)
+                    If listNames.Contains(str) >= 0 Then 'listed name
+                        FindPosByHP = i
+                        If lowestHP Then
+                            worstHP = thisHP
+                        Else
+                            Exit Function
+                        End If
+                    End If
+                End If
+            End If
+        End If
+    Next i
+End Function
+
 Public Function findPosByName(name As String) As Long
     Dim str As String
     Dim onScreen As Long
+    Dim i As Integer
     For i = 0 To LEN_CHAR
         If ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * i, 1) = 1 Then
             str = MemToStr(ADR_CHAR_NAME + (SIZE_CHAR * i), 32)
@@ -671,6 +828,7 @@ Public Function findPosByName(name As String) As Long
 End Function
 
 Public Function findPosByID(id As Long) As Long
+    Dim i As Integer
     For i = 0 To LEN_CHAR
         If ReadMem(ADR_CHAR_ID + SIZE_CHAR * i, 4) = id Then
             findPosByID = i
@@ -878,12 +1036,32 @@ Public Sub SaveSettings(setLoc As String)
             For i = frmAimbot.comboButton.LBound To frmAimbot.comboButton.UBound
                 Write #1, frmAimbot.comboButton(i).ListIndex
             Next i
-            Write #1, frmAimbot.txtFriendName
+            Write #1, frmAimbot.chkHealSelf.Value
+            Write #1, frmAimbot.chkHealLowest.Value
+            Write #1, frmAimbot.hscrHealAt.Value
             For i = frmAimbot.comboWeapon.LBound To frmAimbot.comboWeapon.UBound
                 Write #1, frmAimbot.comboWeapon(i).ListIndex
                 Write #1, frmAimbot.chkGetShield(i).Value
             Next i
             Write #1, frmAimbot.chkFluidMoveUpBP.Value
+            'list friends
+            With frmAimbot.listFriends
+                If .ListCount > 0 Then
+                    For i = 0 To .ListCount - 1
+                        Write #1, .List(i)
+                    Next i
+                End If
+            End With
+            Write #1, "<End List>"
+            'list enemies
+            With frmAimbot.listEnemies
+                If .ListCount > 0 Then
+                    For i = 0 To .ListCount - 1
+                        Write #1, .List(i)
+                    Next i
+                End If
+            End With
+            Write #1, "<End List>"
         'healer
             'Write #1, frmMain.chkHeal.Value
             Write #1, frmHeal.txtHP.Text
@@ -895,6 +1073,7 @@ Public Sub SaveSettings(setLoc As String)
             Write #1, frmHeal.txtMana.Text
             Write #1, frmHeal.txtRuneDelay.Text
             Write #1, frmHeal.chkAlertLowHP.Value
+            Write #1, frmHeal.chkHealFriends.Value
         'rune maker
             'Write #1, frmMain.chkRune
             Write #1, frmRune.txtSpellWords
@@ -1016,12 +1195,30 @@ Public Sub LoadSettings(setLoc As String)
             For i = frmAimbot.comboButton.LBound To frmAimbot.comboButton.UBound
                 frmAimbot.comboButton(i).ListIndex = getNext
             Next i
-            frmAimbot.txtFriendName.Text = getNext
+            frmAimbot.chkHealSelf.Value = getNext
+            frmAimbot.chkHealLowest.Value = getNext
+            frmAimbot.hscrHealAt.Value = getNext
             For i = frmAimbot.comboWeapon.LBound To frmAimbot.comboWeapon.UBound
                 frmAimbot.comboWeapon(i).ListIndex = getNext
                 frmAimbot.chkGetShield(i).Value = getNext
             Next i
             frmAimbot.chkFluidMoveUpBP.Value = getNext
+            'list friends
+            With frmAimbot.listFriends
+                .Clear
+                Do
+                    temp = getNext
+                    If temp <> "<End List>" Then .AddItem temp
+                Loop Until temp = "<End List>"
+            End With
+            'list enemies
+            With frmAimbot.listEnemies
+                .Clear
+                Do
+                    temp = getNext
+                    If temp <> "<End List>" Then .AddItem temp
+                Loop Until temp = "<End List>"
+            End With
         'healer
             'frmMain.chkHeal.Value = getNext
             frmHeal.txtHP.Text = getNext
@@ -1033,6 +1230,7 @@ Public Sub LoadSettings(setLoc As String)
             frmHeal.txtMana.Text = getNext
             frmHeal.txtRuneDelay.Text = getNext
             frmHeal.chkAlertLowHP.Value = getNext
+            frmHeal.chkHealFriends.Value = getNext
         'rune maker
             'frmMain.chkRune.Value = getNext
             frmRune.txtSpellWords.Text = getNext

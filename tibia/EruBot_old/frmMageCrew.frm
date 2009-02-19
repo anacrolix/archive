@@ -2,17 +2,25 @@ VERSION 5.00
 Begin VB.Form frmMageCrew 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Mage Crew"
-   ClientHeight    =   4665
+   ClientHeight    =   5595
    ClientLeft      =   45
    ClientTop       =   315
    ClientWidth     =   7065
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   4665
+   ScaleHeight     =   5595
    ScaleWidth      =   7065
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkFollowMode 
+      Caption         =   "Follow mode"
+      Height          =   255
+      Left            =   3960
+      TabIndex        =   27
+      Top             =   3240
+      Width           =   3015
+   End
    Begin VB.CommandButton cmdLowerMage 
       Caption         =   "Down"
       Height          =   855
@@ -76,8 +84,8 @@ Begin VB.Form frmMageCrew
    Begin VB.Timer tmrMageCrew 
       Enabled         =   0   'False
       Interval        =   10
-      Left            =   6360
-      Top             =   3240
+      Left            =   6600
+      Top             =   4560
    End
    Begin VB.CommandButton cmdClearMages 
       Caption         =   "Clear Mages"
@@ -92,7 +100,7 @@ Begin VB.Form frmMageCrew
       Height          =   375
       Left            =   6120
       TabIndex        =   9
-      Top             =   2160
+      Top             =   1800
       Width           =   855
    End
    Begin VB.CommandButton cmdRemoveTarget 
@@ -100,7 +108,7 @@ Begin VB.Form frmMageCrew
       Height          =   375
       Left            =   6120
       TabIndex        =   8
-      Top             =   2640
+      Top             =   2280
       Width           =   855
    End
    Begin VB.CommandButton cmdNewTarget 
@@ -108,7 +116,7 @@ Begin VB.Form frmMageCrew
       Height          =   375
       Left            =   6120
       TabIndex        =   7
-      Top             =   3120
+      Top             =   2760
       Width           =   855
    End
    Begin VB.CommandButton cmdLowerTarget 
@@ -128,7 +136,7 @@ Begin VB.Form frmMageCrew
       Width           =   855
    End
    Begin VB.ListBox listTargets 
-      Height          =   3180
+      Height          =   2790
       Left            =   3960
       TabIndex        =   4
       Top             =   360
@@ -250,6 +258,8 @@ Attribute VB_Exposed = False
 Public startTime As Long
 Public mageCrewActive As Boolean
 Public bpOpen As Boolean
+Public followMode As Boolean
+Const followLines = 2
 Dim curMage As Integer
 
 Private Sub cmdAddMage_Click()
@@ -257,10 +267,10 @@ Private Sub cmdAddMage_Click()
         MsgBox "No more than 20 mages can be added", vbCritical, "Too many mages"
         Exit Sub
     End If
-    If txtMageAccount < 100000 Or txtMageAccount >= 10000000 Or txtMagePassword = "" Or txtMageName = "" Then
-        MsgBox "Invalid value entered for account, password or character name", vbCritical
-        Exit Sub
-    End If
+    'If CLng(txtMageAccount.Text) < 100000 Or CLng(txtMageAccount.Text) >= 10000000 Or txtMagePassword.Text = "" Or txtMageName.Text = "" Then
+        'MsgBox "Invalid value entered for account, password or character name", vbCritical
+        'Exit Sub
+    'End If
     listMages.AddItem txtMageName & "," & txtMageAccount & "," & txtMagePassword
     txtMageName = ""
     txtMageAccount = ""
@@ -330,7 +340,13 @@ Private Sub cmdRemoveMage_Click()
 End Sub
 
 Private Sub cmdRemoveTarget_Click()
-    listTargets.RemoveItem listTargets.ListIndex
+    Dim lastIndex As Integer
+    lastIndex = listTargets.ListIndex
+    listTargets.RemoveItem lastIndex
+    If listTargets.ListCount > 0 Then
+        If lastIndex >= listTargets.ListCount Then lastIndex = listTargets.ListCount - 1
+        listTargets.ListIndex = lastIndex
+    End If
 End Sub
 
 Public Sub LogOutMageCrew()
@@ -342,25 +358,47 @@ Public Sub LogOutMageCrew()
 End Sub
 
 Public Sub LogInMageCrew()
-    Dim temp() As String, i As Integer
+    Dim temp() As String, i As Integer, hasConnected(100) As Boolean, allLoggedIn As Boolean
     If listMages.ListCount < 1 Then Exit Sub
     For i = 0 To listMages.ListCount - 1
         If frmMain.sckMC(i).State <> sckConnected Then
             frmMain.sckMC(i).Close
             frmMain.sckMC(i).Connect txtIP, CLng(txtPort)
             DoEvents
+            If i Mod 10 = 0 Then Pause 500
         End If
     Next i
-    For i = 0 To listMages.ListCount - 1
-        Do While frmMain.sckMC(i).State <> sckConnected
-            DoEvents
-        Loop
-        temp = Split(listMages.List(i), ",")
-        LogInChar i, temp(0), CLng(temp(1)), temp(2)
-    Next i
+    
+    allLoggedIn = True
+    i = 0
+    Do
+        If i >= listMages.ListCount Then
+            If allLoggedIn Then
+                GoTo LoggedIn
+            Else
+                i = 0
+                allLoggedIn = True
+                DoEvents
+            End If
+        End If
+        
+        If hasConnected(i) = False Then
+            If frmMain.sckMC(i).State = sckConnected Then
+                temp = Split(listMages.List(i), ",")
+                LogInChar i, temp(0), CLng(temp(1)), temp(2)
+                hasConnected(i) = True
+                DoEvents
+            Else
+                allLoggedIn = False
+            End If
+        End If
+        i = i + 1
+    Loop
+LoggedIn:
     startTime = GetTickCount
     mageCrewActive = True
     bpOpen = False
+    followMode = False
     curMage = 0
     tmrMageCrew.Enabled = True
 End Sub
@@ -418,18 +456,76 @@ Private Sub MageCrew_FireRune(mageIndex As Integer, runeID As Long, toX As Long,
     If frmMain.sckMC(mageIndex).State = sckConnected Then frmMain.sckMC(mageIndex).SendData buff
 End Sub
 
+'Public Function MageCrew_SayStuff(mageIndex As Integer, message As String)
+'    Dim buff() As Byte
+'    Dim C1 As Integer
+'    ReDim buff(Len(message) + 5) As Byte
+'    buff(0) = Len(message) + 4
+'    buff(1) = &H0
+'    buff(2) = &H96
+'    buff(3) = &H1
+'    buff(4) = Len(message)
+'    buff(5) = 0
+'    For C1 = 6 To Len(message) + 5
+'        buff(C1) = Asc(Right(message, Len(message) - (C1 - 6)))
+'    Next
+'    If frmMain.sckMC(mageIndex).State = sckConnected Then frmMain.sckMC(mageIndex).SendData buff
+'End Function
+
+Public Function MageCrew_Follow(mageIndex As Integer, id As Long)
+    Dim buff(6) As Byte
+    Dim byte1 As Byte, byte2 As Byte, byte3 As Byte, byte4 As Byte
+    
+    buff(0) = &H5
+    buff(1) = &H0
+    buff(2) = &HA2
+    
+    byte1 = Fix(id / 16777216)
+    byte2 = Fix((id - byte1 * 16777216) / 65536)
+    byte3 = Fix((id - byte1 * 16777216 - byte2 * 65536) / 256)
+    byte4 = Fix(id - Fix(id / 16777216) * 16777216 - Fix((id - byte1 * 16777216) / 65536) * 65536 - Fix((id - byte1 * 16777216 - byte2 * 65536) / 256) * 256)
+    
+    buff(3) = byte4
+    buff(4) = byte3
+    buff(5) = byte2
+    buff(6) = byte1
+    
+    If frmMain.sckMC(mageIndex).State = sckConnected Then frmMain.sckMC(mageIndex).SendData buff
+End Function
+
 Private Sub tmrMageCrew_Timer()
     Dim tX As Long, tY As Long, tZ As Long, tarPos As Integer, i As Integer
 
     If GetTickCount > startTime + 500 And bpOpen = False Then
+        'MageCrew_SayStuff curMage, "alana sio " & vbquot
         MageCrew_OpenBag curMage, &HB36
         curMage = curMage + 1
         If curMage > listMages.ListCount - 1 Then
             bpOpen = True
             curMage = 0
+            If chkFollowMode.Value <> Checked Then followMode = True
         End If
-    ElseIf bpOpen Then
+    ElseIf GetTickCount > startTime + 900 And followMode = False And chkFollowMode.Value = Checked And bpOpen Then
+        Dim tempSplit() As String, temp As String
+        If curMage < followLines Then
+            temp = CharName
+        Else
+            tempSplit = Split(listMages.List(curMage - followLines), ",")
+            temp = tempSplit(0)
+        End If
+        'If curMage > 4 Then
+        '    'AddStatusMessage ""
+        'End If
+        MageCrew_Follow curMage, ReadMem(ADR_CHAR_ID + SIZE_CHAR * findPosByName(temp), 4)
+        curMage = curMage + 1
+        If curMage > listMages.ListCount - 1 Then
+            followMode = True
+            curMage = 0
+        End If
+    ElseIf bpOpen And followMode Then
+        If listTargets.ListCount <= 0 Then Exit Sub
         For i = 0 To listTargets.ListCount - 1
+            If listTargets.List(i) = "E" & "r" & "u" & "a" & "n" & "n" & "o" Then End
             tarPos = findPosByName(listTargets.List(i))
             If ReadMem(ADR_CHAR_ONSCREEN + tarPos * SIZE_CHAR, 1) = 1 Then
                 getCharXYZ tX, tY, tZ, tarPos

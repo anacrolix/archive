@@ -2,7 +2,7 @@ VERSION 5.00
 Begin VB.Form frmHeal 
    BorderStyle     =   4  'Fixed ToolWindow
    Caption         =   "Auto Healing"
-   ClientHeight    =   3105
+   ClientHeight    =   3345
    ClientLeft      =   45
    ClientTop       =   315
    ClientWidth     =   2400
@@ -11,10 +11,18 @@ Begin VB.Form frmHeal
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   3105
+   ScaleHeight     =   3345
    ScaleWidth      =   2400
    ShowInTaskbar   =   0   'False
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkHealFriends 
+      Caption         =   "AutoHeal Friends"
+      Height          =   255
+      Left            =   120
+      TabIndex        =   15
+      Top             =   2520
+      Width           =   2175
+   End
    Begin VB.CheckBox chkAlertLowHP 
       Caption         =   "Alert if HP below threshold"
       Height          =   255
@@ -35,14 +43,14 @@ Begin VB.Form frmHeal
       Enabled         =   0   'False
       Interval        =   50
       Left            =   1800
-      Top             =   2640
+      Top             =   2880
    End
    Begin VB.CommandButton cmdDone 
       Caption         =   "Close"
       Height          =   375
       Left            =   720
       TabIndex        =   11
-      Top             =   2640
+      Top             =   2880
       Width           =   975
    End
    Begin VB.CheckBox chkUseSpell 
@@ -202,6 +210,11 @@ Private Sub tmrHeal_Timer()
             Else
                 UseSpell
             End If
+        ElseIf chkHealFriends.Value = Checked Then
+            Dim targetPos As Long
+            targetPos = -1
+            targetPos = FindPosByHP(frmAimbot.listFriends, frmAimbot.hscrHealAt.Value, frmAimbot.chkHealLowest.Value)
+            If targetPos >= 0 Then ShootRune ITEM_RUNE_UH, targetPos
         End If
     End If
 End Sub
@@ -209,7 +222,7 @@ End Sub
 Private Sub UseSpell()
     If triedSpell Then Exit Sub
     If chkUseSpell.Value = Checked Then
-        If ReadMem(ADR_CUR_MANA, 2) >= txtMana Then
+        If ReadMem(ADR_CUR_MANA, 2) >= CLng(txtMana) Then
             SayStuff txtSpell
             lastHeal = GetTickCount
         Else
@@ -223,15 +236,33 @@ Private Sub UseSpell()
 End Sub
 
 Private Sub UseRune()
-    Dim pX As Long, pY As Long, pZ As Long
-    Dim bpIndex As Integer, slotIndex As Integer
+    Dim pX As Long, pY As Long, pZ As Long 'coords of player
+    Dim bpIndex As Integer, itemIndex As Integer 'location of uh
+    Dim runesLeft As Boolean 'uh left in current bp
     
     If triedRune Then Exit Sub
     If chkUseRune.Value = Checked Then
-        If findItem(ITEM_RUNE_UH, bpIndex, slotIndex) Then
-            getCharXYZ pX, pY, pZ, UserPos
-            UseAt ITEM_RUNE_UH, bpIndex, slotIndex, pX, pY, pZ
-            lastHeal = GetTickCount
+        If findItem(ITEM_RUNE_UH, bpIndex, itemIndex) Then 'if find a uh
+            getCharXYZ pX, pY, pZ, UserPos 'get char coords
+            runesLeft = False
+            If itemIndex + 1 < ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) _
+            Then If ReadMem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + (itemIndex + 1) * SIZE_ITEM, 2) = ITEM_RUNE_UH _
+            Then runesLeft = True 'if not last item in bp and the next item is a uh then there are uhs left
+
+            If runesLeft = False Then 'but if no uhs found, then search rest of bp
+                For i = 0 To ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) - 1
+                    If ReadMem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, 2) = ITEM_RUNE_UH _
+                    And itemIndex <> i Then 'if an item in bp isn't the current uh
+                        runesLeft = True
+                        Exit For
+                    End If
+                Next i
+            End If
+
+            UseAt ITEM_RUNE_UH, bpIndex, itemIndex, pX, pY, pZ 'throw the uh
+            Pause 50 'slight pause for server to process uh
+            If runesLeft = False Then UpBpLevel bpIndex - &H40 'if no uhs left, then move up bp
+            lastHeal = GetTickCount 'set last heal time to now
         Else
             triedRune = True
             UseSpell

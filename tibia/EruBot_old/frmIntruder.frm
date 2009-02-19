@@ -358,7 +358,7 @@ Public Function CheckSafe(str As String, pos As Integer) As Boolean
     For i = 0 To listSafe.ListCount - 1
         If Left(str, Len(listSafe.List(i))) = listSafe.List(i) Then GoTo IsSafe
     Next i
-    
+    Exit Function
 IsSafe:
     CheckSafe = True
 End Function
@@ -389,7 +389,7 @@ Public Sub IntruderReaction()
                 Exit For
             End If
         Next j
-        frmIntruder.chkWalk.Value = False
+        'frmIntruder.chkWalk.Value = False
         s = s & " and deactivate further walking."
     End If
     'eating

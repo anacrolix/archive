@@ -1,4 +1,4 @@
-"0.9.79"
+"0.9.99"
 1
 0
 -1
@@ -8,44 +8,79 @@
 -1
 -1
 -1
--1
-3
--1
+1
+16
+15
 4
 5
+17
+0
 1
-"Friend's Name"
+70
 4
 0
 0
 1
 1
+"Nyalith"
+"Snarkz"
+"Skeletor the Vicious"
+"Vazilisk"
+"Royal Nigani"
+"Darth Lady"
+"Clappa"
+"Emu jerky"
+"Lowix"
+"Darth Lady"
+"Ailinoro"
+"Maguz Pistolero"
+"Nox del chaos"
+"Rohons Rage"
+"Cerix"
+"Brictus"
+"Crimson"
+"Mear'aman"
+"Athraz"
+"Xekoroth"
+"Iserbius"
+"<End List>"
+"Sho jin"
+"Bon Para"
+"Thaldon Nataxar"
+"Alyster Dark"
+"Arysta"
+"Cypherus"
+"Marv Wells"
+"Xeberus"
+"Peter Lee"
+"<End List>"
 "1000"
 1
 0
 #TRUE#
 #FALSE#
-"exura gran"
-"40"
-"1200"
+"exura"
+"25"
+"550"
 1
-"adori gran flam"
-"480"
+0
+"adura vita"
+"400"
 "3"
 "0"
 "0"
-"1"
-"1"
+"0"
+"0"
 "0"
 "0"
 "1"
-#FALSE#
-#FALSE#
-#FALSE#
 #TRUE#
+#FALSE#
+#FALSE#
+#FALSE#
 "1"
 "14"
-"1"
+"0"
 "14"
 "1"
 "Snarkz"
@@ -56,90 +91,63 @@
 "Knightrous"
 "Raamboxx"
 "Boz Axath"
+"Fat'Head"
 "<End List>"
-"1"
-"fuck off"
+"0"
+""
 #TRUE#
 #FALSE#
 #FALSE#
 #FALSE#
 "0"
-"1"
+"0"
 "0"
 "-7"
 "-5"
 "7"
 "5"
-"1"
 "0"
 "0"
-0
+"0"
+1
 "exura"
-"495"
+"505"
 ""
 "Wornie,6554020,lockiesucks1"
+"Flying Trick,4542233,shadowman1"
 "Lady Molatov,458026,lamington123"
-"Riotan,9663266,luis1234"
 "Aphisun,9920002,44ggrraapphhiittee55"
 "Akkarian,3495119,shadowman2"
-"Kungfoo Fighter,428893,1234567b"
-"Ponsto,151227,1234567b"
-"Possum Jerky,8206805,masterjoiner18"
-"Bunnie Schnaps,9975766,landcruiserfj69"
-"Flying Trick,4542233,shadowman1"
+"Possum jerky,8206805,masterjoiner18"
+"Bunnie schnaps,9975766,landcruiserfj69"
 "<End List>"
-"Sho jin"
-"Niwuhere"
-"Brictus"
-"Breakfasta"
-"Alyster Dark"
-"Calsius"
-"Xekoroth"
-"Naughty Outlaw"
-"Drainor"
-"Crimson"
-"Lowix"
-"Xeberus"
-"Arysta"
-"Tyramak"
-"Cedas"
-"Clappa"
-"Vazilisk"
-"Pyroflames"
-"Lady Sooz"
-"Garoto da Prata"
-"Keldon Overseer"
-"Peter Lee"
-"Cerix"
-"Gihn"
-"Asteria"
-"Aigh Zair"
-"Ullin Trax"
-"Garoto de Prata"
-"Kilrex"
-"Marv Wells"
-"Magical Outlaw"
-"Taurus Outlaw"
 "<End List>"
 "Worms,3492"
 "Brass legs,3372"
-"Dwarven shield,3425"
 "Morning star,3282"
 "Battle shield,3413"
 "Battle hammer,3305"
 "Steel shield,3409"
+"Brass armor,3359"
 "<End List>"
 "Sword rings,3091"
 "Halberd,3269"
 "Axe ring,3092"
 "Steel helmet,3351"
-"Double axe,3275"
 "Ice rapier,3284"
-"Crossbow,3349"
-"Bow,3350"
 "Club ring,3093"
 "Plate armor,3357"
 "Two handed sword,3265"
+"Serpent sword,3297"
+"Broad sword,3301"
+"Wand of inferno,3071"
+"Double axe,3275"
+"Dragon shield,3416"
+"Strange helmet,3373"
+"Black shield,3429"
+"Dwarven shield,3425"
+"Bow,3350"
+"Crossbow,3349"
 "<End List>"
 "Power bolts,3450"
 "Gold,3031"
@@ -149,6 +157,8 @@
 "Small amethyst,3033"
 "Black pearl,3027"
 "Small diamond,3028"
+"Small sapphire,3029"
+"Scarab coin,3042"
 "<End List>"
 "0"
 "0"

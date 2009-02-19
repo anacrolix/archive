@@ -13,9 +13,9 @@ Public Const ADR_CHAR_GFX_DX = ADR_CHAR_NAME + 44
 Public Const ADR_CHAR_GFX_DY = ADR_CHAR_NAME + 48
 Public Const ADR_CHAR_FACING = ADR_CHAR_NAME + 80
 Public Const ADR_CHAR_OUTFIT = ADR_CHAR_NAME + 92
-Public Const ADR_CHAR_HP = ADR_CHAR_NAME + 104
 Public Const ADR_CHAR_LIGHT = ADR_CHAR_NAME + 112
 Public Const ADR_CHAR_COLOR = ADR_CHAR_NAME + 116
+Public Const ADR_CHAR_HP = ADR_CHAR_NAME + 128
 Public Const ADR_CHAR_ONSCREEN = ADR_CHAR_NAME + 136
 
 'character details
@@ -80,9 +80,10 @@ Public Const ADR_VIP_SYMBOL = ADR_VIP_NAME + &H24
 
 'other addresses
 Public Const ADR_WHITE_TEXT = &H5F7058
-Public Const ADR_GFX_VIEW_Z = &H4A9D20
-Public Const ADR_GFX_VIEW_Y = &H4A9D24
-Public Const ADR_GFX_VIEW_X = &H4A9D28
+Public Const ADR_GFX_VIEW_X = &H4ABF48
+Public Const ADR_GFX_VIEW_Z = ADR_GFX_VIEW_X - 8
+'Public Const ADR_GFX_UNIDENT_Z = &HD025DC
+Public Const ADR_GFX_VIEW_Y = ADR_GFX_VIEW_X - 4
 
 Public Const ADR_ACCOUNT_NUMBER = &H5F6CDC
 Public Const ADR_PASSWORD = &H5F6CBC
@@ -121,6 +122,7 @@ Public Const ITEM_FIRE_AXE = &HCF8
 Public Const ITEM_SKULL_STAFF = &HCFC
 Public Const ITEM_DRAGON_HAMMER = &HCFA
 Public Const ITEM_DRAGON_LANCE = &HCE6
+Public Const ITEM_ICE_RAPIER = 3284
 
 Public Const ITEM_FOOD_FISH = &HDFA
 
