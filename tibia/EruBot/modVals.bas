@@ -1,43 +1,49 @@
 Attribute VB_Name = "modVals"
 'character array +0x5a000
-Public Const ADR_ENCRYPTION_KEY = &H74B1A0
-Public Const ADR_CHAR_FIRST = &H5F7990
-Public Const ADR_PLAYER_X = &H5D16F0
-Public Const ADR_HOTKEY = &H719EF0
-Public Const ADR_BP_NAME = &H600200
-Public Const ADR_VIP_NAME = &H5C4574
-Public Const ADR_WHITE_TEXT = &H71DBE0
-Public Const ADR_ACCOUNT_NUMBER = &H71C574 'note, short 0x100000
-Public Const ADR_LOGIN_SERVER_IP = &H746710
-Public Const ADR_GFX_VIEW_X = &H4ABF48
-Public Const ADR_LOGIN_CHAR = &H74DB30
-Public Const ADR_MAP_POINTER = &H5D4C20
-Public Const ADR_FRAMERATE = &H71C2F4
+Public Const ADR_ENCRYPTION_KEY = &H74F1AC
+Public Const ADR_CHAR = &H5FB990
+'Public Const ADR_PLAYER_X = &H5D16F0
+Public Const ADR_HOTKEY = &H74F4D8
+Public Const ADR_BP_NAME = &H604200
+Public Const ADR_VIP_NAME = &H5F9654
+Public Const ADR_WHITE_TEXT = &H7531D8
+Public Const ADR_ACCOUNT_NUMBER = &H751B64
+Public Const ADR_LOGIN_SERVER_IP = &H74A718
+'Public Const ADR_GFX_VIEW_X = &H4ABF48
+Public Const ADR_LOGIN_CHAR = &H751B38
+Public Const ADR_MAP_POINTER = &H60A038
+Public Const ADR_FRAMERATE = &H7518DC
 'public const adr_rsa_key = &h6BFD70
 
 Public Const LEN_CHAR = 150
 Public Const SIZE_CHAR = &HA0
 
-Public Const ADR_CHAR_ID = ADR_CHAR_FIRST
-Public Const ADR_CHAR_NAME = ADR_CHAR_FIRST + 4
-Public Const ADR_CHAR_X = ADR_CHAR_FIRST + 36
-Public Const ADR_CHAR_Y = ADR_CHAR_FIRST + 40
-Public Const ADR_CHAR_Z = ADR_CHAR_FIRST + 44
-Public Const ADR_CHAR_GFX_DX = ADR_CHAR_FIRST + 48
-Public Const ADR_CHAR_GFX_DY = ADR_CHAR_FIRST + 52
-Public Const ADR_CHAR_WALKING = ADR_CHAR_FIRST + 76
-Public Const ADR_CHAR_DIRECTION = ADR_CHAR_FIRST + 80
-Public Const ADR_CHAR_FACING = ADR_CHAR_FIRST + 84
-Public Const ADR_CHAR_OUTFIT = ADR_CHAR_FIRST + 96
-Public Const ADR_CHAR_LIGHT = ADR_CHAR_FIRST + 120
-Public Const ADR_CHAR_COLOR = ADR_CHAR_FIRST + 124
-Public Const ADR_CHAR_HP = ADR_CHAR_FIRST + 136
-Public Const ADR_CHAR_ONSCREEN = ADR_CHAR_FIRST + 144
-Public Const ADR_CHAR_SKULL = ADR_CHAR_FIRST + 148
-Public Const ADR_CHAR_PARTY = ADR_CHAR_FIRST + 152
+Public Const ADR_CHAR_ID = ADR_CHAR
+Public Const ADR_CHAR_NAME = ADR_CHAR + 4
+Public Const ADR_CHAR_X = ADR_CHAR + 36
+Public Const ADR_CHAR_Y = ADR_CHAR + 40
+Public Const ADR_CHAR_Z = ADR_CHAR + 44
+Public Const ADR_CHAR_GFX_DX = ADR_CHAR + 48
+Public Const ADR_CHAR_GFX_DY = ADR_CHAR + 52
+Public Const ADR_CHAR_WALKING = ADR_CHAR + 76
+Public Const ADR_CHAR_DIRECTION = ADR_CHAR + 80
+Public Const ADR_CHAR_FACING = ADR_CHAR + 84
+Public Const ADR_CHAR_OUTFIT = ADR_CHAR + 96
+Public Const ADR_CHAR_HEAD = ADR_CHAR + 100
+Public Const ADR_CHAR_BODY = ADR_CHAR + 104
+Public Const ADR_CHAR_LEGS = ADR_CHAR + 108
+Public Const ADR_CHAR_FEET = ADR_CHAR + 112
+Public Const ADR_CHAR_ADDONS = ADR_CHAR + 116
+Public Const ADR_CHAR_LIGHT = ADR_CHAR + 120
+Public Const ADR_CHAR_COLOR = ADR_CHAR + 124
+Public Const ADR_CHAR_HP = ADR_CHAR + 136
+Public Const ADR_CHAR_SPEED = ADR_CHAR + 140
+Public Const ADR_CHAR_ONSCREEN = ADR_CHAR + 144
+Public Const ADR_CHAR_SKULL = ADR_CHAR + 148
+Public Const ADR_CHAR_PARTY = ADR_CHAR + 152
 
-'character details
-Public Const ADR_PLAYER_ID = ADR_CHAR_FIRST - &H60
+'player
+Public Const ADR_PLAYER_ID = ADR_CHAR - &H60
 Public Const ADR_CUR_HP = ADR_PLAYER_ID - 4
 Public Const ADR_MAX_HP = ADR_CUR_HP - 4
 Public Const ADR_EXP = ADR_MAX_HP - 4
@@ -45,33 +51,33 @@ Public Const ADR_LEVEL = ADR_EXP - 4 '70
 Public Const ADR_MAGIC = ADR_LEVEL - 4
 Public Const ADR_LEVEL_PERCENT = ADR_MAGIC - 4
 Public Const ADR_MAGIC_PERCENT = ADR_LEVEL_PERCENT - 4
-Public Const ADR_CUR_MANA = ADR_MAGIC_PERCENT - 4 '70
+Public Const ADR_CUR_MANA = ADR_MAGIC_PERCENT - 4 '80
 Public Const ADR_MAX_MANA = ADR_CUR_MANA - 4
 Public Const ADR_CUR_SOUL = ADR_MAX_MANA - 4
 Public Const ADR_STAMINA = ADR_CUR_SOUL - 4
-Public Const ADR_CUR_CAP = ADR_STAMINA - 4 '80
-Public Const ADR_FOLLOW_ID = ADR_CUR_CAP - 4
-Public Const ADR_TARGET_ID = ADR_FOLLOW_ID - 4
-Public Const ADR_FISH = ADR_TARGET_ID - 8 '90
+Public Const ADR_CUR_CAP = ADR_STAMINA - 4 '90
+Public Const ADR_ATTACK_ID = ADR_CUR_CAP - 4
+Public Const ADR_FOLLOW_ID = ADR_ATTACK_ID - 4
+Public Const ADR_FISH = ADR_FOLLOW_ID - 8 'a0
 Public Const ADR_SHIELD = ADR_FISH - 4
 Public Const ADR_DISTANCE = ADR_SHIELD - 4
 Public Const ADR_AXE = ADR_DISTANCE - 4
-Public Const ADR_SWORD = ADR_AXE - 4 'a0
+Public Const ADR_SWORD = ADR_AXE - 4 'b0
 Public Const ADR_CLUB = ADR_SWORD - 4
 Public Const ADR_FIST = ADR_CLUB - 4
 Public Const ADR_FISH_PERCENT = ADR_FIST - 4
-Public Const ADR_SHIELD_PERCENT = ADR_FISH_PERCENT - 4 'b0
+Public Const ADR_SHIELD_PERCENT = ADR_FISH_PERCENT - 4 'c0
 Public Const ADR_DISTANCE_PERCENT = ADR_SHIELD_PERCENT - 4
 Public Const ADR_AXE_PERCENT = ADR_DISTANCE_PERCENT - 4
 Public Const ADR_SWORD_PERCENT = ADR_AXE_PERCENT - 4
-Public Const ADR_CLUB_PERCENT = ADR_SWORD_PERCENT - 4 'c0
+Public Const ADR_CLUB_PERCENT = ADR_SWORD_PERCENT - 4 'd0
 Public Const ADR_FIST_PERCENT = ADR_CLUB_PERCENT - 4
-
-Public Const ADR_BATTLE_SIGN = ADR_CHAR_FIRST - &HD8
+Public Const ADR_BATTLE_SIGN = ADR_FIST_PERCENT - 4
+Public Const CHAR_ONSCREEN = 1
 
 'player position
-Public Const ADR_PLAYER_Y = ADR_PLAYER_X - 4
-Public Const ADR_PLAYER_Z = ADR_PLAYER_X - 8
+'Public Const ADR_PLAYER_Y = ADR_PLAYER_X - 4
+'Public Const ADR_PLAYER_Z = ADR_PLAYER_X - 8
 
 'hotkeys
 
@@ -142,9 +148,9 @@ Public Const OUTFIT_BLACK = 114
 
 'other addresses
 
-Public Const ADR_GFX_VIEW_Z = ADR_GFX_VIEW_X - 8
+'Public Const ADR_GFX_VIEW_Z = ADR_GFX_VIEW_X - 8
 'Public Const ADR_GFX_UNIDENT_Z = &HD025DC
-Public Const ADR_GFX_VIEW_Y = ADR_GFX_VIEW_X - 4
+'Public Const ADR_GFX_VIEW_Y = ADR_GFX_VIEW_X - 4
 '#define PLAYER_NAME         0x005F3DA6 // string
 'Public Const ADR_MOUSE_OP = &H5F6D44
 '    USE_LEFT_CLICK          = 1,    // finish use object, walk, click interface
@@ -171,7 +177,7 @@ Public Const ITEM_RUNE_GFB = &HC77
 Public Const ITEM_RUNE_FBB = &HC3A
 
 Public Const ITEM_VIAL = &HB3A
-Public Const ITEM_MANAFLUID_EXTRA = &HA
+Public Const ITEM_MANA_FLUID_COLOR = 7
 Public Const ITEM_LIFE_RING = &HBEC
 Public Const ITEM_WORM = &HDA4
 Public Const ITEM_FISHING_ROD = &HD9B
