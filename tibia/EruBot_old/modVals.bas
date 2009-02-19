@@ -1,6 +1,14 @@
 Attribute VB_Name = "modVals"
 'character array
-Public Const ADR_CHAR_NAME = &H4A12AC
+Public Const ADR_CHAR_NAME = &H5A3CA4
+Public Const ADR_PLAYER_X = &H127078
+Public Const ADR_HOTKEY = &H5F4720
+Public Const ADR_BP_NAME = &H5AC208
+Public Const ADR_VIP_NAME = &H5A1964
+Public Const ADR_WHITE_TEXT = &H6FB050
+Public Const ADR_ACCOUNT_NUMBER = &H5F99D4 'note, short 0x100000
+Public Const ADR_SERVER_IP = &H6F2710
+Public Const ADR_GFX_VIEW_X = &H4ABF48
 
 Public Const LEN_CHAR = 148
 Public Const SIZE_CHAR = 156
@@ -40,12 +48,10 @@ Public Const ADR_MAX_HP = ADR_CHAR_NAME - &H70
 Public Const ADR_PLAYER_ID = ADR_CHAR_NAME - &H68
 
 'player position
-Public Const ADR_PLAYER_X = &H127078
 Public Const ADR_PLAYER_Y = ADR_PLAYER_X + 4
 Public Const ADR_PLAYER_Z = ADR_PLAYER_X + 8
 
 'hotkeys
-Public Const ADR_HOTKEY = &H5F4720
 
 Public Const SIZE_HOTKEY = 256
 Public Const LEN_HOTKEY = 35
@@ -53,7 +59,7 @@ Public Const LEN_HOTKEY = 35
 Public Const ADR_HOTKEY_SENDAUTO = ADR_HOTKEY - (LEN_HOTKEY + 1)
 
 'containers
-Public Const ADR_BP_NAME = &H4A9640
+
 
 Public Const SIZE_BP = 492
 Public Const LEN_BP = 15
@@ -77,13 +83,12 @@ Public Const SLOT_BOOTS = &H8
 Public Const SLOT_RING = &H9
 Public Const SLOT_AMMO = &HA
 
-Public Const ADR_AMMO = &H4A9624
+Public Const ADR_AMMO = ADR_BP_NAME - &H1C
 Public Const ADR_RIGHT_HAND = ADR_AMMO + (SLOT_RIGHT_HAND - SLOT_AMMO) * SIZE_ITEM
 Public Const ADR_LEFT_HAND = ADR_AMMO + (SLOT_LEFT_HAND - SLOT_AMMO) * SIZE_ITEM
 Public Const ADR_RING = ADR_AMMO + (SLOT_RING - SLOT_AMMO) * SIZE_ITEM
 
 'vip list
-Public Const ADR_VIP_NAME = &H49EF6C
 
 Public Const SIZE_VIP = &H2C '44
 Public Const LEN_VIP = 99 '100 vips
@@ -93,23 +98,20 @@ Public Const ADR_VIP_ONLINE = ADR_VIP_NAME + &H1E
 Public Const ADR_VIP_SYMBOL = ADR_VIP_NAME + &H24
 
 'other addresses
-Public Const ADR_WHITE_TEXT = &H5F7058
-Public Const ADR_GFX_VIEW_X = &H4ABF48
+
 Public Const ADR_GFX_VIEW_Z = ADR_GFX_VIEW_X - 8
 'Public Const ADR_GFX_UNIDENT_Z = &HD025DC
 Public Const ADR_GFX_VIEW_Y = ADR_GFX_VIEW_X - 4
 '#define PLAYER_NAME         0x005F3DA6 // string
-Public Const ADR_MOUSE_OP = &H5F6D44
+'Public Const ADR_MOUSE_OP = &H5F6D44
 '    USE_LEFT_CLICK          = 1,    // finish use object, walk, click interface
 '    USE_RIGHT_CLICK         = 2,    // prepare use object
 '    USE_LEFT_RIGHT_CLICK    = 3,    // look; "You see..."
 '    USE_DRAG                = 6,    // drag object
 '    USE_OBJECT              = 7,    // use object (fishing rod)
 
-Public Const ADR_ACCOUNT_NUMBER = &H4F6CDC 'note, short 0x100000
-Public Const ADR_PASSWORD = &H4F6CBC 'note, short 0x100000
-Public Const ADR_SERVER_IP = &H5EFB50
-Public Const ADR_SERVER_PORT = &H5EFBB4
+Public Const ADR_PASSWORD = ADR_ACCOUNT_NUMBER + &H2C 'note, short 0x100000
+Public Const ADR_SERVER_PORT = ADR_SERVER_IP + &H64
 
 'item values
 Public Const ITEM_RUNE_UH = &HC58

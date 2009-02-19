@@ -8,14 +8,14 @@ Begin VB.Form frmMain
    ClientHeight    =   9135
    ClientLeft      =   150
    ClientTop       =   840
-   ClientWidth     =   6120
+   ClientWidth     =   7545
    ForeColor       =   &H00000000&
    Icon            =   "frmMain.frx":0000
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    ScaleHeight     =   609
    ScaleMode       =   3  'Pixel
-   ScaleWidth      =   408
+   ScaleWidth      =   503
    StartUpPosition =   3  'Windows Default
    Begin VB.CheckBox chkCaveBot 
       BackColor       =   &H00000000&
@@ -1239,12 +1239,12 @@ Private Sub Form_Load()
     
     'ServerIP = "server.tibia.com"
     'ServerPort = 7171
-    ServerIP = "tibia2.cipsoft.com"
+    ServerIP = "62.146.78.208"
     ServerPort = 7171
         
     ConfigUpdate App.Path & "\default.ebs", False
     
-    tmrPing.Enabled = True
+    'tmrPing.Enabled = True
 End Sub
 
 Private Sub Form_Unload(Cancel As Integer)
