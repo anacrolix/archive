@@ -1,0 +1,108 @@
+[Root]
+Most Recent Package=Rift Of Peril
+
+[Package|Rift Of Peril|Rift Of Peril v 0.02]
+Icon1=RiftOfPeril.exe
+Title1=Rift Of Peril v 0.02
+StartIn1=$(AppPath)
+Key1=Icon1
+
+
+[Package|Rift Of Peril|Rift Of Peril v 0.01]
+Icon1=RiftOfPeril.exe
+Title1=Rift Of Peril v 0.01
+StartIn1=$(AppPath)
+Key1=Icon1
+
+[Package|Rift Of Peril|Root]
+SubWizProgID=PDWizard.SetupPkgSubWiz
+BuildFolder=E:\My Programming\MSVB6\RiftOfPeril\Package
+
+[Package|Rift Of Peril|Configure DAO ISAMs]
+Applicable=No
+
+[Package|Rift Of Peril|Configure DAO ODBC]
+JetWorkspace=
+ODBCDirect=
+
+[Package|Rift Of Peril|Files Found]
+
+[Package|Rift Of Peril|Files Released]
+
+[Package|Rift Of Peril|Missing Dependency Information]
+
+[Package|Rift Of Peril|Out-of-Date Dependency Information]
+
+[Package|Rift Of Peril|Files Added]
+e:\my programming\msvb6\riftofperil\data.rop=
+
+[Package|Rift Of Peril|Files Removed]
+
+[Package|Rift Of Peril|Files In Project]
+E:\My Programming\MSVB6\RiftOfPeril\RiftOfPeril.exe=Yes
+C:\WINDOWS\system32\msvbvm60.dll=Yes
+C:\WINDOWS\system32\oleaut32.dll=Yes
+C:\WINDOWS\system32\olepro32.dll=Yes
+C:\WINDOWS\system32\asycfilt.dll=Yes
+C:\WINDOWS\system32\stdole2.tlb=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=Yes
+C:\WINDOWS\system32\MSCOMCTL.OCX=Yes
+C:\WINDOWS\system32\COMDLG32.OCX=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=Yes
+C:\WINDOWS\system32\VB6STKIT.DLL=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=Yes
+E:\My Programming\MSVB6\RiftOfPeril\data.rop=Yes
+
+[Package|Rift Of Peril|Configure Registry Files]
+Applicable=No
+
+[Package|Rift Of Peril|Configure Remote Servers]
+Applicable=No
+
+[Package|Rift Of Peril|Install Locations]
+E:\My Programming\MSVB6\RiftOfPeril\RiftOfPeril.exe=$(AppPath)
+C:\WINDOWS\system32\msvbvm60.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\oleaut32.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\olepro32.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\asycfilt.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\stdole2.tlb=$(WinSysPathSysFile)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\system32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINDOWS\system32\COMDLG32.OCX=$(WinSysPath)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+C:\WINDOWS\system32\VB6STKIT.DLL=$(WinSysPathSysFile)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+E:\My Programming\MSVB6\RiftOfPeril\data.rop=$(AppPath)
+
+[Package|Rift Of Peril|Configure Shared Files]
+Applicable=Yes
+E:\My Programming\MSVB6\RiftOfPeril\RiftOfPeril.exe=No
+E:\My Programming\MSVB6\RiftOfPeril\data.rop=No
+
+[Package|Rift Of Peril|Distribution]
+Type=single
+Size=
+Title=Rift Of Peril v 0.2
+
+[Package|Rift Of Peril|IconGroups]
+Group0=Rift Of Peril v 0.2
+PrivateGroup0=False
+Parent0=$(Programs)
+
+[Package|Rift Of Peril|Rift Of Peril v 0.2]
+Icon1=RiftOfPeril.exe
+Title1=Rift Of Peril v 0.2
+StartIn1=$(AppPath)
+Key1=Icon1
+
+[Package|Rift Of Peril|Package]
+PackageFolder=E:\My Programming\MSVB6\RiftOfPeril\Package
+ProjectFolder=E:\My Programming\MSVB6\RiftOfPeril
+ServerSideCab=
+File1=E:\My Programming\MSVB6\RiftOfPeril\Package\setup.exe
+File2=E:\My Programming\MSVB6\RiftOfPeril\Package\Setup.Lst
+File3=E:\My Programming\MSVB6\RiftOfPeril\Package\RiftOfPeril.CAB
+Handler1=PDWizard.FolderDplySubWiz
+Handler2=PDWizard.WebPostDplySubWiz

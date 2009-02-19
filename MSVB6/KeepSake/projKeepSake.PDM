@@ -1,0 +1,97 @@
+[Root]
+Most Recent Package=Standard KeepSake Setup
+
+
+[Package|Standard KeepSake Setup|Root]
+SubWizProgID=PDWizard.SetupPkgSubWiz
+BuildFolder=E:\My Programming\KeepSake\Install
+
+[Package|Standard KeepSake Setup|Configure DAO ISAMs]
+Applicable=No
+
+[Package|Standard KeepSake Setup|Configure DAO ODBC]
+JetWorkspace=
+ODBCDirect=
+
+[Package|Standard KeepSake Setup|Files Found]
+
+[Package|Standard KeepSake Setup|Files Released]
+
+[Package|Standard KeepSake Setup|Missing Dependency Information]
+
+[Package|Standard KeepSake Setup|Out-of-Date Dependency Information]
+C:\WINDOWS\system32\COMCT332.OCX=
+
+[Package|Standard KeepSake Setup|Files Added]
+
+[Package|Standard KeepSake Setup|Files Removed]
+
+[Package|Standard KeepSake Setup|Files In Project]
+E:\My Programming\KeepSake\KeepSake.exe=Yes
+C:\WINDOWS\system32\msvbvm60.dll=Yes
+C:\WINDOWS\system32\oleaut32.dll=Yes
+C:\WINDOWS\system32\olepro32.dll=Yes
+C:\WINDOWS\system32\asycfilt.dll=Yes
+C:\WINDOWS\system32\stdole2.tlb=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=Yes
+C:\WINDOWS\system32\COMDLG32.OCX=Yes
+C:\WINDOWS\system32\MSCOMCTL.OCX=Yes
+C:\WINDOWS\system32\MSCOMCT2.OCX=Yes
+C:\WINDOWS\system32\COMCT332.OCX=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=Yes
+C:\WINDOWS\system32\VB6STKIT.DLL=Yes
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=Yes
+
+[Package|Standard KeepSake Setup|Configure Registry Files]
+Applicable=No
+
+[Package|Standard KeepSake Setup|Configure Remote Servers]
+Applicable=No
+
+[Package|Standard KeepSake Setup|Install Locations]
+E:\My Programming\KeepSake\KeepSake.exe=$(AppPath)
+C:\WINDOWS\system32\msvbvm60.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\oleaut32.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\olepro32.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\asycfilt.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\stdole2.tlb=$(WinSysPathSysFile)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\system32\COMDLG32.OCX=$(WinSysPath)
+C:\WINDOWS\system32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINDOWS\system32\MSCOMCT2.OCX=$(WinSysPath)
+C:\WINDOWS\system32\COMCT332.OCX=$(WinSysPath)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+C:\WINDOWS\system32\VB6STKIT.DLL=$(WinSysPathSysFile)
+D:\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+
+[Package|Standard KeepSake Setup|Configure Shared Files]
+Applicable=Yes
+E:\My Programming\KeepSake\KeepSake.exe=No
+
+[Package|Standard KeepSake Setup|Distribution]
+Type=single
+Size=720 KB
+Title=Keep Sake v0.17
+
+[Package|Standard KeepSake Setup|IconGroups]
+Group0=Keep Sake
+PrivateGroup0=True
+Parent0=$(Programs)
+
+[Package|Standard KeepSake Setup|Keep Sake]
+Icon1=KeepSake.exe
+Title1=Keep Sake v0.17
+StartIn1=$(AppPath)
+Key1=Icon1
+
+[Package|Standard KeepSake Setup|Package]
+PackageFolder=E:\My Programming\KeepSake\Install
+ProjectFolder=E:\My Programming\KeepSake
+ServerSideCab=
+File1=E:\My Programming\KeepSake\Install\setup.exe
+File2=E:\My Programming\KeepSake\Install\Setup.Lst
+File3=E:\My Programming\KeepSake\Install\KeepSake.CAB
+Handler1=PDWizard.FolderDplySubWiz
+Handler2=PDWizard.WebPostDplySubWiz
