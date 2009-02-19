@@ -4,7 +4,7 @@ Object = "{F9043C88-F6F2-101A-A3C9-08002B2F49FB}#1.2#0"; "comdlg32.ocx"
 Begin VB.Form frmMain 
    BorderStyle     =   1  'Fixed Single
    Caption         =   "EruBot"
-   ClientHeight    =   12135
+   ClientHeight    =   11745
    ClientLeft      =   150
    ClientTop       =   840
    ClientWidth     =   13035
@@ -12,18 +12,10 @@ Begin VB.Form frmMain
    Icon            =   "frmMain.frx":0000
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
-   ScaleHeight     =   809
+   ScaleHeight     =   783
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   869
    StartUpPosition =   3  'Windows Default
-   Begin VB.CommandButton cmdUpdateCharLists 
-      Caption         =   "Update Character Lists"
-      Height          =   735
-      Left            =   9240
-      TabIndex        =   211
-      Top             =   10800
-      Width           =   975
-   End
    Begin VB.Timer tmrLag 
       Interval        =   1
       Left            =   9000
@@ -244,6 +236,7 @@ Begin VB.Form frmMain
       Style           =   1  'Graphical
       TabIndex        =   115
       Top             =   7680
+      Value           =   1  'Checked
       Width           =   1815
    End
    Begin VB.Timer tmrTakeAction 
@@ -254,34 +247,17 @@ Begin VB.Form frmMain
    End
    Begin VB.Frame fraOutfit 
       Caption         =   "Outfit Options"
-      Height          =   2415
+      Height          =   2055
       Left            =   4440
       TabIndex        =   113
       Top             =   9480
       Width           =   2055
-      Begin VB.CommandButton cmdOutfitMaxAddon 
-         Caption         =   "Max Addon"
-         Height          =   255
-         Left            =   480
-         TabIndex        =   210
-         Top             =   600
-         Width           =   1095
-      End
-      Begin VB.CheckBox chkOutfitMaxAddons 
-         Caption         =   "Max Addons"
-         Enabled         =   0   'False
-         Height          =   255
-         Left            =   120
-         TabIndex        =   209
-         Top             =   840
-         Width           =   1815
-      End
       Begin VB.OptionButton optOutfitStayOnline 
          Caption         =   "Stay online"
          Height          =   255
          Left            =   120
          TabIndex        =   207
-         Top             =   2040
+         Top             =   1680
          Value           =   -1  'True
          Width           =   1695
       End
@@ -290,7 +266,7 @@ Begin VB.Form frmMain
          Height          =   255
          Left            =   120
          TabIndex        =   132
-         Top             =   1800
+         Top             =   1440
          Width           =   1815
       End
       Begin VB.OptionButton optOutfitSuperboots 
@@ -298,7 +274,7 @@ Begin VB.Form frmMain
          Height          =   255
          Left            =   120
          TabIndex        =   131
-         Top             =   1560
+         Top             =   1200
          Width           =   1815
       End
       Begin VB.OptionButton optOutfitRainbow 
@@ -306,7 +282,7 @@ Begin VB.Form frmMain
          Height          =   255
          Left            =   120
          TabIndex        =   130
-         Top             =   1320
+         Top             =   960
          Width           =   1815
       End
       Begin VB.OptionButton optOutfitSuperSonic 
@@ -314,7 +290,7 @@ Begin VB.Form frmMain
          Height          =   255
          Left            =   120
          TabIndex        =   129
-         Top             =   1080
+         Top             =   720
          Width           =   1815
       End
       Begin VB.CheckBox chkMainOutfit 
@@ -2104,7 +2080,7 @@ Begin VB.Form frmMain
       Height          =   2775
       Left            =   120
       TabIndex        =   5
-      Top             =   8880
+      Top             =   8160
       Width           =   2055
       Begin VB.CheckBox chkExpTimeRemain 
          Caption         =   "Time remaining"
@@ -2133,6 +2109,7 @@ Begin VB.Form frmMain
          Style           =   1  'Graphical
          TabIndex        =   92
          Top             =   240
+         Value           =   1  'Checked
          Width           =   1815
       End
       Begin VB.CheckBox chkExpPercentTnl 
@@ -2639,20 +2616,8 @@ Public Sub UpdateGUI()
     UpdateMainCheckBox chkMainLag
 End Sub
 
-Private Sub cmdOutfitMaxAddon_Click()
-    WriteMem ADR_CHAR_OUTFIT + 20 + GetPlayerIndex * SIZE_CHAR, &HFF, 4
-End Sub
-
 Private Sub cmdStopAlert_Click()
     Alert_Stop
-End Sub
-
-Private Sub cmdUpdateCharLists_Click()
-    Dim i As Integer, j As Integer, str As String
-    ReDim charLists(1 To NUM_CHAR_LISTS)
-    For i = 1 To NUM_CHAR_LISTS
-        str = ReadFromINI(App.Path & "\hiho.ebs", "character lists", "list " & i)
-        
 End Sub
 
 Private Sub cmdWalkSetAfk_Click()
@@ -2800,10 +2765,10 @@ End Sub
 
 Private Sub mnuChangePort_Click()
     Dim newPort As Integer
-    On Error GoTo noob
+    On Error GoTo Noob
     newPort = CInt(InputBox("Enter new server port", "Change Port", ServerPort))
     If newPort > 0 Then ServerPort = newPort
-noob:
+Noob:
 End Sub
 
 Private Sub mnuCharacters_Click()
@@ -3193,7 +3158,7 @@ Private Sub tmrLag_Timer()
         Dim outfit(4) As Long, i As Integer
         ReadProcessMemory hProcTibia, ADR_CHAR_OUTFIT + SIZE_CHAR * GetPlayerIndex, outfit(0), 20, 0
         For i = 0 To 19
-            SendToServer Packet_ChangeOutfit(outfit(0), outfit(1), outfit(2), outfit(3), outfit(4), outfit(5))
+            SendToServer Packet_ChangeOutfit(outfit(0), outfit(1), outfit(2), outfit(3), outfit(4))
             DoEvents
         Next i
     End If
@@ -3297,7 +3262,7 @@ Private Sub tmrCheckConditions_Timer()
 '    End If
     
     'outfit
-    Static nextOutfit As Long, outfit(5) As Long
+    Static nextOutfit As Long, outfit(4) As Long
     If outfit_changedMode Then
         nextOutfit = curTick + 2000
         outfit_changedMode = False
@@ -3408,12 +3373,10 @@ Private Sub tmrCheckConditions_Timer()
                 outfit(4) = OUTFIT_RED
             End If
         ElseIf optOutfitStayOnline Then
-            nextOutfit = curTick + 600000
-            ReadProcessMemory hProcTibia, CLng(ADR_CHAR_OUTFIT + GetPlayerIndex * SIZE_CHAR), outfit(0), 24, 0
+            ReadProcessMemory hProcTibia, CLng(ADR_CHAR_OUTFIT + GetPlayerIndex * SIZE_CHAR), outfit(0), 20, 0
         End If
         SendToServer Packet_ChangeOutfit( _
-        outfit(0), outfit(1), outfit(2), outfit(3), outfit(4), outfit(5))
-        
+        outfit(0), outfit(1), outfit(2), outfit(3), outfit(4))
     End If
 EndOutfit:
 End Sub
@@ -3564,8 +3527,7 @@ HealerTryOther:
                 ElseIf healerTriedOther = False Then
 HealerUseRune:
                     If chkHealerUseRune Then
-                        SendToServer Packet_UseAt(ITEM_RUNE_UH, 0, GetCharID(GetPlayerIndex), 0, 0)
-                        If True Then
+                        If ShootRune(ITEM_RUNE_UH, GetPlayerIndex, True) Then
                             If chkHealerAnni Then
                                 nextHeal = curTick + TIME_HEAL
                                 nextMagic = curTick + TIME_HEAL
@@ -3828,7 +3790,7 @@ EndSpam:
                             GoTo EndCavebot
                         Case "Rope":
                             If FindItem(ITEM_ROPE, bp, slot, True, False) Then
-                                SendToServer Packet_UseAtLocation(ITEM_ROPE, bp, slot, tX, tY, tZ)
+                                SendToServer Packet_UseAt(ITEM_ROPE, bp, slot, tX, tY, tZ)
                                 i = pathIndex + 1
                                 If i >= listCavebotWaypath.ListCount Then i = 0
                                 tempStr = Split(listCavebotWaypath.List(i), ",")

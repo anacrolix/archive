@@ -1,4 +1,6 @@
 Attribute VB_Name = "modConfig"
+Option Explicit
+
 Public Sub Config_Variable(fileNumber As Integer, writeElseRead As Boolean, ByRef var As Variant)
     If writeElseRead Then
         Write #fileNumber, var
