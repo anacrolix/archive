@@ -58,3 +58,15 @@ NotHexString:
     Exit Function
 End Function
 
+Public Sub StripSpaces(str As String, delims As String)
+    Dim i As Integer, j As Integer, allowSpace As Boolean
+    i = 1
+    While i <= Len(str)
+        If allowSpace Then
+            If InStr(1, Mid(str, i, 1), delims) Then
+                allowSpace = False
+            End If
+        End If
+                            
+    Wend
+End Sub

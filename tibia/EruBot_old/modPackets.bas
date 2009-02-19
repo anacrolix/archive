@@ -34,7 +34,7 @@ Public Sub SendToServer(buff() As Byte)
     If frmMain.sckServer.State = sckConnected Then frmMain.sckServer.SendData buff
 End Sub
 
-Public Function Packet_UseAt(item As Long, fromLoc As Long, fromSlot As Long, toX As Long, toY As Long, toZ As Long) As Byte()
+Public Function Packet_UseAtLocation(item As Long, fromLoc As Long, fromSlot As Long, toX As Long, toY As Long, toZ As Long) As Byte()
     Dim buff(25) As Byte
     Dim byte1 As Byte
     Dim byte2 As Byte
@@ -75,7 +75,7 @@ Public Function Packet_UseAt(item As Long, fromLoc As Long, fromSlot As Long, to
         buff(19) = &H0
         buff(20) = &H1
     End If
-    Packet_UseAt = buff
+    Packet_UseAtLocation = buff
 End Function
 
 Public Function Packet_DropItem(item As Long, quantity As Long, fromLoc As Long, fromSlot As Long, toX As Long, toY As Long, toZ As Long) As Byte()
@@ -177,8 +177,6 @@ Public Function Packet_GrabItem(item As Long, fromX As Long, fromY As Long, from
     If frmMain.sckServer.State = sckConnected Then frmMain.sckServer.SendData buff
 End Function
 
-
-
 Public Function Packet_UseGround(id As Long, X As Long, Y As Long, z As Long, objType As Integer, Optional newLoc As Integer = 0) As Byte()
 '10 00 0A 00 82 0D 80 60 7B 08 A5 0F 02 01 C0 C3 27 24 EOF
 '10 00 0A 00 82 0D 80 5F 7B 08 62 01 00 01 5C 17 EF BC EOF
@@ -263,6 +261,32 @@ Public Function Packet_SayDefault(str As String) As Byte()
         buff(i + 7) = Asc(Mid(str, i, 1))
     Next i
     Packet_SayDefault = buff
+End Function
+
+Public Function Packet_UseAt( _
+itemID As Long, itemExtra As Long, tarID As Long, fromLoc As Long, fromSlot As Long) _
+As Byte()
+    '10000D00 84FFFF00 0000580C 00F3D743 00A6 EOF
+    Dim buff(17) As Byte, bytID() As Byte, i As Integer
+    buff(0) = UBound(buff) - 1
+    buff(1) = 0
+    buff(2) = &HD
+    buff(3) = 0
+    buff(4) = &H84
+    buff(5) = &HFF
+    buff(6) = &HFF
+    buff(7) = fromLoc
+    buff(8) = 0
+    buff(9) = fromSlot
+    ConvertIDtoBytes itemID, bytID
+    buff(10) = bytID(0)
+    buff(11) = bytID(1)
+    buff(12) = itemExtra
+    ConvertIDtoBytes tarID, bytID
+    For i = 0 To 3
+        buff(13 + i) = bytID(i)
+    Next i
+    Packet_UseAt = buff
 End Function
 
 Public Function Packet_UseAtMonster(item As Long, fromLoc As Long, fromSlot As Long, id As Long) As Byte()
@@ -416,12 +440,12 @@ Public Function Packet_PrivateMessage(name As String, msg As String) As Byte()
     Packet_PrivateMessage = buff
 End Function
 
-Public Function Packet_ChangeOutfit(outfit As Long, head As Long, body As Long, legs As Long, feet As Long) As Byte()
+Public Function Packet_ChangeOutfit(outfit As Long, head As Long, body As Long, legs As Long, feet As Long, addons As Long) As Byte()
     Dim buff(17) As Byte
     
     buff(0) = UBound(buff) - 1
     buff(1) = 0
-    buff(2) = 7
+    buff(2) = 8
     buff(3) = 0
     buff(4) = &HD3
     buff(5) = outfit
@@ -430,6 +454,7 @@ Public Function Packet_ChangeOutfit(outfit As Long, head As Long, body As Long, 
     buff(8) = body
     buff(9) = legs
     buff(10) = feet
+    buff(11) = addons
     
     Packet_ChangeOutfit = buff
 End Function

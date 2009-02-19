@@ -181,37 +181,7 @@ Public Function GetInRuneRange(x1 As Long, y1 As Long, x2 As Long, y2 As Long) A
     If Abs(x1 - x2) <= 8 And Abs(y1 - y2) <= 6 Then GetInRuneRange = True
 End Function
 
-Public Function ReadMem(ByVal address As Long, ByVal size As Long) As Long
-'    Static lastDebug As Long, sum As Long
-'    If frmMain.mnuDebug.Checked = True Then
-'        sum = sum + 1
-'        If GetTickCount > lastDebug + 60000 Then
-'            LogDbg "Memory reads/min = " & sum * 12
-'            sum = 0
-'            lastDebug = GetTickCount
-'        End If
-'    End If
-    Dim val As Long
-    ReadProcessMemory hProcTibia, address, val, size, 0
-    ReadMem = val
-End Function
 
-Public Sub WriteMem(ByVal address As Long, ByVal val As Long, ByVal size As Long)
-    'Dim res As Integer
-'    WriteMemory hProcTibia, address, size, val
-'    Dim pa As Long
-'    pa = GetProcAddress(hLibEruDLL, "WriteMemory")
-'    CallWindowProc
-    WriteProcessMemory hProcTibia, address, val, size, 0
-End Sub
-
-Public Function Pause(milliseconds As Long)
-    Dim EndPause As Long
-    EndPause = GetTickCount + milliseconds
-    Do
-        DoEvents
-    Loop Until GetTickCount >= EndPause
-End Function
 
 Public Sub EndProgram()
     Dim exitCode As Long
@@ -219,32 +189,6 @@ Public Sub EndProgram()
     TerminateProcess hProcTibia, exitCode
     End
 End Sub
-
-Public Sub WriteMemStr(address As Long, str As String, Optional maxLen As Long = 32)
-    Dim bytStr() As Byte, i As Integer
-    ReDim bytStr(Len(str) + 1)
-    For i = 1 To Len(str)
-        bytStr(i) = Asc(Mid(str, i, 1))
-    Next i
-    WriteMemoryString hProcTibia, address, UBound(bytStr) + 1, bytStr(0)
-'    WriteProcessMemStr hProcTibia, address, bytStr(0), UBound(bytStr) + 1, 0
-'    Dim bytStr() As Byte, i As Long
-'    ReDim bytStr(Len(str) + 1)
-'    For i = 0 To Len(str) - 1
-'        bytStr(i) = Asc(Mid(str, i + 1, 1))
-'    Next i
-'    WriteProcessMemory hProcTibia, address, bytStr(0), maxLen, 0
-End Sub
-
-Public Function ReadMemStr(address As Long, length As Integer) As String
-    Dim bytStr() As Byte, i As Integer
-    ReDim bytStr(length - 1)
-    ReadProcessMemory hProcTibia, address, bytStr(0), length, 0
-    For i = 0 To length - 1
-        If bytStr(i) = 0 Then Exit For
-        ReadMemStr = ReadMemStr & Chr(bytStr(i))
-    Next i
-End Function
 
 Public Function StringToPacket(str As String, pckt() As Byte)
     Dim str2() As String
@@ -304,6 +248,10 @@ End Function
 '    GetUrlSource = sData
 '
 'End Function
+
+Public Function GetCharID(pos As Long) As Long
+    GetCharID = ReadMem(ADR_CHAR_ID + pos * SIZE_CHAR, 4)
+End Function
 
 Public Function GetTargetID() As Long
     GetTargetID = ReadMem(ADR_TARGET_ID, 4)
@@ -448,7 +396,7 @@ Public Function ShootRune(runeID As Long, pos As Long, moveUp As Boolean) As Boo
 '                End Select
 '            End If
 '        End If
-        SendToServer Packet_UseAt(runeID, bpIndex, itemIndex, pX, pY, pZ)
+        SendToServer Packet_UseAtLocation(runeID, bpIndex, itemIndex, pX, pY, pZ)
         ShootRune = True
     End If
 
@@ -532,7 +480,7 @@ Public Function UserPos() As Long
 End Function
 
 Public Function findPosByPriority(listNames As ListBox, Optional reqOnScr As Boolean = False) As Long
-    Dim name As String 'current character name
+    Dim Name As String 'current character name
     Dim iChar As Integer 'current character array index
     Dim iList As Integer 'current list index being checked
     Dim iLast As Integer 'index of last found listed character
@@ -540,10 +488,10 @@ Public Function findPosByPriority(listNames As ListBox, Optional reqOnScr As Boo
     If listNames.ListCount > 0 Then 'if there are names in the priority list
         iLast = listNames.ListCount 'set the last found character to the length of the list
         For iChar = 0 To LEN_CHAR 'loop from the first to last character in memory
-            name = ReadMemStr(ADR_CHAR_NAME + SIZE_CHAR * iChar, 32) 'read the characters name
-            If name = "" Then Exit For 'if the name is blank then we're at the end of the list
+            Name = ReadMemStr(ADR_CHAR_NAME + SIZE_CHAR * iChar, 32) 'read the characters name
+            If Name = "" Then Exit For 'if the name is blank then we're at the end of the list
             For iList = 0 To iLast - 1 'loop through the priority list, but not checking past the last found name
-                If listNames.List(iList) = name Then 'if the names match
+                If listNames.List(iList) = Name Then 'if the names match
                     If reqOnScr Or ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * iChar, 1) = 1 Then 'if they dont need to be onscreen or they're onscreen
                         iLast = iList 'set the last found character to this one
                         findPosByPriority = iChar 'set pos of target to
@@ -594,14 +542,14 @@ Continue:
     Next i
 End Function
 
-Public Function GetIndexByName(name As String) As Long
+Public Function GetIndexByName(Name As String) As Long
     Dim str As String
     Dim onScreen As Long
     Dim i As Integer
     For i = 0 To LEN_CHAR
         If ReadMem(ADR_CHAR_ONSCREEN + SIZE_CHAR * i, 1) = 1 Then
             str = ReadMemStr(ADR_CHAR_NAME + (SIZE_CHAR * i), 32)
-            If str = name Then GetIndexByName = i: Exit Function
+            If str = Name Then GetIndexByName = i: Exit Function
         End If
     Next i
     GetIndexByName = -1
@@ -774,20 +722,20 @@ Public Function GetEnclosedString(strIn As String, strGroup As String) As String
 End Function
 
 Public Function GetVulnerableToDamage(charIndex As Long, damage As typ_Damage) As Boolean
-    Dim name As String, vul As Boolean
+    Dim Name As String, vul As Boolean
     vul = True
-    name = ReadMemStr(ADR_CHAR_NAME + charIndex * SIZE_CHAR, 32)
+    Name = ReadMemStr(ADR_CHAR_NAME + charIndex * SIZE_CHAR, 32)
     If damage = Melee Then
-        Select Case name
+        Select Case Name
             Case "Ghost": vul = False
         End Select
     ElseIf damage = Energy Then
-        Select Case name
+        Select Case Name
             Case "Hero", "Demon", "Warlock", "Green Djinn", "Blue Djinn", "Efreet", "Marid", "Behemoth", "Minotaur Mage", "Elf Arcanist":
                 vul = False
         End Select
     ElseIf damage = Fire Then
-        Select Case name
+        Select Case Name
             Case "Demon Skeleton", "Giant Spider", "Fire Elemental"
         End Select
     End If
@@ -796,7 +744,7 @@ End Function
 
 Public Function GetHitsBySpell(dir As Long, damage As typ_Damage, area As typ_SpellArea) As Long
     Dim pX As Long, pY As Long, pZ As Long, cX As Long, cY As Long, cZ As Long
-    Dim dX As Long, dY As Long, i As Long, name As String, inArea As Boolean
+    Dim dX As Long, dY As Long, i As Long, Name As String, inArea As Boolean
     Dim hits As Long, j As Long, k As Long
     
     getCharXYZ pX, pY, pZ, GetPlayerIndex
@@ -1089,7 +1037,8 @@ Public Function Action_Rune(temp() As String, i As Integer) As Boolean
     End Select
     'shoot rune
     If tarIndex >= 0 And ReadMem(ADR_CHAR_HP + tarIndex * SIZE_CHAR, 4) <= hp Then
-        Action_Rune = ShootRune(itemID, tarIndex, CheckForOptions("moveupbp", temp(), i + 1))
+        SendToServer Packet_UseAt(itemID, 0, GetCharID(tarIndex), 0, 0)
+        Action_Rune = True
     End If
     Exit Function
 Invalid:
@@ -1108,33 +1057,8 @@ Public Function Action_ManaFluid(temp() As String, i As Integer) As Boolean
     curMana = ReadMem(ADR_CUR_MANA, 2)
     
     If curMana < mana Then
-        If FindItem(ITEM_VIAL, bpIndex, slotIndex, True, True) Then foundFluid = True
-        If foundFluid Then
-            'send use fluid packet
-            getCharXYZ pX, pY, pZ, UserPos
-            SendToServer Packet_UseAt(ITEM_VIAL, bpIndex, slotIndex, pX, pY, pZ)
-            Action_ManaFluid = True
-            'if next item not fluid then search entire bp
-            If CheckForOptions("moveupbp", temp, i + 1) Then
-                moveUpBp = True
-                For i = 0 To ReadMem(ADR_BP_NUM_ITEMS + (bpIndex - &H40) * SIZE_BP, 1) - 1 'forgot the -1 previously
-                    If i <> slotIndex And confirmItem(ADR_BP_ITEM + (bpIndex - &H40) * SIZE_BP + i * SIZE_ITEM, ITEM_VIAL) Then
-                        moveUpBp = False
-                        Exit For
-                    End If
-                Next i
-            End If
-            'if still no fluid then move up bp
-            If moveUpBp Then
-                Pause 50
-                SendToServer Packet_UpBpLevel(bpIndex - &H40)
-                Beep 800, 50
-            End If
-            DoEvents
-        Else
-            LogMsg "No mana fluid found."
-            Beep 400, 100
-        End If
+        SendToServer Packet_UseAt(ITEM_VIAL, ITEM_MANAFLUID_EXTRA, GetCharID(GetPlayerIndex), 0, 0)
+        Action_ManaFluid = True
     Else
         LogDbg "Mana not low enough to require fluid"
     End If
@@ -1526,7 +1450,7 @@ Public Function UpdateWindowText()
 End Function
 
 Public Sub RevealInvis()
-    Dim name As String, i As Long
+    Dim Name As String, i As Long
     
     For i = 0 To LEN_CHAR - 1
         If ReadMem(ADR_CHAR_ONSCREEN + i * SIZE_CHAR, 1) <> 1 Then GoTo Continue
