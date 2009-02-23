@@ -1,0 +1,2 @@
+- run extract_cat.py
+- observe bitmap of bastet avatar
