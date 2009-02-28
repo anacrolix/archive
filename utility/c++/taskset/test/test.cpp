@@ -32,44 +32,15 @@ private:
 	bool done_;
 };
 
-class Blob
-{
-public:
-	Blob(size_t size)
-	{
-		mem_ = new char[size];
-	}
-
-	~Blob()
-	{
-		delete[] mem_;
-	}
-
-private:
-	char *mem_;
-};
-
 int main()
 {
-#if 0
-	{
-		std::vector<Blob *> blobs;
-		blobs.push_back(new Blob(5000000000));
-		delete blobs[0];
-	}
-#endif
 	std::deque<boost::shared_ptr<Sum> > sums;
 	int step = 1000000;
-	for (int min = 0; min < 4000000000; min += 1000000)
+	for (int min = 0; min < 4000000000; min += step)
 		sums.push_back(boost::shared_ptr<Sum>(new Sum(min + 1, min + step)));
-#if 1
-	{
-		TaskSet<boost::shared_ptr<Sum> > taskset(sums, 10);
-	}
-#else
-	for (std::deque<Sum *>::iterator it = sums.begin(); it != sums.end(); ++it)
-		(**it)();
-#endif
+	
+	TaskSet<boost::shared_ptr<Sum> > taskset(sums, 10);
+	taskset.wait_empty();
 	int total = 0;
 	for (std::deque<boost::shared_ptr<Sum> >::const_iterator it = sums.begin(); it != sums.end(); ++it)
 		total += (*it)->result();
