@@ -12,13 +12,25 @@ class TaskSet
 public:
 	typedef typename std::deque<TaskT> TaskQueue_t;
 
-	TaskSet(TaskQueue_t const &taskqueue, int nrthreads)
-	:	taskqueue_(taskqueue),
+	TaskSet(/*TaskQueue_t const &taskqueue, */int nrthreads)
+	://	taskqueue_(taskqueue),
 		finished_(false),
 		barrier_(nrthreads)
 	{
 		while (nrthreads-- > 0)
 			threadgroup_.create_thread(boost::bind(&TaskSet::worker_func, boost::ref(*this)));
+	}
+
+	template <typename TASKITER>
+	void add_tasks(TASKITER begin, TASKITER const &end)
+	{
+		taskqueue_mutex_.lock();
+		for ( ; begin != end; ++begin)
+		{
+			taskqueue_.push_back(*begin);
+		}
+		do_stuff_.notify_all();
+		taskqueue_mutex_.unlock();
 	}
 
 	void wait_empty()

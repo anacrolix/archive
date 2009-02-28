@@ -34,12 +34,12 @@ private:
 
 int main()
 {
+	TaskSet<boost::shared_ptr<Sum> > taskset(10);
 	std::deque<boost::shared_ptr<Sum> > sums;
 	int step = 1000000;
 	for (int min = 0; min < 4000000000; min += step)
 		sums.push_back(boost::shared_ptr<Sum>(new Sum(min + 1, min + step)));
-	
-	TaskSet<boost::shared_ptr<Sum> > taskset(sums, 10);
+	taskset.add_tasks(sums.begin(), sums.end());
 	taskset.wait_empty();
 	int total = 0;
 	for (std::deque<boost::shared_ptr<Sum> >::const_iterator it = sums.begin(); it != sums.end(); ++it)
