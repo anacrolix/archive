@@ -1,0 +1,9 @@
+PREFIX \\/usr
+PACKAGE_VERSION 0.1.1
+PACKAGE_REVISION 0
+PACKAGE_NAME rbapplet
+APPLET_FULLNAME Rhythmbox Current Song Deleter
+APPLET_DESCRIPTION Rhythmbox Current Song Delete Applet
+BONOBO_FACTORY_IID @BONOBO_APPLET_IID@_Factory
+BONOBO_APPLET_IID OAFIID:RhythmboxApplet
+# configure will append more symbols below
