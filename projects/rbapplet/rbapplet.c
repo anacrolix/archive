@@ -1,6 +1,9 @@
-#include <panel-applet.h>
-#include <dbus/dbus-glib.h>
 #include "config.h"
+
+#include <dbus/dbus-glib.h>
+#include <gio/gio.h>
+#include <gtk/gtk.h>
+#include <panel-applet.h>
 
 #define RB_DBUS_SERVICE "org.gnome.Rhythmbox"
 #define RB_DBUS_PLAYER_PATH "/org/gnome/Rhythmbox/Player"
