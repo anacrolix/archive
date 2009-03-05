@@ -1,18 +1,19 @@
+CC = g++
 PCLIBS = dbus-glib-1 gtk+-2.0 libpanelapplet-2.0
 CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
 LDFLAGS = `pkg-config --libs $(PCLIBS)`
-CFLAGS = -g -std=c99
+CXXFLAGS = -g
 PREFIX = /usr
-VERSION = 0.1.0
 
 server_path = $(PREFIX)/lib/bonobo/servers
 server_file := @PACKAGE_NAME@.server
-applet_path = $(PREFIX)/lib/@PACKAGE_NAME@
+applet_path = $(PREFIX)/lib/anacrolix
 applet_file := @PACKAGE_NAME@
 
 default: applet
 
-applet: @PACKAGE_NAME@
+applet: main.o
+	$(CC) -o @PACKAGE_NAME@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
 	rm *.o $(applet_file)
@@ -27,7 +28,7 @@ devpkgs:
 
 deb: devpkgs applet
 	-rm -rv build
-	make install PREFIX="build${PREFIX}"
+	make install PREFIX="build@PREFIX@"
 	install -d 'build/DEBIAN'
 	install -m 644 -t 'build/DEBIAN' control
 	dpkg -b build .

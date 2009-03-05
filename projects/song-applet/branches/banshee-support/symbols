@@ -1,9 +1,9 @@
 PREFIX \\/usr
-PACKAGE_VERSION 0.1.1
+PACKAGE_VERSION 0.2
 PACKAGE_REVISION 0
-PACKAGE_NAME rbapplet
-APPLET_FULLNAME Rhythmbox Current Song Deleter
-APPLET_DESCRIPTION Rhythmbox Current Song Delete Applet
+PACKAGE_NAME tracklet
+APPLET_FULLNAME Tracklet
+APPLET_DESCRIPTION Provides an icon to remove the current playing track from disk
 BONOBO_FACTORY_IID @BONOBO_APPLET_IID@_Factory
-BONOBO_APPLET_IID OAFIID:RhythmboxApplet
+BONOBO_APPLET_IID OAFIID:Tracklet
 # configure will append more symbols below

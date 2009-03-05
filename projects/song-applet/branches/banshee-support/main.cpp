@@ -50,7 +50,7 @@ static void name_owner_changed(
 	gchar const *name, gchar const *new_owner, gchar const *old_owner,
 	gpointer user)
 {
-	ThisApplet *this = user;
+	ThisApplet *context = reinterpret_cast<ThisApplet *>(user);
 
 	g_debug("name owner changed: %s, %s, %s", name, new_owner, old_owner);
 
@@ -60,11 +60,11 @@ static void name_owner_changed(
 
 	if (g_strcmp0(new_owner, "")) {
 		/* closing */
-		gtk_widget_hide_all(GTK_WIDGET(this->panel_applet));
+		gtk_widget_hide_all(GTK_WIDGET(context->panel_applet));
 	}
 	else {
 		/* opening */
-		gtk_widget_show_all(GTK_WIDGET(this->panel_applet));
+		gtk_widget_show_all(GTK_WIDGET(context->panel_applet));
 	}
 }
 
@@ -102,30 +102,30 @@ static GHashTable *get_rhythmbox_song_properties(
 	return ht;
 }
 
-static gboolean rhythmbox_next(ThisApplet *this)
+static gboolean rhythmbox_next(ThisApplet *applet)
 {
-	return dbus_g_proxy_call(this->rhythmbox_player_proxy, "next", NULL,
+	return dbus_g_proxy_call(applet->rhythmbox_player_proxy, "next", NULL,
 			G_TYPE_INVALID, G_TYPE_INVALID);
 }
 
 static gchar const *lookup_variant_string(
-		GHashTable *hash_table, gpointer key)
+		GHashTable *hash_table, void const *key)
 {
-	GValue const *value = g_hash_table_lookup(hash_table, key);
+	GValue const *value = reinterpret_cast<GValue const *>(g_hash_table_lookup(hash_table, key));
 	if (value)
 		return g_value_get_string(value);
 	else
 		return NULL;
 }
 
-static void trash_current_rhythmbox_uri(ThisApplet *this)
+static void trash_current_rhythmbox_uri(ThisApplet *applet)
 {
 	/* get the current track URI */
-	gchar *uri = get_rhythmbox_playing_uri(this->rhythmbox_player_proxy);
+	gchar *uri = get_rhythmbox_playing_uri(applet->rhythmbox_player_proxy);
 
 	if (!uri || g_strcmp0(uri, "") == 0) {
 		GtkWidget *dialog = gtk_message_dialog_new(
-				NULL, 0, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+				NULL, static_cast<GtkDialogFlags>(0), GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
 				"No song is currently playing.");
 		gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(dialog);
@@ -135,7 +135,7 @@ static void trash_current_rhythmbox_uri(ThisApplet *this)
 		gchar *dlg_text = NULL;
 		{
 			GHashTable *song_props = get_rhythmbox_song_properties(
-					this->rhythmbox_shell_proxy, uri);
+					applet->rhythmbox_shell_proxy, uri);
 
 			if (song_props) {
 				/* these strings are deleted by the hashtable */
@@ -173,7 +173,7 @@ static void trash_current_rhythmbox_uri(ThisApplet *this)
 		gint response;
 		{
 			GtkWidget *dialog = gtk_message_dialog_new(
-					NULL, 0, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
+					NULL, static_cast<GtkDialogFlags>(0), GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
 					"Move to Trash?\n\n%s", dlg_text);
 			gtk_dialog_add_buttons(GTK_DIALOG(dialog),
 				GTK_STOCK_DELETE, GTK_RESPONSE_ACCEPT,
@@ -192,7 +192,7 @@ static void trash_current_rhythmbox_uri(ThisApplet *this)
 			g_file_trash(file, NULL, &error);
 			if (error != NULL) {
 				GtkWidget *dialog = gtk_message_dialog_new(
-						NULL, 0, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE,
+						NULL, static_cast<GtkDialogFlags>(0), GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE,
 						"Error moving file to trash: %s\n", error->message);
 				gtk_dialog_run(GTK_DIALOG(dialog));
 				gtk_widget_destroy(dialog);
@@ -204,10 +204,10 @@ static void trash_current_rhythmbox_uri(ThisApplet *this)
 			 * (most likely due to track transition waiting for user response)
 			 */
 			if (error == NULL) {
-				gchar *new_uri = get_rhythmbox_playing_uri(this->rhythmbox_player_proxy);
+				gchar *new_uri = get_rhythmbox_playing_uri(applet->rhythmbox_player_proxy);
 				if (new_uri) {
 					if (g_strcmp0(new_uri, uri) == 0)
-						rhythmbox_next(this);
+						rhythmbox_next(applet);
 					g_free(new_uri);
 				}
 			}
@@ -222,7 +222,7 @@ static gboolean delete_box_pressed(
 {
 	g_debug("clicked");
 	if (event->button == 1) {
-		trash_current_rhythmbox_uri(user_data);
+		trash_current_rhythmbox_uri(reinterpret_cast<ThisApplet *>(user_data));
 		return TRUE;
 	}
 	else {
@@ -231,9 +231,9 @@ static gboolean delete_box_pressed(
 }
 
 static void show_about_dialog(
-	BonoboUIComponent *component, gpointer user_data, char const *cname)
+	BonoboUIComponent *component, gpointer, char const *cname)
 {
-	ThisApplet *this = user_data;
+	//ThisApplet *context = user_data;
 	gchar const *authors[] = {
 		"Matt \"Eruanno\" Joiner <anacrolix@gmail.com>",
 		NULL
@@ -255,8 +255,8 @@ static gboolean rbapplet_factory(
 		return FALSE;
 
 	/* allocate space for applet objects */
-	gpointer this = g_malloc0(sizeof(ThisApplet));
-	g_assert(this);
+	gpointer context = g_malloc0(sizeof(ThisApplet));
+	g_assert(context);
 
 	/* setup dbus connection and proxies */
 	DBusGConnection *dbus_sess_conn;
@@ -302,7 +302,7 @@ static gboolean rbapplet_factory(
 			G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(
 			dbus_proxy, "NameOwnerChanged",
-			G_CALLBACK(name_owner_changed), this, NULL);
+			G_CALLBACK(name_owner_changed), context, NULL);
 
 	/* add button */
 	GtkWidget *event_box = gtk_event_box_new();
@@ -312,7 +312,7 @@ static gboolean rbapplet_factory(
 	gtk_container_add(GTK_CONTAINER(event_box), delete_image);
 	g_signal_connect(
 			event_box, "button-press-event",
-			G_CALLBACK(delete_box_pressed), this);
+			G_CALLBACK(delete_box_pressed), context);
 
 	/* setup menu */
 	static char const menu_xml[] =
@@ -329,14 +329,14 @@ static gboolean rbapplet_factory(
 		BONOBO_UI_VERB("RbAppletAbout", show_about_dialog),
 		BONOBO_UI_VERB_END
 	};
-	panel_applet_setup_menu(applet, menu_xml, menu_verbs, this);
+	panel_applet_setup_menu(applet, menu_xml, menu_verbs, context);
 
 	/* show applet if RB is running */
 	if (name_has_owner(dbus_proxy))
 		gtk_widget_show_all(GTK_WIDGET(applet));
 
 	/* save this members */
-	*(ThisApplet *)this = (ThisApplet) {
+	*(ThisApplet *)context = (ThisApplet) {
 		applet, dbus_sess_conn,
 		dbus_proxy,
 		rhythmbox_shell_proxy, rhythmbox_player_proxy,
