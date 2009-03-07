@@ -4,14 +4,13 @@ echo BUILD_ARCH `dpkg-architecture -qDEB_BUILD_ARCH` >> symbols.$$
 
 # process @VARS@ in any *.in files
 for infile in $(ls *.in); do
-	outfile=${infile%.in}
-	cp -f "$infile" "$outfile"
-	while read symbol value; do
-		sed "s/@$symbol@/$value/" "$outfile" > "${outfile}.$$"
-		mv "${outfile}.$$" "$outfile"
-	done < symbols.$$
-	chmod -w "$outfile"
+    outfile=${infile%.in}
+    cp -f "$infile" "$outfile"
+    while read symbol value; do
+        sed "s/@$symbol@/$value/" "$outfile" > "${outfile}.$$"
+        mv "${outfile}.$$" "$outfile"
+    done < symbols.$$
+    chmod -w "$outfile"
 done
 
-#rm symbols.$$
-
+rm symbols.$$

@@ -12,7 +12,7 @@ applet_file := @PACKAGE_NAME@
 
 default: applet
 
-applet: main.o
+applet: main.o misc.o
 	$(CC) -o @PACKAGE_NAME@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
