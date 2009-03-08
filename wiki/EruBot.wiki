@@ -1,0 +1,12 @@
+#summary About EruBot, helper program for Tibia.
+
+= Introduction =
+
+EruBot was actively developed from early 2005, until November 2006. It is *no longer maintained*. This means the source code still exists, but no updates have been made since Tibia 7.81.
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
