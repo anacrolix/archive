@@ -1,4 +1,5 @@
 #summary About EruBot, helper program for Tibia.
+#labels Featured,Deprecated
 
 = Introduction =
 
@@ -11,12 +12,12 @@ EruBot is primarily written in VB (shame), with some auxiliary code in C. If I w
 = Capabilities =
 
 At it's height, just before I stopped maintaining EruBot, it had the following:
-* cavebot (waypoint system, with intelligent target selection)
-* auto healer (wth a macro system for who to heal, when and with priorities)
-* lock-on attack (great for knights on stairs ;D)
-* built-in magebomb synchronization
-* light (full light, no glitches)
-* experience (ETA at current experience rate)
-* skill progression monitoring (you'd be notified every 1%, with an ETA to next skill point rise)
+ * cavebot (waypoint system, with intelligent target selection)
+ * auto healer (wth a macro system for who to heal, when and with priorities)
+ * lock-on attack (great for knights on stairs ;D)
+ * built-in magebomb synchronization
+ * light (full light, no glitches)
+ * experience (ETA at current experience rate)
+ * skill progression monitoring (you'd be notified every 1%, with an ETA to next skill point rise)
 
 _This page is a work in progress_
