@@ -1,5 +1,5 @@
 #summary About EruBot, helper program for Tibia.
-#labels Featured,Deprecated
+#labels Featured
 
 = Introduction =
 
