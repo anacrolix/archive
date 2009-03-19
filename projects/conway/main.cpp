@@ -1,5 +1,3 @@
-#define __STDC_LIMIT_MACROS
-
 #include "eruutil/debug.h"
 
 #include <SDL/SDL.h>
@@ -7,7 +5,6 @@
 #include <boost/thread.hpp>
 
 #include <time.h>
-#include <stdint.h>
 
 unsigned
     SCREEN_WIDTH = 1200,
@@ -165,9 +162,9 @@ int updateWorld(void *arg)
                 }
             }
             cell_t cell;
-                cell.r = UINT8_MAX;
-                cell.g = UINT8_MAX;
-                cell.b = UINT8_MAX;
+                cell.r = UCHAR_MAX;
+                cell.g = UCHAR_MAX;
+                cell.b = UCHAR_MAX;
             if (adj < 2 || adj > 3) {
                 cell.state = 0;
                 cell.g = 0;
@@ -192,7 +189,7 @@ void update()
     oldWorld = newWorld;
     newWorld = world;
 
-    SDL_Thread *threads[NR_PROCESSORS];
+    SDL_Thread **threads = new SDL_Thread *[NR_PROCESSORS];
     // create update threads
     for (long t = 0; t < NR_PROCESSORS; t++)
     {
@@ -207,6 +204,7 @@ void update()
     }
     world = newWorld;
     generation++;
+	delete[] threads;
 }
 
 void loop()
@@ -247,7 +245,7 @@ void check_variables()
     debug("%u", NR_PROCESSORS);
 }
 
-int main()
+int main(int, char **)
 {
     init();
     loop();
