@@ -1,0 +1,7 @@
+Package: @PACKAGE_NAME@
+Version: @PACKAGE_VERSION@-@PACKAGE_REVISION@
+Architecture: @BUILD_ARCH@
+Maintainer: Matt Joiner <anacrolix@gmail.com>
+Description: Applet that deletes the current Rhythmbox song
+Depends: libpanel-applet2-0, libdbus-glib-1-2
+Recommends: rhythmbox (>= 0.10)
