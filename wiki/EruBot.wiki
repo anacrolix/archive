@@ -7,7 +7,9 @@ EruBot was actively developed from early 2005, until November 2006. It is *no lo
 
 = Source Code =
 
-EruBot is primarily written in VB (shame), with some auxiliary code in C. If I were to write it again I'd do it purely in C, or C++ with some assembler.
+EruBot is primarily written in VB (shame), with some auxiliary code in C. If I were to write it again I'd do it purely in C or C++, with some assembler.
+
+EruBot could be updated for the latest version, memory addresses and struct member offsets are all stored as constants. Modifications to these, and any changes to packets can be done in the appropriate places in the code. You're welcome to do this, and submit a patch back if you so desire.
 
 = Capabilities =
 
@@ -20,4 +22,10 @@ At it's height, just before I stopped maintaining EruBot, it had the following:
  * experience (ETA at current experience rate)
  * skill progression monitoring (you'd be notified every 1%, with an ETA to next skill point rise)
 
-_This page is a work in progress_
+In reponse to some questions about other capabilities, as far as I understand these new terms, EruBot did not have the following:
+ * Dash
+ * Attack combo (for more than just the current player)
+
+_*This page is a work in progress*_.
+
+Please remember there is *THERE IS NO CURRENT VERSION*.
