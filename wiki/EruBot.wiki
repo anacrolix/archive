@@ -29,3 +29,13 @@ In reponse to some questions about other capabilities, as far as I understand th
 _*This page is a work in progress*_.
 
 Please remember there is *THERE IS NO CURRENT VERSION*.
+
+= Screenshots =
+
+In roughly reverse chronological order.
+
+http://anacrolix.googlecode.com/files/d9fcd8d7769c857ac60cf6c365d7588c.jpg
+http://anacrolix.googlecode.com/files/def07ecdd9e2b6f09d7aa810362a00c7_erubot%200.9.102.JPG
+http://anacrolix.googlecode.com/files/17e196c0abad97d35adb6a0265d6d53d.JPG
+http://anacrolix.googlecode.com/files/d9a18035f09a07ab9cdd35ba14f7b8d8.JPG
+http://anacrolix.googlecode.com/files/old-version.JPG
