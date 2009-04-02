@@ -4,7 +4,7 @@ CPPFLAGS = `pkg-config --cflags $(PCLIBS)`
 LDFLAGS = `pkg-config --libs $(PCLIBS)`
 CXXFLAGS = -g -Wall
 PREFIX = @PREFIX@
-OBJECTS = main.o Applet.o
+OBJECTS = main.o Applet.o RhythmboxProxy.o
 
 server_path = $(PREFIX)/lib/bonobo/servers
 server_file := @PACKAGE_NAME@.server
