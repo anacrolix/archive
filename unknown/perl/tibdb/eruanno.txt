@@ -1,3 +1,34 @@
+Apr 02 2009, 03:35:48 CEST	Killed Delam at Level 6	ok
+Apr 02 2009, 03:19:15 CEST	Killed Aula Viron at Level 16	ok
+Apr 02 2009, 03:16:58 CEST	Killed Joe Rage at Level 9	ok
+Apr 02 2009, 03:16:13 CEST	Killed Mortal Wish at Level 8	ok
+Apr 02 2009, 03:15:45 CEST	Killed Joe Rage at Level 9	ok
+Apr 02 2009, 03:08:11 CEST	Killed Draven greed second at Level 19	ok
+Apr 02 2009, 03:08:07 CEST	Killed Knox mex at Level 10	ok
+Apr 02 2009, 03:03:35 CEST	Killed Elgototas at Level 18	ok
+Apr 02 2009, 02:47:48 CEST	Killed Raadowins at Level 13	ok
+Apr 02 2009, 02:44:08 CEST	Killed Elon Sathort at Level 9	ok
+Apr 02 2009, 02:39:45 CEST	Killed Berri Bear at Level 10	ok
+Apr 02 2009, 02:18:57 CEST	Killed Lord Aricus at Level 10	ok
+Apr 02 2009, 02:18:51 CEST	Killed Phuc meh at Level 17	ok
+Apr 02 2009, 01:45:51 CEST	Killed Morien Shilaros at Level 10	ok
+Apr 01 2009, 11:58:24 CEST	Killed Missive Fire Elemental at Level 13	ok
+Apr 01 2009, 11:56:29 CEST	Killed Timero of Shadow at Level 8	ok
+Apr 01 2009, 10:58:01 CEST	Killed Pelo Tudo at Level 27	ok
+Apr 01 2009, 06:03:19 CEST	Killed Xemino at Level 25	ok
+Mar 31 2009, 16:39:14 CEST	Killed Dard Dales at Level 18	ok
+Mar 31 2009, 16:28:42 CEST	Killed Tim the Fairminded at Level 28	ok
+Mar 27 2009, 13:56:35 CET	Killed Drzazgierrow at Level 25	ok
+Mar 27 2009, 13:31:07 CET	Killed Phamedoron Takithos at Level 17	ok
+Mar 27 2009, 13:29:21 CET	Killed Josef Loko at Level 9	ok
+Mar 27 2009, 13:28:39 CET	Killed Trie Odir at Level 7	ok
+Mar 27 2009, 13:28:35 CET	Killed Sorcerer The Dead at Level 7	ok
+Mar 27 2009, 13:28:01 CET	Killed Trie Odir at Level 7	ok
+Mar 27 2009, 13:26:53 CET	Killed Trie Odir at Level 7	ok
+Mar 27 2009, 13:26:27 CET	Killed Baizaliio at Level 7	ok
+Mar 27 2009, 13:26:04 CET	Killed Piecioszczyk at Level 17	ok
+Mar 22 2009, 00:39:05 CET	Killed Lord Last Resort at Level 33	ok
+Mar 19 2009, 11:56:41 CET	Killed Rooxana at Level 20	ok
 Jul 03 2007, 21:42:24 CEST	Killed Feru Adenakero at Level 24	ok
 Jul 03 2007, 21:41:32 CEST	Killed Kvera el paladino on dolera at Level 9	ok
 Jul 03 2007, 21:41:22 CEST	Killed Dolida at Level 11	ok
