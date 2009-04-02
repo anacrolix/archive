@@ -1,0 +1,2 @@
+Requires dpkg-architecture from dpkg-dev to determine BUILD_ARCH.
+
