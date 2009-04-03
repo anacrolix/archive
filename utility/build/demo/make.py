@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.append("..")
 from build import *
 
 obj_a = Relationship(["demo_a.o"], ["demo_a.c"], lambda x, y: "gcc -o " + x[0] + " -c " + y[0])
