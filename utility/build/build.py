@@ -1,6 +1,46 @@
-import shutil, os, stat, subprocess
+import shutil, os, re, stat, subprocess
 
 relationships = {}
+pattern_rules = []
+verbose = True
+
+class BuildVariable:
+    # perhaps we don't need shell?
+    def __init__(self, args, shell=False):
+        self.args = args
+        self.shell = shell
+    def __call__(self):
+        # args could be mapped to strings here if necessary
+        child = subprocess.Popen(self.args, shell=self.shell, stdout=subprocess.PIPE)
+        return child.communicate()[0].strip("\n ")
+    def __str__(self):
+        return self()
+
+class BuildStep:
+    # command is a callable that takes ([targets], [dependents])
+    def __init__(self, command, shell=True):
+        self.command = command
+        self.shell = shell
+    def __call__(self, targets, dependents):
+        args = map(lambda x: str(x), self.command(targets, dependents))
+        if self.shell: args = [" ".join(args)]
+        if verbose: print args
+        subprocess.check_call(args, shell=self.shell)
+        return True
+
+def is_target_outdated(target, *dependencies):
+    try:
+        targ_mtime = os.stat(target)[stat.ST_MTIME]
+    except OSError, e:
+        assert e.errno == 2 # only file missing is ok
+        return True
+    for dep in dependencies:
+        # this should never fail, as the dep should exist by the time this function is called
+        dep_mtime = os.stat(dep)[stat.ST_MTIME]
+        if dep_mtime > targ_mtime:
+            return True
+    else:
+        return False
 
 class Relationship:
     def __init__(self, targets, dependencies, command):
@@ -15,27 +55,42 @@ class Relationship:
         # recursively update, this propagates modifications up the tree
         for dep in self.dependencies:
             try:
+                # try to update via explicit relationships
                 self.relationships()[dep].update()
             except KeyError:
-                # no relationship is defined, do nothing
-                # (eg the file is created by moi)
-                pass
+                # look for a pattern rule
+                for rule in pattern_rules:
+                    if rule.update(dep):
+                        break
+                else:
+                    # no relationship is defined, do nothing
+                    # (eg the file is created by moi)
+                    raise Exception("No rule to generate file", dep)
+        # now that immediate deps have been updated as required
+        # we can determine if _this_ target needs updating
         for targ in self.targets:
-            for dep in self.dependencies:
-                g = False
-                d = os.stat(dep)[stat.ST_MTIME]
-                try:
-                    e = os.stat(targ)[stat.ST_MTIME]
-                except OSError as f:
-                    assert f.errno == 2
-                    g = True
-                if g != True and d > e: g = True
-                if g == True:
-                    # might have to use list2cmd or w/e here on windows?
-                    print self.command(self.targets, self.dependencies)
-                    status = subprocess.check_call(self.command(self.targets, self.dependencies), shell=True)
-                    print "execute command:", targ, "<-", dep
-            print dep, "uptodate"
+            if is_target_outdated(targ, *self.dependencies):
+                # might have to use list2cmd or w/e here on windows?
+                assert self.command(self.targets, self.dependencies)
+                #print self.command(self.targets, self.dependencies)
+                #status = subprocess.check_call(self.command(self.targets, self.dependencies), shell=True)
+                #print "execute command:", targ, "<-", dep
+                if is_target_outdated(targ, *self.dependencies): raise Exception
+
+class PatternRule:
+    def __init__(self, pattern, repl, command):
+        self.pattern = pattern
+        self.repl = repl
+        self.command = command
+        pattern_rules.append(self)
+    def update(self, target):
+        dep = re.subn(self.pattern, self.repl, target, 1)
+        if dep[1] == 1:
+            if is_target_outdated(target, dep[0]):
+                assert self.command([target], [dep[0]])
+            return True
+        else:
+            return False
 
 def clean():
     print "Cleaning all targets"
