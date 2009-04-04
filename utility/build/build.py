@@ -17,7 +17,7 @@ class BuildVariable:
         return self()
 
 class BuildStep:
-    # command is a callable that takes ([targets], [dependents])
+    # command is a callable that takes ([targets], [dependents]), eg lambda ts, ds
     def __init__(self, command, shell=True):
         self.command = command
         self.shell = shell
@@ -43,7 +43,30 @@ def is_target_outdated(target, *dependencies):
     else:
         return False
 
+def update(maintarg, targets, depends, buildstep):
+    assert maintarg in targets
+    if is_target_outdated(maintarg, *depends):
+        print "Regenerating:",
+        # windows having a mad gay about this?
+        #SEP = "\n" + 8 * " "
+        #print SEP.join(targets)
+        if len(targets) > 1:
+            print
+            for a in targets:
+                print "\t%s" % (a, )
+        else:
+            assert targets[0] == maintarg
+            print targets[0]
+        assert buildstep(targets, depends) == True
+        if is_target_outdated(maintarg, *depends):
+            raise Exception("Target file not produced", maintarg)
+        else:
+            print "Updated:", maintarg
+    else:
+        print "Current:", maintarg
+
 class Relationship:
+    # command must be a buildstep
     def __init__(self, targets, dependencies, command):
         for a in targets:
             self.relationships()[a] = self
@@ -71,27 +94,21 @@ class Relationship:
         # now that immediate deps have been updated as required
         # we can determine if _this_ target needs updating
         for targ in self.targets:
-            if is_target_outdated(targ, *self.dependencies):
-                # might have to use list2cmd or w/e here on windows?
-                assert self.command(self.targets, self.dependencies)
-                #print self.command(self.targets, self.dependencies)
-                #status = subprocess.check_call(self.command(self.targets, self.dependencies), shell=True)
-                #print "execute command:", targ, "<-", dep
-                if is_target_outdated(targ, *self.dependencies): raise Exception
+            update(targ, self.targets, self.dependencies, self.command)
 
 class PatternRule:
+    # command must be a buildstep
     def __init__(self, pattern, repl, command):
         self.pattern = pattern
         self.repl = repl
         self.command = command
         pattern_rules.append(self)
+    # return True if this rule can build the target
     def update(self, target):
         dep = re.subn(self.pattern, self.repl, target, 1)
         # dep is (new_string, number_of_subs_made)
         if dep[1] == 1:
-            if is_target_outdated(target, dep[0]):
-                # assert is to check the old lambda form of command isn't called
-                assert self.command([target], [dep[0]]) == True
+            update(target, [target], [dep[0]], self.command)                
             return True
         else:
             return False
