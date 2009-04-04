@@ -3,7 +3,7 @@
 import sys
 # the build script lives below
 sys.path.append("..")
-from build import *
+from pybuild import *
 
 # this is really good bit...
 if os.name == 'posix':

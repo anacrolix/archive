@@ -1,4 +1,11 @@
-import shutil, os, re, stat, subprocess
+import os
+import re
+import shutil
+import stat
+import subprocess
+import sys
+
+from terminfo import TermInfo
 
 relationships = {}
 pattern_rules = []
@@ -22,9 +29,11 @@ class BuildStep:
         self.command = command
         self.shell = shell
     def __call__(self, targets, dependents):
+        ti = TermInfo()
+        argsclr = TermInfo().FG_MAGENTA
         args = map(lambda x: str(x), self.command(targets, dependents))
         if self.shell: args = [" ".join(args)]
-        if verbose: print args[0] if self.shell else args
+        if verbose: print argsclr + args[0] if self.shell else args
         # find a way to print the shell input
         subprocess.check_call(args, shell=self.shell)
         return True
@@ -45,8 +54,11 @@ def is_target_outdated(target, *dependencies):
 
 def update(maintarg, targets, depends, buildstep):
     assert maintarg in targets
+    ti = TermInfo()
+    green = ti.FG_GREEN
+    white = ti.FG_WHITE
     if is_target_outdated(maintarg, *depends):
-        print "Regenerating:",
+        print green + "Regenerating:",
         # windows having a mad gay about this?
         #SEP = "\n" + 8 * " "
         #print SEP.join(targets)
@@ -61,9 +73,9 @@ def update(maintarg, targets, depends, buildstep):
         if is_target_outdated(maintarg, *depends):
             raise Exception("Target file not produced", maintarg)
         else:
-            print "Updated:", maintarg
+            print green + "Updated:", maintarg
     else:
-        print "Current:", maintarg
+        print green + "Current:", maintarg
 
 class Relationship:
     # command must be a buildstep
@@ -108,7 +120,7 @@ class PatternRule:
         dep = re.subn(self.pattern, self.repl, target, 1)
         # dep is (new_string, number_of_subs_made)
         if dep[1] == 1:
-            update(target, [target], [dep[0]], self.command)                
+            update(target, [target], [dep[0]], self.command)
             return True
         else:
             return False
