@@ -4,11 +4,17 @@ import sys
 sys.path.append("..")
 from build import *
 
-obj_a = Relationship(["demo_a.o"], ["demo_a.c"], lambda x, y: "gcc -o " + x[0] + " -c " + y[0])
-obj_b = Relationship(["demo_b.o"], ["demo_b.c"], lambda x, y: "gcc -o " + x[0] + " -c " + y[0])
-exe = Relationship(["demo"], ["demo_a.o", "demo_b.o"], lambda x, y: " ".join(["gcc -o", x[0], " ".join(y)]))
+# this is really good bit...
+if os.name == 'posix':
+    CC = "gcc"
+else:
+    assert False
 
-exe.update()
+OBJECTS = "demo_a.o demo_b.o".split(" ")
 
-clean()
-print "FINISH"
+compile_step = BuildStep(lambda x, y: [CC, "-c -Wall -o", x[0], y[0]], shell=True)
+PatternRule("\.o$", ".c", compile_step)
+
+binary = Relationship(["demo"], OBJECTS, BuildStep(lambda x, y: [CC, "-o", x[0]] + y))
+
+binary.update()

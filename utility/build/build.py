@@ -24,7 +24,8 @@ class BuildStep:
     def __call__(self, targets, dependents):
         args = map(lambda x: str(x), self.command(targets, dependents))
         if self.shell: args = [" ".join(args)]
-        if verbose: print args
+        if verbose: print args[0] if self.shell else args
+        # find a way to print the shell input
         subprocess.check_call(args, shell=self.shell)
         return True
 
@@ -63,9 +64,10 @@ class Relationship:
                     if rule.update(dep):
                         break
                 else:
-                    # no relationship is defined, do nothing
+                    # no relationship is defined, the file should exist
                     # (eg the file is created by moi)
-                    raise Exception("No rule to generate file", dep)
+                    if not os.path.exists(dep):
+                        raise Exception("No rule to generate file", dep)
         # now that immediate deps have been updated as required
         # we can determine if _this_ target needs updating
         for targ in self.targets:
@@ -85,9 +87,11 @@ class PatternRule:
         pattern_rules.append(self)
     def update(self, target):
         dep = re.subn(self.pattern, self.repl, target, 1)
+        # dep is (new_string, number_of_subs_made)
         if dep[1] == 1:
             if is_target_outdated(target, dep[0]):
-                assert self.command([target], [dep[0]])
+                # assert is to check the old lambda form of command isn't called
+                assert self.command([target], [dep[0]]) == True
             return True
         else:
             return False
