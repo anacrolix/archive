@@ -1,32 +1,29 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys
-sys.path.append("build")
-from build import *
+sys.path.append("pybuild")
+from pybuild import *
 
-# this is really good bit...
-if os.name == 'posix':
-    CC = "g++"
-else:
-    assert False
-
-OBJECTS = "main.o Applet.o RhythmboxProxy.o".split(" ")
-AUXCONFS = "control symbols Makefile tracklet.server config.h".split(" ")
+CC = "g++"
+OBJECTS = "main.o Applet.o RhythmboxProxy.o".split()
+AUXCONFS = "control symbols Makefile tracklet.server config.h".split()
+# auxiliary conf files are made from corresponding .in file
 AUXCONF_DEPS = map(lambda x: x + ".in", AUXCONFS)
-PCLIBS = "dbus-glib-1 gtk+-2.0 libpanelapplet-2.0"
-PCLIB_LDFLAGS = BuildVariable(["pkg-config", "--libs", PCLIBS], shell=False)
-PCLIB_CFLAGS = BuildVariable(["pkg-config", "--cflags", PCLIBS], shell=False)
+# the package config dependencies
+PCLIBS = "dbus-glib-1 gtk+-2.0 libpanelapplet-2.0".split()
+PCLIB_LDFLAGS = Variable(["pkg-config", "--libs"] + PCLIBS)()
+PCLIB_CFLAGS = Variable(["pkg-config", "--cflags"] + PCLIBS)()
 
-link_step = BuildStep(lambda x, y: [CC, PCLIB_LDFLAGS, "-o", x[0]] + y)
-compile_step = BuildStep(lambda x, y: [CC, PCLIB_CFLAGS, "-c", "-o", x[0], y[0]])
+link_step = BuildStep(lambda x, y: [CC, "-o", x[0]] + y + PCLIB_LDFLAGS.split())
+compile_step = BuildStep(lambda x, y: [CC, "-c", "-o", x[0], y[0]] + PCLIB_CFLAGS.split())
 configure_step = BuildStep(lambda x, y: ["./configure"])
+def cpp_depgen(target):
+    srcdep = re.sub("\.o$", ".cpp", target)
+    makerule = Variable([CC, "-MM", "-MG", "-MT", target, srcdep])()
+    return parse_make_rule(makerule)
 
 binary = Relationship(["tracklet"], OBJECTS, link_step)
 auxconf = Relationship(AUXCONFS, AUXCONF_DEPS, configure_step)
-PatternRule("\.o$", ".cpp", compile_step)
+PatternRule(".*\.o$", compile_step, cpp_depgen)
 
-auxconf.update()
-binary.update()
-
-print AUXCONF_DEPS
-print "FINISH"
+binary.update_all()
