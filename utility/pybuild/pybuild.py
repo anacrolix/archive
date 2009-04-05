@@ -11,17 +11,31 @@ relationships = {}
 pattern_rules = []
 verbose = True
 
-class BuildVariable:
-    # perhaps we don't need shell?
+class Variable:
     def __init__(self, args, shell=False):
         self.args = args
         self.shell = shell
-    def __call__(self):
-        # args could be mapped to strings here if necessary
-        child = subprocess.Popen(self.args, shell=self.shell, stdout=subprocess.PIPE)
-        return child.communicate()[0].strip("\n ")
+    def __call__(self, input=None):
+        if self.shell and not isinstance(self.args, str):
+            args = subprocess.list2cmdline(self.args)
+        else:
+            args = self.args
+        #if verbose: print args
+        child = subprocess.Popen(args, shell=self.shell, stdout=subprocess.PIPE)
+        return child.communicate(input)[0].strip("\n ")
     def __str__(self):
         return self()
+
+def parse_make_rule(rule):
+    retval = rule
+    # concatenate lines
+    retval = retval.replace("\\\n", "")
+    # break into targets: depends
+    retval = retval.split(":", 1)
+    # split allowing for whitespace escapes
+    retval = map(lambda x: filter(None, re.split("(?<!\\\\)\\s", x)), retval)
+    # someone get me a bucket
+    return retval
 
 class BuildStep:
     # command is a callable that takes ([targets], [dependents]), eg lambda ts, ds
@@ -30,11 +44,14 @@ class BuildStep:
         self.shell = shell
     def __call__(self, targets, dependents):
         ti = TermInfo()
-        argsclr = TermInfo().FG_MAGENTA
-        args = map(lambda x: str(x), self.command(targets, dependents))
-        if self.shell: args = [" ".join(args)]
-        if verbose: print argsclr + args[0] if self.shell else args
+        args = self.command(targets, dependents)
+        if self.shell: args = subprocess.list2cmdline(args)
+        if verbose:
+            sys.stdout.write(ti.FG_BLUE)
+            print args
         # find a way to print the shell input
+        sys.stdout.write(ti.NORMAL)
+        sys.stdout.flush() # lol flush the termcap str
         subprocess.check_call(args, shell=self.shell)
         return True
 
@@ -52,77 +69,88 @@ def is_target_outdated(target, *dependencies):
     else:
         return False
 
-def update(maintarg, targets, depends, buildstep):
-    assert maintarg in targets
-    ti = TermInfo()
-    green = ti.FG_GREEN
-    white = ti.FG_WHITE
-    if is_target_outdated(maintarg, *depends):
-        print green + "Regenerating:",
-        # windows having a mad gay about this?
-        #SEP = "\n" + 8 * " "
-        #print SEP.join(targets)
-        if len(targets) > 1:
-            print
-            for a in targets:
-                print "\t%s" % (a, )
+def update(outputs, depends, buildstep, targets=None):
+    #print "update(", outputs, depends, buildstep, targets, ")"
+
+    ti = TermInfo() # ~TermInfo will normalize terminal
+    current = ti.FG_GREEN
+    normal = ti.NORMAL
+    outdated = ti.FG_YELLOW
+    target = ti.FG_CYAN
+
+    for dep in depends:
+        try:
+            # try to update via explicit relationships
+            relationships[dep].update([dep])
+        except KeyError:
+            # look for a pattern rule
+            for rule in pattern_rules:
+                if rule.update(dep):
+                    break
+            else:
+                # no relationship is defined, the file should exist
+                # (eg the file is created by moi)
+                if not os.path.exists(dep):
+                    raise Exception("No rule to generate file", dep)
+                else:
+                    #print current + "Provided:", target + dep
+                    pass
+
+    for curtarg in targets or outputs:
+        if targets != None: assert curtarg in targets
+        else: assert curtarg in outputs
+
+        if is_target_outdated(curtarg, *depends):
+            print outdated + "Regenerating:",
+            # windows having a mad gay about this?
+            #SEP = "\n" + 8 * " "
+            #print SEP.join(outputs)
+            if len(outputs) > 1:
+                print
+                for a in outputs:
+                    print "\t%s%s" % (target, a)
+            else:
+                assert outputs[0] == curtarg
+                print target + outputs[0]
+            assert buildstep(outputs, depends) == True
+            if is_target_outdated(curtarg, *depends):
+                raise Exception("Target file not produced", curtarg)
+            else:
+                print current + "Updated:", target + curtarg
         else:
-            assert targets[0] == maintarg
-            print targets[0]
-        assert buildstep(targets, depends) == True
-        if is_target_outdated(maintarg, *depends):
-            raise Exception("Target file not produced", maintarg)
-        else:
-            print green + "Updated:", maintarg
-    else:
-        print green + "Current:", maintarg
+            print current + "Current:", target + curtarg
 
 class Relationship:
     # command must be a buildstep
-    def __init__(self, targets, dependencies, command):
-        for a in targets:
+    def __init__(self, outputs, inputs, command):
+        for a in outputs:
             self.relationships()[a] = self
-        self.targets = targets
-        self.dependencies = dependencies
+        self.outputs = outputs
+        self.inputs = inputs
         self.command = command
     def relationships(self):
-        return relationships
-    def update(self):
-        # recursively update, this propagates modifications up the tree
-        for dep in self.dependencies:
-            try:
-                # try to update via explicit relationships
-                self.relationships()[dep].update()
-            except KeyError:
-                # look for a pattern rule
-                for rule in pattern_rules:
-                    if rule.update(dep):
-                        break
-                else:
-                    # no relationship is defined, the file should exist
-                    # (eg the file is created by moi)
-                    if not os.path.exists(dep):
-                        raise Exception("No rule to generate file", dep)
-        # now that immediate deps have been updated as required
-        # we can determine if _this_ target needs updating
-        for targ in self.targets:
-            update(targ, self.targets, self.dependencies, self.command)
+        return relationships # this is global :)
+    def update(self, targets):
+        update(self.outputs, self.inputs, self.command, targets=targets)
+    def update_all(self):
+        self.update(self.outputs)
 
 class PatternRule:
     # command must be a buildstep
-    def __init__(self, pattern, repl, command):
+    def __init__(self, pattern, command, depgen):
         self.pattern = pattern
-        self.repl = repl
         self.command = command
+        self.depgen = depgen
         pattern_rules.append(self)
     # return True if this rule can build the target
     def update(self, target):
-        dep = re.subn(self.pattern, self.repl, target, 1)
-        # dep is (new_string, number_of_subs_made)
-        if dep[1] == 1:
-            update(target, [target], [dep[0]], self.command)
+        if re.match(self.pattern, target):
+            outputs, inputs = self.depgen(target)
+            update(outputs, inputs, self.command, targets=[target])
             return True
         else:
+            #print self.pattern
+            #print target
             return False
 
 def clean():

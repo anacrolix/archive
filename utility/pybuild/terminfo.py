@@ -1,7 +1,7 @@
 import curses
 import sys
 
-class TermInfo:
+class TermInfo():
     # there are normal colors too, might not need them. this. is. ANSIIIII
     _ANSI_COLORS = """BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE""".split()
     _STRING_CAPS = """NORMAL=sgr0""".split()
@@ -17,7 +17,8 @@ class TermInfo:
             setattr(self, attr, curses.tigetstr(capstr))
         self.stream = stream
     def __del__(self):
-        #self.stream.write(self.NORMAL)
+        self.stream.write(self.NORMAL)
+        self.stream.flush()
         pass
 
 class ResetTerm:
