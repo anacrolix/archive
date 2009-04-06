@@ -2,7 +2,7 @@
 
 import sys
 # the build script lives below
-sys.path.append("..")
+sys.path.append("../..")
 from pybuild import *
 
 # this is really good bit...
