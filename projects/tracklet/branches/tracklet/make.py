@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-sys.path.append("pybuild")
+#sys.path.append("pybuild")
 from pybuild import *
 
 CC = "g++"
