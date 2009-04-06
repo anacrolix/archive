@@ -6,10 +6,7 @@ import subprocess
 import sys
 
 from terminfo import TermInfo
-
-relationships = {}
-pattern_rules = []
-verbose = True
+import globals
 
 class Variable:
     def __init__(self, args, shell=False):
@@ -26,17 +23,6 @@ class Variable:
     def __str__(self):
         return self()
 
-def parse_make_rule(rule):
-    retval = rule
-    # concatenate lines
-    retval = retval.replace("\\\n", "")
-    # break into targets: depends
-    retval = retval.split(":", 1)
-    # split allowing for whitespace escapes
-    retval = map(lambda x: filter(None, re.split("(?<!\\\\)\\s", x)), retval)
-    # someone get me a bucket
-    return retval
-
 class BuildStep:
     # command is a callable that takes ([targets], [dependents]), eg lambda ts, ds
     def __init__(self, command, shell=True):
@@ -46,7 +32,7 @@ class BuildStep:
         ti = TermInfo()
         args = self.command(targets, dependents)
         if self.shell: args = subprocess.list2cmdline(args)
-        if verbose:
+        if globals.verbose:
             sys.stdout.write(ti.FG_BLUE)
             print args
         # find a way to print the shell input
@@ -81,10 +67,10 @@ def update(outputs, depends, buildstep, targets=None):
     for dep in depends:
         try:
             # try to update via explicit relationships
-            relationships[dep].update([dep])
+            globals.relationships[dep].update([dep])
         except KeyError:
             # look for a pattern rule
-            for rule in pattern_rules:
+            for rule in globals.pattern_rules:
                 if rule.update(dep):
                     break
             else:
@@ -129,7 +115,7 @@ class Relationship:
         self.inputs = inputs
         self.command = command
     def relationships(self):
-        return relationships # this is global :)
+        return globals.relationships # this is global :)
     def update(self, targets):
         update(self.outputs, self.inputs, self.command, targets=targets)
     def update_all(self):
@@ -141,7 +127,7 @@ class PatternRule:
         self.pattern = pattern
         self.command = command
         self.depgen = depgen
-        pattern_rules.append(self)
+        globals.pattern_rules.append(self)
     # return True if this rule can build the target
     def update(self, target):
         if re.match(self.pattern, target):
