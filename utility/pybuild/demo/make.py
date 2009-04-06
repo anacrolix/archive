@@ -25,9 +25,9 @@ else:
 
 OBJECTS = "demo_a.o demo_b.o".split()
 # how to build .o files from .c files
-PatternRule("\.o$", ".c", BuildStep(compile_args))
+PatternRule(".*\.o$", BuildStep(compile_args), lambda x: ([x], [re.sub("\.o$", ".c", x)]))
 # how to build, and what our binary depends on
 binary = Relationship(["demo.exe"], OBJECTS, BuildStep(link_args))
 
 # update the binary!
-binary.update()
+binary.update_all()
