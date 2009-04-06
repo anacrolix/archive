@@ -20,7 +20,9 @@ configure_step = BuildStep(lambda x, y: ["./configure"])
 def cpp_depgen(target):
     srcdep = re.sub("\.o$", ".cpp", target)
     makerule = Variable([CC, "-MM", "-MG", "-MT", target, srcdep])()
-    return parse_make_rule(makerule)
+    maketargs, makedeps = parse_make_rule(makerule)
+    assert target in maketargs
+    return maketargs, makedeps
 
 binary = Relationship(["tracklet"], OBJECTS, link_step)
 auxconf = Relationship(AUXCONFS, AUXCONF_DEPS, configure_step)
