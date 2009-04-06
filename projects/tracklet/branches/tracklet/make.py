@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
+import re
 import sys
-#sys.path.append("pybuild")
 from pybuild import *
 
 CC = "g++"
@@ -20,7 +20,7 @@ configure_step = BuildStep(lambda x, y: ["./configure"])
 def cpp_depgen(target):
     srcdep = re.sub("\.o$", ".cpp", target)
     makerule = Variable([CC, "-MM", "-MG", "-MT", target, srcdep])()
-    maketargs, makedeps = parse_make_rule(makerule)
+    maketargs, makedeps = buildsys.make.parse_rule(makerule)
     assert target in maketargs
     return maketargs, makedeps
 
