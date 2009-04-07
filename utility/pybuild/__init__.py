@@ -1,2 +1,2 @@
-from pybuild import BuildStep, PatternRule, Relationship, Variable
+from classes import BuildStep, Configure, PatternRule, Relationship, Variable
 import buildsys
