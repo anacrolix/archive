@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+import os
+import re
 import sys
+
 # the build script lives below
 sys.path.append("../..")
 from pybuild import *
@@ -28,7 +31,9 @@ else:
 OBJECTS = map(lambda o: o + OBJECT_SUFFIX, "demo_a demo_b".split())
 # how to build .o files from .c files
 
-PatternRule(r".*" + re.escape(OBJECT_SUFFIX) + r"$", BuildStep(compile_args), lambda x: ([x], [re.sub(re.escape(OBJECT_SUFFIX) + r"$", ".c", x)]))
+PatternRule(r".*" + re.escape(OBJECT_SUFFIX) + r"$",
+            BuildStep(compile_args),
+            lambda x: ([x], [re.sub(re.escape(OBJECT_SUFFIX) + r"$", ".c", x)]))
 # how to build, and what our binary depends on
 binary = Relationship(["demo.exe"], OBJECTS, BuildStep(link_args))
 
