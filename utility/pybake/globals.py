@@ -1,3 +1,2 @@
-relationships = {}
-pattern_rules = []
-verbose = True
+explicit_rules = {}
+implicit_rules = []

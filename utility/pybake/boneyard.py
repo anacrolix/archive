@@ -6,7 +6,3 @@
 
 #if __name__ == "__main__":
     #print "I R HOOK U"
-
-#def main():
-    ## parse args here...
-    #pass

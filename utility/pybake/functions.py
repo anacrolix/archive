@@ -1,9 +1,10 @@
-from terminfo import TermInfo
-import globals
-
 import os
 import stat
 import sys
+
+import classes
+import globals
+from terminfo import TermInfo
 
 def is_target_outdated(target, *dependencies):
     try:
@@ -28,16 +29,21 @@ def update(outputs, depends, buildstep, targets=None):
     outdated = ti.FG_YELLOW
     target = ti.FG_CYAN
 
+    # try to generate via an explicit rule
+    # then by an implicit rule
+    # lastly assume the file is provided by the user
     for dep in depends:
         try:
             # try to update via explicit relationships
-            globals.relationships[dep].update([dep])
+            globals.explicit_rules[dep].update([dep])
         except KeyError:
             # look for a pattern rule
-            for rule in globals.pattern_rules:
+            matched = False
+            for rule in globals.implicit_rules:
                 if rule.update(dep):
-                    break
-            else:
+                    assert not matched
+                    matched = True
+            if not matched:
                 # no relationship is defined, the file should exist
                 # (eg the file is created by moi)
                 if not os.path.exists(dep):
@@ -46,6 +52,8 @@ def update(outputs, depends, buildstep, targets=None):
                     #print current + "Provided:", target + dep
                     pass
 
+    # for each of the targets, check they're up to date
+    # and execute the buildstep if they're not
     for curtarg in targets or outputs:
         if targets != None: assert curtarg in targets
         else: assert curtarg in outputs
@@ -67,3 +75,22 @@ def update(outputs, depends, buildstep, targets=None):
                 print current + "Updated:", target + curtarg
         else:
             print current + "Current:", target + curtarg
+
+# set foreground color to red before print exceptions
+# params could be handled with *param...
+def neardeath(type, value, traceback):
+    display = TermInfo()
+    display.immediate(display.FG_RED)
+    sys.__excepthook__(type, value, traceback)
+
+def initialize():
+    sys.excepthook = neardeath
+
+## names are for lols
+
+def bake():
+    # use optparse eventually...
+    classes.ExplicitRule.update_all()
+
+def shipit():
+    bake()

@@ -6,7 +6,37 @@ import re
 import subprocess
 import sys
 
-class Configure:
+class SystemTask:
+    def __init__(self, args):
+        self.args = args
+    def __call__(self, stdout=False):
+        display = TermInfo()
+        kwargs = {}
+        if stdout: kwargs["stdout"] = subprocess.PIPE
+        print display.FG_BLUE + subprocess.list2cmdline(self.args)
+        display.immediate(display.NORMAL)
+        child = subprocess.Popen(self.args, **kwargs)
+        output = child.communicate()[0]
+        assert output != None if stdout else output == None
+        if child.returncode:
+            display.immediate(display.FG_RED)
+            sys.exit("System task returned non-zero exit status %d" % child.returncode)
+        return output
+
+class BackTicks:
+    def __init__(self, args):
+        self.args = args
+
+
+#class PkgConfig:
+    #def __init__(self, *packages):
+        #self.packages = packages
+
+class Command:
+    def __call__(self, outputs, inputs):
+        raise NotImplementedError
+
+class Configure(Command):
     def __init__(self, symbols, prefix="@", suffix="@"):
         self.symbols = symbols
         self.prefix = prefix
@@ -27,22 +57,7 @@ class Configure:
         open(targets[0], 'wb').write(confed)
         return True
 
-class Variable:
-    def __init__(self, args, shell=False):
-        self.args = args
-        self.shell = shell
-    def __call__(self, input=None):
-        if self.shell and not isinstance(self.args, str):
-            args = subprocess.list2cmdline(self.args)
-        else:
-            args = self.args
-        #if verbose: print args
-        child = subprocess.Popen(args, shell=self.shell, stdout=subprocess.PIPE)
-        return child.communicate(input)[0].strip("\n ")
-    def __str__(self):
-        return self()
-
-class BuildStep:
+class BuildStep(Command):
     # command is a callable that takes ([targets], [dependents]), eg lambda ts, ds
     def __init__(self, command, shell=True):
         self.command = command
@@ -50,40 +65,47 @@ class BuildStep:
     def __call__(self, targets, dependents):
         ti = TermInfo()
         args = self.command(targets, dependents)
-        if self.shell: args = subprocess.list2cmdline(args)
-        if globals.verbose:
-            sys.stdout.write(ti.FG_BLUE)
-            print args
-        # find a way to print the shell input
-        sys.stdout.write(ti.NORMAL)
-        sys.stdout.flush() # lol flush the termcap str
-        subprocess.check_call(args, shell=self.shell)
+        SystemTask(args)()
         return True
 
-class Relationship:
+class RuleTargetError(Exception):
+    def __init__(self, target):
+        self.target = target
+    def __str__(self):
+        return "Explicit rule for target '%s' already exists" % self.target
+
+class Rule:
+    def __init__(self, commands):
+        raise NotImplementedError
+    def update(self, targets):
+        raise NotImplementedError
+
+class ExplicitRule(Rule):
     # command must be a buildstep
     def __init__(self, outputs, inputs, command):
+        assert isinstance(command, Command)
         for a in outputs:
-            self.relationships()[a] = self
+            if globals.explicit_rules.has_key(a):
+                raise RuleTargetError(a)
+            globals.explicit_rules[a] = self
         self.outputs = outputs
         self.inputs = inputs
         self.command = command
-    def relationships(self):
-        return globals.relationships # this is global :)
     def update(self, targets=None):
         update(self.outputs, self.inputs, self.command, targets=targets)
     @staticmethod
     def update_all():
         """Update all the registered relationships"""
-        update([], globals.relationships.keys(), None)
+        update([], globals.explicit_rules.keys(), None)
 
-class PatternRule:
+class ImplicitRule(Rule):
     # command must be a buildstep
     def __init__(self, pattern, command, depgen):
+        assert isinstance(command, Command)
         self.pattern = pattern
         self.command = command
         self.depgen = depgen
-        globals.pattern_rules.append(self)
+        globals.implicit_rules.append(self)
     # return True if this rule can build the target
     def update(self, target):
         if re.match(self.pattern, target):
@@ -91,7 +113,4 @@ class PatternRule:
             update(outputs, inputs, self.command, targets=[target])
             return True
         else:
-            #print self.pattern
-            #print target
             return False
-
