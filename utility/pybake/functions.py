@@ -1,8 +1,11 @@
+import optparse
 import os
 import stat
 import sys
+import types
 
 import classes
+import constants
 import globals
 from terminfo import TermInfo
 
@@ -20,8 +23,24 @@ def is_target_outdated(target, *dependencies):
     else:
         return False
 
+def find_rule(target):
+    try:
+        retval = globals.explicit_rules[target]
+    except KeyError:
+        matched = False
+        for rule in globals.implicit_rules:
+            assert isinstance(rule, classes.ImplicitRule)
+            if rule.match(target):
+                assert not matched
+                matched = True
+                retval = rule
+        if not matched: retval = None
+    assert isinstance(retval, (classes.Rule, types.NoneType))
+    return retval
+
 def update(outputs, depends, buildstep, targets=None):
     #print "update(", outputs, depends, buildstep, targets, ")"
+    if outputs == None: outputs = ()
 
     ti = TermInfo() # ~TermInfo will normalize terminal
     current = ti.FG_GREEN
@@ -33,24 +52,17 @@ def update(outputs, depends, buildstep, targets=None):
     # then by an implicit rule
     # lastly assume the file is provided by the user
     for dep in depends:
-        try:
-            # try to update via explicit relationships
-            globals.explicit_rules[dep].update([dep])
-        except KeyError:
-            # look for a pattern rule
-            matched = False
-            for rule in globals.implicit_rules:
-                if rule.update(dep):
-                    assert not matched
-                    matched = True
-            if not matched:
-                # no relationship is defined, the file should exist
-                # (eg the file is created by moi)
-                if not os.path.exists(dep):
-                    raise Exception("No rule to generate file", dep)
-                else:
-                    #print current + "Provided:", target + dep
-                    pass
+        rule = find_rule(dep)
+        if rule != None:
+            rule.update([dep])
+        else:
+            # no relationship is defined, the file should exist
+            # (eg the file is created by moi)
+            if not os.path.exists(dep):
+                raise Exception("No rule to generate file", dep)
+            else:
+                #print current + "Provided:", target + dep
+                pass
 
     # for each of the targets, check they're up to date
     # and execute the buildstep if they're not
@@ -88,9 +100,29 @@ def initialize():
 
 ## names are for lols
 
-def bake():
-    # use optparse eventually...
-    classes.ExplicitRule.update_all()
+def pybake_main():
+    parser = optparse.OptionParser(prog=constants.PROGRAM, version=constants.VERSION)
+    parser.disable_interspersed_args()
+    opts, args = parser.parse_args()
+    #print opts
+    if len(args) == 0:
+        # default "build all targets" kinda thing
+        #classes.ExplicitRule.update_all()
+        update(None, [ x[0] for x in globals.explicit_rules.iteritems() if not x[1].phony ], None)
+    else:
+        update([], args, None)
 
-def shipit():
-    bake()
+def clean_targets(targets=None):
+    display = TermInfo()
+    if targets == None:
+        targets = [ x[0] for x in globals.explicit_rules.iteritems() if not x[1].phony ]
+    for t in targets:
+        rule = find_rule(t)
+        if rule != None:
+            clean_targets(rule.get_inputs(t))
+            try:
+                os.remove(t)
+                print display.FG_RED + "Removing:", display.FG_CYAN + t
+            except OSError, e:
+                assert e.errno == 2
+                print display.FG_YELLOW + "Missing:", display.FG_CYAN + t

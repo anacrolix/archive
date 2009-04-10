@@ -23,10 +23,9 @@ class SystemTask:
             sys.exit("System task returned non-zero exit status %d" % child.returncode)
         return output
 
-class BackTicks:
-    def __init__(self, args):
-        self.args = args
-
+#class BackTicks:
+    #def __init__(self, args):
+        #self.args = args
 
 #class PkgConfig:
     #def __init__(self, *packages):
@@ -79,24 +78,29 @@ class Rule:
         raise NotImplementedError
     def update(self, targets):
         raise NotImplementedError
+    #def get_inputs(self, targets):
+    #    raise NotImplementedError
 
 class ExplicitRule(Rule):
+    phony = False
     # command must be a buildstep
     def __init__(self, outputs, inputs, command):
         assert isinstance(command, Command)
         for a in outputs:
-            if globals.explicit_rules.has_key(a):
-                raise RuleTargetError(a)
+            #if globals.explicit_rules.has_key(a):
+               # raise RuleTargetError(a)
             globals.explicit_rules[a] = self
         self.outputs = outputs
         self.inputs = inputs
         self.command = command
     def update(self, targets=None):
         update(self.outputs, self.inputs, self.command, targets=targets)
-    @staticmethod
-    def update_all():
-        """Update all the registered relationships"""
-        update([], globals.explicit_rules.keys(), None)
+    #@staticmethod
+    #def update_all():
+        #"""Update all the registered relationships"""
+        #update([], globals.explicit_rules.keys(), None)
+    def get_inputs(self, target):
+        return self.inputs
 
 class ImplicitRule(Rule):
     # command must be a buildstep
@@ -107,10 +111,20 @@ class ImplicitRule(Rule):
         self.depgen = depgen
         globals.implicit_rules.append(self)
     # return True if this rule can build the target
-    def update(self, target):
-        if re.match(self.pattern, target):
-            outputs, inputs = self.depgen(target)
-            update(outputs, inputs, self.command, targets=[target])
-            return True
-        else:
-            return False
+    def match(self, target):
+        return re.match(self.pattern, target)
+    def update(self, targets):
+        assert len(targets) == 1
+        outputs, inputs = self.depgen(targets[0])
+        update(outputs, inputs, self.command, targets=targets)
+    def get_inputs(self, target):
+        #assert len(target) == 1
+        return self.depgen(target)[1]
+
+class PhonyRule(ExplicitRule):
+    phony = True
+    def __init__(self, target, action):
+        globals.explicit_rules[target] = self
+        self.action = action
+    def update(self, targets):
+        return self.action()
