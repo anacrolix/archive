@@ -1,24 +1,22 @@
 #!/usr/bin/env python
 
-from pybake import *
-
 import os
 import re
 import sys
 import tempfile
 
+from pybake import *
+
 CC = "g++"
 OBJECTS = "main.o Applet.o RhythmboxProxy.o".split()
 AUXCONFS = "control Makefile tracklet.server config.h".split()
-# auxiliary conf files are made from corresponding .in file
-AUXCONF_DEPS = map(lambda x: x + ".in", AUXCONFS)
 # the package config dependencies
 PCLIBS = "dbus-glib-1 gtk+-2.0 libpanelapplet-2.0".split()
-PCLIB_LDFLAGS = Variable(["pkg-config", "--libs"] + PCLIBS)()
-PCLIB_CFLAGS = Variable(["pkg-config", "--cflags"] + PCLIBS)()
+PCLIB_LDFLAGS = SystemTask(["pkg-config", "--libs"] + PCLIBS)(stdout=True)#.strip("\n ")
+PCLIB_CFLAGS = SystemTask(["pkg-config", "--cflags"] + PCLIBS)(stdout=True)#.strip("\n ")
 
-link_step = BuildStep(lambda x, y: [CC, "-o", x[0]] + y + PCLIB_LDFLAGS.split())
-compile_step = BuildStep(lambda x, y: [CC, "-c", "-o", x[0], y[0]] + PCLIB_CFLAGS.split())
+link_step = BuildStep(lambda x, y: [CC, "-o", x[0]] + y + ["-g", "-Wall"] + PCLIB_LDFLAGS.split())
+compile_step = BuildStep(lambda x, y: [CC, "-c", "-o", x[0], y[0], "-g", "-Wall"] + PCLIB_CFLAGS.split())
 configure_step = BuildStep(lambda x, y: ["./configure"])
 
 symbols = [
@@ -34,17 +32,16 @@ symbols = [
 
 # BUILD_ARCH = `dpkg-architecture -qDEB_BUILD_ARCH`
 
-
 def cpp_depgen(target):
     srcdep = re.sub("\.o$", ".cpp", target)
-    makerule = Variable([CC, "-MM", "-MG", "-MT", target, srcdep])()
+    makerule = SystemTask([CC, "-MM", "-MG", "-MT", target, srcdep])(stdout=True)
     maketargs, makedeps = buildsys.make.parse_rule(makerule)
     assert target in maketargs
     return maketargs, makedeps
 
-binary = Relationship(["tracklet"], OBJECTS, link_step)
+binary = ExplicitRule(["tracklet"], OBJECTS, link_step)
 for auxconf in AUXCONFS:
-    Relationship([auxconf], [auxconf + ".in"], Configure(symbols))
-PatternRule(".*\.o$", compile_step, cpp_depgen)
+    ExplicitRule([auxconf], [auxconf + ".in"], Configure(symbols))
+ImplicitRule(".*\.o$", compile_step, cpp_depgen)
 
-Relationship.update_all()
+bake()
