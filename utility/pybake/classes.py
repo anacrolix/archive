@@ -37,6 +37,7 @@ class Command:
 
 class Configure(Command):
     def __init__(self, symbols, prefix="@", suffix="@"):
+        assert isinstance(symbols, dict)
         self.symbols = symbols
         self.prefix = prefix
         self.suffix = suffix
@@ -45,8 +46,8 @@ class Configure(Command):
         assert len(depends) == 1
         confed = open(depends[0]).read()
         substitutions = symbolsused = 0
-        for sym in self.symbols:
-            confed, subcount = re.subn(re.escape(self.prefix + sym[0] + self.suffix), sym[1], confed)
+        for key, value in self.symbols.iteritems():
+            confed, subcount = re.subn(re.escape(self.prefix + key + self.suffix), value, confed)
             substitutions += subcount
             if subcount > 0: symbolsused += 1
         ti = TermInfo()
@@ -58,12 +59,10 @@ class Configure(Command):
 
 class BuildStep(Command):
     # command is a callable that takes ([targets], [dependents]), eg lambda ts, ds
-    def __init__(self, command, shell=True):
-        self.command = command
-        self.shell = shell
-    def __call__(self, targets, dependents):
-        ti = TermInfo()
-        args = self.command(targets, dependents)
+    def __init__(self, argsgen):
+        self.argsgen = argsgen
+    def __call__(self, outputs, inputs):
+        args = self.argsgen(outputs, inputs)
         SystemTask(args)()
         return True
 
@@ -123,8 +122,12 @@ class ImplicitRule(Rule):
 
 class PhonyRule(ExplicitRule):
     phony = True
-    def __init__(self, target, action):
+    def __init__(self, target, action, prereqs=None):
         globals.explicit_rules[target] = self
+        self.target = target
         self.action = action
+        self.prereqs = prereqs
     def update(self, targets):
+        assert targets == [self.target]
+        if self.prereqs is not None: update([], self.prereqs, None)
         return self.action()
