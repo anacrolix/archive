@@ -1,5 +1,6 @@
 import optparse
 import os
+import re
 import stat
 import sys
 import types
@@ -126,3 +127,14 @@ def clean_targets(targets=None):
             except OSError, e:
                 assert e.errno == 2
                 print display.FG_YELLOW + "Missing:", display.FG_CYAN + t
+
+def object_file(compiler, source, cflags):
+    obj = re.sub(r"\..*?$", compiler.OBJ_SUFFIX, source)
+    classes.ExplicitRule([obj], [source], compiler.Compiler(cflags))
+    return obj
+
+def executable(compiler, exename, sources, cflags=None, ldflags=None):
+    objs = []
+    for src in sources:
+        objs.append(object_file(compiler, src, cflags))
+    classes.ExplicitRule([exename + compiler.EXE_SUFFIX], objs, compiler.Linker(ldflags))

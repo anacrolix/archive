@@ -34,14 +34,3 @@ class Linker(Command):
 
 OBJ_SUFFIX = ".o"
 EXE_SUFFIX = ""
-
-def object_file(source, cflags):
-    obj = re.sub(r"\..*?$", OBJ_SUFFIX, source)
-    ExplicitRule([obj], [source], Compiler(cflags))
-    return obj
-
-def executable(exename, sources, cflags=None, ldflags=None):
-    objs = []
-    for src in sources:
-        objs.append(object_file(src, cflags))
-    ExplicitRule([exename + EXE_SUFFIX], objs, Linker(ldflags))
