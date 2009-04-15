@@ -247,6 +247,7 @@ void check_variables()
 
 int main(int, char **)
 {
+	//((void(*)())0)();
     init();
     loop();
     return EXIT_SUCCESS;
