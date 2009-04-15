@@ -1,5 +1,8 @@
-from pybake.classes import Command, SystemTask, ExplicitRule
+from pybake.classes import Command, SystemTask
 import re
+
+OBJ_SUFFIX = ".o"
+EXE_SUFFIX = ""
 
 def libflag(libname):
     return ["-l" + libname]
@@ -32,5 +35,3 @@ class Linker(Command):
         SystemTask(args)()
         return True
 
-OBJ_SUFFIX = ".o"
-EXE_SUFFIX = ""
