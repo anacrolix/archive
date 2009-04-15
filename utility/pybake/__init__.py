@@ -1,10 +1,6 @@
-import sys
-sys.path.append(".")
-
-from classes import BuildStep, Configure, ExplicitRule, ImplicitRule, PhonyRule, SystemTask
-from compiler import *
+from classes import \
+    BuildStep, Configure, ExplicitRule, ImplicitRule, \
+    LibraryConfig, PhonyRule, SystemTask
 from functions import pybake_main, clean_targets
-
-import buildsys
 
 functions.initialize()

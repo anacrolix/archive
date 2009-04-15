@@ -23,6 +23,13 @@ class SystemTask:
             sys.exit("System task returned non-zero exit status %d" % child.returncode)
         return output
 
+class LibraryConfig:
+    def __init__(self, exefile, posargs=None):
+        self.exefile = exefile
+        self.posargs = posargs or []
+    def __call__(self, options):
+        return SystemTask([self.exefile] + options + self.posargs)(stdout=True).split()
+
 #class BackTicks:
     #def __init__(self, args):
         #self.args = args
