@@ -8,7 +8,7 @@ CFLAGS = []
 LDFLAGS = []
 
 if os.name == 'nt':
-    import pybake.compiler.msvc as cxx
+    import pybake.lang.cxx.msvc as cxx
     CFLAGS += cxx.define("BOOST_ALL_DYN_LINK")
     CFLAGS += cxx.include(r"C:\Boost\include\boost-1_38", r"win32/include")
     LDFLAGS += cxx.libpath(r"C:\Boost\lib")

@@ -1,4 +1,5 @@
-﻿from pybake.classes import Command, SystemTask
+﻿from pybake.classes import Command, ExplicitRule, SystemTask
+import re
 
 OBJ_SUFFIX = ".obj"
 EXE_SUFFIX = ".exe"
@@ -39,3 +40,12 @@ class Linker(Command):
         args += self.ldflags
         SystemTask(args)()
         return True
+
+def executable(exename, sources, cflags=None, ldflags=None):
+    objs = []
+    cxx = Compiler(cflags)
+    for src in sources:
+        o = re.sub(r"\..*?$", OBJ_SUFFIX, src)
+        objs.append(o)
+        ExplicitRule([o], [src], cxx)
+    ExplicitRule([exename + EXE_SUFFIX], objs, Linker(ldflags))
