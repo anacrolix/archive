@@ -1,13 +1,13 @@
-from pybake.classes import Command, SystemTask
+from pybake.classes import Command, ExplicitRule, SystemTask
 import re
 
 OBJ_SUFFIX = ".o"
 EXE_SUFFIX = ""
 
-def libflag(libname):
-    return ["-l" + libname]
+def library(*names):
+    return ["-l" + a for a in names]
 
-def incflag(incpath):
+def include(incpath):
     return ["-I" + incpath]
 
 class Compiler(Command):
@@ -35,3 +35,11 @@ class Linker(Command):
         SystemTask(args)()
         return True
 
+def executable(exename, sources, cflags=None, ldflags=None):
+    objs = []
+    cxx = Compiler(cflags)
+    for src in sources:
+        o = re.sub(r"\..*?$", OBJ_SUFFIX, src)
+        objs.append(o)
+        ExplicitRule([o], [src], cxx)
+    ExplicitRule([exename + EXE_SUFFIX], objs, Linker(ldflags))

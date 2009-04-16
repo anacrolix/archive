@@ -9,3 +9,5 @@ class ExplicitRules(dict):
 
 explicit_rules = ExplicitRules()
 implicit_rules = []
+# a set of targets that have been generated, to prevent duplicate messages, and regenerating the same file multiple times
+updated = set()

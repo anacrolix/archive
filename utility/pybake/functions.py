@@ -11,12 +11,13 @@ import globals
 from terminfo import TermInfo
 
 def is_target_outdated(target, *dependencies):
+    """Return True if any of the dependencies, or the build script are newer than the target"""
     try:
         targ_mtime = os.stat(target)[stat.ST_MTIME]
     except OSError, e:
         assert e.errno == 2 # only file missing is ok
         return True
-    for dep in dependencies:
+    for dep in dependencies + (sys.argv[0],):
         # this should never fail, as the dep should exist by the time this function is called
         dep_mtime = os.stat(dep)[stat.ST_MTIME]
         if dep_mtime > targ_mtime:
@@ -25,6 +26,7 @@ def is_target_outdated(target, *dependencies):
         return False
 
 def find_rule(target):
+    """Find a build rule for the given target. Searches for an explicit rule, then an implicit rule, asserting that only one implicit rule matches."""
     try:
         retval = globals.explicit_rules[target]
     except KeyError:
@@ -72,6 +74,7 @@ def update(outputs, depends, buildstep, targets=None):
         else: assert curtarg in outputs
 
         if is_target_outdated(curtarg, *depends):
+            assert curtarg not in globals.updated
             print outdated + "Regenerating:",
             if len(outputs) > 1:
                 print
@@ -86,22 +89,27 @@ def update(outputs, depends, buildstep, targets=None):
                 raise Exception("Target file not produced", curtarg)
             else:
                 print current + "Updated:", target + curtarg
+                globals.updated.add(curtarg)
         else:
-            print current + "Current:", target + curtarg
+            if curtarg not in globals.updated:
+                print current + "Current:", target + curtarg
+                globals.updated.add(curtarg)
 
-# set foreground color to red before print exceptions
-# params could be handled with *param...
 def neardeath(type, value, traceback):
+    """This is an excepthook that turns the display red prior to printing an exception"""
     display = TermInfo()
     display.immediate(display.FG_RED)
     sys.__excepthook__(type, value, traceback)
 
 def initialize():
+    """Called when pybake is imported. Installs an excepthook"""
     sys.excepthook = neardeath
 
-## names are for lols
-
 def pybake_main():
+    """Function to be called at the end of the user build script. This kicks off option parsing, and target building"""
+    if find_rule("clean") is None:
+        classes.PhonyRule("clean", clean_targets)
+
     parser = optparse.OptionParser(prog=constants.PROGRAM, version=constants.VERSION)
     parser.disable_interspersed_args()
     opts, args = parser.parse_args()
@@ -127,14 +135,3 @@ def clean_targets(targets=None):
             except OSError, e:
                 assert e.errno == 2
                 print display.FG_YELLOW + "Missing:", display.FG_CYAN + t
-
-def object_file(compiler, source, cflags):
-    obj = re.sub(r"\..*?$", compiler.OBJ_SUFFIX, source)
-    classes.ExplicitRule([obj], [source], compiler.Compiler(cflags))
-    return obj
-
-def executable(compiler, exename, sources, cflags=None, ldflags=None):
-    objs = []
-    for src in sources:
-        objs.append(object_file(compiler, src, cflags))
-    classes.ExplicitRule([exename + compiler.EXE_SUFFIX], objs, compiler.Linker(ldflags))

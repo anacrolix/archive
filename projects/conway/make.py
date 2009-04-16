@@ -14,13 +14,11 @@ if os.name == 'nt':
     LDFLAGS += cxx.libpath(r"C:\Boost\lib")
     LDFLAGS += cxx.library("win32/lib/SDL", "win32/lib/SDLmain")
 else:
-    import pybake.compiler.gcc.cxx as cxx
+    import pybake.lang.cxx.gcc as cxx
     sdl_config = LibraryConfig("sdl-config")
     CFLAGS = sdl_config(["--cflags"])
-    LDFLAGS = sdl_config(["--libs"]) + cxx.libflag("boost_thread-mt")
+    LDFLAGS = sdl_config(["--libs"]) + cxx.library("boost_thread-mt")
 
-executable(cxx, "conway", ["main.cpp"], CFLAGS, LDFLAGS)
-
-PhonyRule("clean", clean_targets)
+cxx.executable("conway", ["main.cpp"], CFLAGS, LDFLAGS)
 
 pybake_main()
