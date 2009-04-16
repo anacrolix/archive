@@ -1,11 +1,14 @@
-from functions import update
-from terminfo import TermInfo
-import globals
-
+import os
 import re
 import subprocess
 import sys
 
+import globals
+import functions
+from functions import update
+from terminfo import TermInfo
+
+# this class is only ever used like a function...
 class SystemTask:
     def __init__(self, args):
         self.args = args
@@ -39,8 +42,7 @@ class LibraryConfig:
         #self.packages = packages
 
 class Command:
-    def __call__(self, outputs, inputs):
-        raise NotImplementedError
+    pass
 
 class Configure(Command):
     def __init__(self, symbols, prefix="@", suffix="@"):
@@ -72,6 +74,25 @@ class BuildStep(Command):
         args = self.argsgen(outputs, inputs)
         SystemTask(args)()
         return True
+
+class Install(Command):
+    def __init__(self, prefix=None):
+        self.taskargs = []
+        self.prefix = prefix
+    def file(self, file, dir, executable=False, mode=None):
+        assert not executable or mode is None
+        args = (file, dir, {})
+        if executable: args[2]["mode"] = 755
+        elif mode: args[2]["mode"] = mode
+        self.taskargs.append(args)
+    def prereqs(self):
+        return [x[0] for x in self.taskargs]
+    def __call__(self, prefix=None):
+        for task in self.taskargs:
+            dir = os.path.join(prefix or self.prefix, task[1])
+            if not os.path.isdir(dir):
+                functions.install([dir], make_dirs=True)
+            functions.install([task[0], dir], **task[2])
 
 class RuleTargetError(Exception):
     def __init__(self, target):

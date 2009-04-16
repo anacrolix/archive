@@ -135,3 +135,14 @@ def clean_targets(targets=None):
             except OSError, e:
                 assert e.errno == 2
                 print display.FG_YELLOW + "Missing:", display.FG_CYAN + t
+
+# i want *components here but it won't work? read something about a proposal for this in py3
+def install(components, mode=None, target_not_dir=False, make_dirs=False, dir_first=False):
+    """Wraps the GNU coreutils install command"""
+    args = ["install"]
+    if mode != None: args.append("-m" + str(mode))
+    if target_not_dir: args.append("-T")
+    if make_dirs: args.append("-d")
+    if dir_first: args.append("-t")
+    args.extend(components)
+    classes.SystemTask(args)()
