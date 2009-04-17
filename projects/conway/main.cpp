@@ -1,9 +1,6 @@
 #include "eruutil/debug.h"
-
-#include <SDL/SDL.h>
-
 #include <boost/thread.hpp>
-
+#include <SDL/SDL.h>
 #include <time.h>
 
 unsigned
@@ -204,7 +201,7 @@ void update()
     }
     world = newWorld;
     generation++;
-	delete[] threads;
+        delete[] threads;
 }
 
 void loop()
@@ -219,7 +216,7 @@ void loop()
         if (waitDelay > 1000 / FRAME_RATE) waitDelay = 1000 / FRAME_RATE;
         if (waitDelay > 0) SDL_Delay(waitDelay);
         if (fpsCurTicks - fpsStartTicks >= 1000)
-		{
+                {
             printf("%d ticks have passed\n", fpsCurTicks - fpsStartTicks);
             printf("%d frames have passed\n", generation - fpsStartFrame);
             char caption[32];
@@ -247,7 +244,7 @@ void check_variables()
 
 int main(int, char **)
 {
-	//((void(*)())0)();
+        //((void(*)())0)();
     init();
     loop();
     return EXIT_SUCCESS;
