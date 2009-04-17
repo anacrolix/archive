@@ -1,3 +1,4 @@
+import errno
 import os
 import re
 import subprocess
@@ -18,7 +19,13 @@ class SystemTask:
         if stdout: kwargs["stdout"] = subprocess.PIPE
         print display.FG_BLUE + subprocess.list2cmdline(self.args)
         display.immediate(display.NORMAL)
-        child = subprocess.Popen(self.args, **kwargs)
+        try:
+            child = subprocess.Popen(self.args, **kwargs)
+        except OSError, e:
+            if e.errno == errno.ENOENT:
+                raise Exception(e[1], kwargs.get("executable") or self.args[0])
+            else:
+                raise
         output = child.communicate()[0]
         assert output != None if stdout else output == None
         if child.returncode:
