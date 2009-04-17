@@ -1,5 +1,5 @@
 <oaf_info>
-<oaf_server iid="@BONOBO_FACTORY_IID@" type="exe" location="/usr/lib/anacrolix/@PACKAGE_NAME@">
+<oaf_server iid="@BONOBO_FACTORY_IID@" type="exe" location="@PREFIX@/@APPLET_RELPATH@/@PACKAGE_NAME@">
 
     <oaf_attribute name="repo_ids" type="stringv">
         <item value="IDL:Bonobo/GenericFactory:1.0"/>
@@ -12,7 +12,7 @@
 <oaf_server iid="@BONOBO_APPLET_IID@" type="factory"
     location="@BONOBO_FACTORY_IID@">
 
-	<oaf_attribute name="repo_ids" type="stringv">
+        <oaf_attribute name="repo_ids" type="stringv">
         <item value="IDL:GNOME/Vertigo/PanelAppletShell:1.0"/>
         <item value="IDL:Bonobo/Control:1.0"/>
         <item value="IDL:Bonobo/Unknown:1.0"/>

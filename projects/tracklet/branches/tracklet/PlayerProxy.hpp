@@ -7,6 +7,14 @@ class PlayerProxy
 public:
     PlayerProxy() : active_(false) {}
 
+    virtual gchar *get_playing_uri() const = 0;
+
+    virtual void get_track_properties(
+            gchar *&uri, gchar *&title, gchar *&artist, gchar *&album)
+        const = 0;
+
+    virtual void next_track() = 0;
+
     bool active() const { return active_; }
 
     bool service_owner_changed(gchar const *service, gchar const *newowner)

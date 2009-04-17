@@ -1,8 +1,24 @@
-#include "RhythmboxProxy.hpp"
 #include "Applet.hpp"
 
+#include "RhythmboxProxy.hpp"
+
+class UpdateVisibilityCallback : public Callback
+{
+public:
+    UpdateVisibilityCallback(Applet &applet)
+    :   applet_(applet) {}
+
+    virtual void operator()() {
+        applet_.update_visibility();
+    }
+
+private:
+    Applet &applet_;
+};
+
 Applet::Applet(PanelApplet *panlet)
-:   panlet_(panlet)
+:   panlet_(panlet),
+    callback_(new UpdateVisibilityCallback(*this))
 {
     /* widgets */
 
@@ -36,13 +52,15 @@ Applet::Applet(PanelApplet *panlet)
     };
     panel_applet_setup_menu(panlet_, menu_xml, menu_verbs, this);
 
-    players_ = new PlayerProxies();
+    players_ = new PlayerProxies(*callback_);
 
     update_visibility();
 }
 
 Applet::~Applet()
 {
+    delete callback_;
+    delete players_;
 }
 
 void Applet::show_about_dialog(BonoboUIComponent *, gpointer, char const *)
@@ -60,14 +78,12 @@ void Applet::show_about_dialog(BonoboUIComponent *, gpointer, char const *)
 }
 
 gboolean Applet::event_box_pressed(
-    GtkWidget *event_box, GdkEventButton *event, gpointer userdata)
+    GtkWidget *event_box, GdkEventButton *event, Applet *applet)
 {
-    //Applet *applet = reinterpret_cast<Applet *>(userdata);
     g_debug("event box clicked");
     if (event->button == 1)
     {   // LMB
-        //trash_current_rhythmbox_uri(applet);
-        // don't invoke further handlers
+        applet->players_->trash_current_track();
         return TRUE;
     }
     else {
