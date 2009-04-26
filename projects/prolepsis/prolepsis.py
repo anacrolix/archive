@@ -8,6 +8,8 @@ import tkFont
 import os
 import threading
 import time
+import urllib
+import webbrowser
 
 root = Tkinter.Tk()
 root.title("prolepsis")
@@ -16,6 +18,10 @@ root.title("prolepsis")
 
 scrollbar = Tkinter.Scrollbar(root)
 scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+
+def open_char_page(event):
+    print event.widget.data[int(event.widget.curselection()[0])]
+    webbrowser.open("http://www.tibia.com/community/?" + urllib.urlencode({"subtopic": "characters", "name": event.widget.data[int(event.widget.curselection()[0])]}))
 
 listbox_font = tkFont.Font(size=9)
 try: listbox_font.config(family={"posix": "Monospace", "nt": "Courier New"}[os.name])
@@ -30,6 +36,7 @@ listbox = Tkinter.Listbox(
         width=40,
     )
 listbox.config(selectbackground=listbox["bg"], selectforeground=listbox["fg"])
+listbox.bind("<Double-Button-1>", open_char_page)
 listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
 scrollbar.config(command=listbox.yview)
@@ -56,7 +63,7 @@ enemies = [
         []
     ]
 allies = [
-        ["Del Chaos", "Murderers Inc", "Deadly", "Blackened", "Torture", "Blitzkriieg", "Malibu-Nam"],
+        ["Del Chaos", "Murderers Inc", "Deadly", "Blackened", "Torture", "Blitzkriieg", "Malibu-Nam", "Chaos Riders"],
         []
     ]
 
@@ -121,6 +128,8 @@ def update():
         if i[1] is not None:
             listbox.itemconfig(Tkinter.END, bg=i[1], selectbackground=i[1])
     listbox.delete(0, oldsize - 1)
+    #global listbox_data
+    listbox.data = [x[0].name for x in items]
 
     # update every 60s, until the online count changes, this must be within 60s of the server update time, which has an alleged interval of 5min. then we delay 5s short of 5mins until we get a repeated online count, we must have fallen short of the next update. this prevents us from migrating away from the best time to update.
     if not oldcount or oldcount == count:

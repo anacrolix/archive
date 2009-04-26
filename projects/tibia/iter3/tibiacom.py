@@ -1,6 +1,7 @@
 import httplib
 import re
 import urllib
+import socket
 import time
 
 def tibia_time_to_unix(s):
@@ -54,12 +55,15 @@ def pretty_print_char_info(info):
                         if b[3] is not None:
                                 print "\tand by", b[3][1]
 
-
 def http_get(url, params):
+    try:
         conn = httplib.HTTPConnection("www.tibia.com")
         conn.request("GET", url + "?" + urllib.urlencode(params))
         resp = conn.getresponse()
         return resp.read()
+    except (httplib.IncompleteRead, socket.gaierror):
+        print resp.reason
+        return http_get(url, params)
 
 def __ci_info(html):
         FIELDS = (
