@@ -1,9 +1,11 @@
 #!/usr/bin/python
 
 import sys
-sys.path.append("../tibia/iter3")
+sys.path.append("tibdb")
 import tibiacom
 import Tkinter
+import tkFont
+import os
 import threading
 import time
 
@@ -15,17 +17,20 @@ root.title("prolepsis")
 scrollbar = Tkinter.Scrollbar(root)
 scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
+listbox_font = tkFont.Font(size=9)
+try: listbox_font.config(family={"posix": "Monospace", "nt": "Courier New"}[os.name])
+except KeyError: pass
 listbox = Tkinter.Listbox(
         root,
         yscrollcommand=scrollbar.set,
-        font="Monospace 9",
+        font=listbox_font,
         bg="light yellow",
         selectmode=Tkinter.SINGLE,
         height=30,
-        width=40
+        width=40,
     )
-listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 listbox.config(selectbackground=listbox["bg"], selectforeground=listbox["fg"])
+listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
 scrollbar.config(command=listbox.yview)
 root.update_idletasks()
@@ -56,6 +61,7 @@ allies = [
     ]
 
 update_guild_members(*set(enemies[0] + allies[0]))
+root.update_idletasks()
 
 def char_item_string(char):
     fmt = "%3i%3s %-20s"
