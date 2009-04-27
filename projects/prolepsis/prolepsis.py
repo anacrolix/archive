@@ -12,16 +12,15 @@ import urllib
 import webbrowser
 
 root = Tkinter.Tk()
-root.title("prolepsis")
-#root.geometry("300x400")
-#root.config(width=300)
+root.title("prolepsis 0.1.1")
 
 scrollbar = Tkinter.Scrollbar(root)
 scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
 def open_char_page(event):
-    print event.widget.data[int(event.widget.curselection()[0])]
-    webbrowser.open("http://www.tibia.com/community/?" + urllib.urlencode({"subtopic": "characters", "name": event.widget.data[int(event.widget.curselection()[0])]}))
+    name = event.widget.data[int(event.widget.curselection()[0])]
+    print "opening character info in browser:", name
+    webbrowser.open("http://www.tibia.com/community/?" + urllib.urlencode({"subtopic": "characters", "name": name}))
 
 listbox_font = tkFont.Font(size=9)
 try: listbox_font.config(family={"posix": "Monospace", "nt": "Courier New"}[os.name])
@@ -63,7 +62,7 @@ enemies = [
         []
     ]
 allies = [
-        ["Del Chaos", "Murderers Inc", "Deadly", "Blackened", "Torture", "Blitzkriieg", "Malibu-Nam", "Chaos Riders"],
+        ["Del Chaos", "Murderers Inc", "Deadly", "Blackened", "Torture", "Blitzkriieg", "Malibu-Nam", "Chaos Riders", "Ka Bros", "Unholly Soulz", "Tartaro"],
         []
     ]
 

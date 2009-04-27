@@ -62,7 +62,7 @@ def http_get(url, params):
         resp = conn.getresponse()
         return resp.read()
     except (httplib.IncompleteRead, socket.gaierror):
-        print resp.reason
+        print "retrying..."
         return http_get(url, params)
 
 def __ci_info(html):
