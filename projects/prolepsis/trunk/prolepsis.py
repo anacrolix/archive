@@ -12,7 +12,10 @@ import urllib
 import webbrowser
 
 root = Tkinter.Tk()
-root.title("prolepsis 0.1.1")
+root.title("prolepsis 0.2.0")
+
+label = Tkinter.Label(root, text="Loading...", anchor=Tkinter.W)
+label.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
 scrollbar = Tkinter.Scrollbar(root)
 scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
@@ -98,47 +101,53 @@ def get_fg_config(char):
                 return fg
 
 def update():
-    oldsize = listbox.size()
-    start =time.time()
-    online = tibiacom.online_list("Dolera")[1]
-    count = len(online)
-    print time.ctime() + ":", "retrieved", count, "characters"
-    # list(tuple(Character, background))
-    items = []
-    global stale, oldcount
-    for char in stale:
-        if not char in online and display_predicate(char):
-            items += [(char, "light grey")]
-    # take a copy of online, modifying the list being iterated caused a serious bug
-    for char in online[:]:
-        if display_predicate(char):
-            # bg is default unless the char has recently logged in
-            items += [(char, None if char in stale else "white")]
+    start = time.time()
+    count = None
+    try:
+        stamp, online = tibiacom.online_list("Dolera")
+    #except:
+        #print "failed to retrive online list"
+    #else:
+        oldsize = listbox.size()
+        count = len(online)
+        print time.ctime(stamp) + ":", "retrieved", count, "characters"
+        # list(tuple(Character, background))
+        items = []
+        global stale, oldcount
+        for char in stale:
+            if not char in online and display_predicate(char):
+                items += [(char, "light grey")]
+        # take a copy of online, modifying the list being iterated caused a serious bug
+        for char in online[:]:
+            if display_predicate(char):
+                # bg is default unless the char has recently logged in
+                items += [(char, None if char in stale else "white")]
+            else:
+                # prevent the char from hitting the stale list. this way a char suddenly satisfying the predicate is considered a new threat
+                online.remove(char)
+        items.sort(key=lambda x: x[0].level, reverse=True)
+        for i in items:
+            # this must be done before the call to char_item_string to ensure the necessary guilds have been populated
+            fg = get_fg_config(i[0])
+            listbox.insert(Tkinter.END, char_item_string(i[0]))
+            if fg is not None:
+                listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
+            if i[1] is not None:
+                listbox.itemconfig(Tkinter.END, bg=i[1], selectbackground=i[1])
+        listbox.delete(0, oldsize - 1)
+        #global listbox_data
+        listbox.data = [x[0].name for x in items]
+        label.config(text="Updated: " + time.ctime(stamp))
+    finally:
+        # update every 60s, until the online count changes, this must be within 60s of the server update time, which has an alleged interval of 5min. then we delay 5s short of 5mins until we get a repeated online count, we must have fallen short of the next update. this prevents us from migrating away from the best time to update.
+        if not oldcount or count is None or oldcount == count:
+            delay = 60000
         else:
-            # prevent the char from hitting the stale list. this way a char suddenly satisfying the predicate is considered a new threat
-            online.remove(char)
-    items.sort(key=lambda x: x[0].level, reverse=True)
-    for i in items:
-        # this must be done before the call to char_item_string to ensure the necessary guilds have been populated
-        fg = get_fg_config(i[0])
-        listbox.insert(Tkinter.END, char_item_string(i[0]))
-        if fg is not None:
-            listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
-        if i[1] is not None:
-            listbox.itemconfig(Tkinter.END, bg=i[1], selectbackground=i[1])
-    listbox.delete(0, oldsize - 1)
-    #global listbox_data
-    listbox.data = [x[0].name for x in items]
-
-    # update every 60s, until the online count changes, this must be within 60s of the server update time, which has an alleged interval of 5min. then we delay 5s short of 5mins until we get a repeated online count, we must have fallen short of the next update. this prevents us from migrating away from the best time to update.
-    if not oldcount or oldcount == count:
-        delay = 60000
-    else:
-        delay = 295000
-    # take into account the time taken to perform this update. negative delays will just trigger an immediate update
-    delay -= int((time.time() - start) * 1000)
-    print "next update in", delay, "ms"
-    root.after(delay, update)
+            delay = 295000
+        # take into account the time taken to perform this update. negative delays will just trigger an immediate update
+        delay -= int((time.time() - start) * 1000)
+        print "next update in", delay, "ms"
+        root.after(delay, update)
     stale = online
     oldcount = count
 
