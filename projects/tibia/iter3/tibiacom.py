@@ -1,6 +1,6 @@
-import httplib
 import re
 import urllib
+import urllib2
 import socket
 import time
 
@@ -56,14 +56,7 @@ def pretty_print_char_info(info):
                                 print "\tand by", b[3][1]
 
 def http_get(url, params):
-    try:
-        conn = httplib.HTTPConnection("www.tibia.com")
-        conn.request("GET", url + "?" + urllib.urlencode(params))
-        resp = conn.getresponse()
-        return resp.read()
-    except (httplib.IncompleteRead, socket.gaierror):
-        print "retrying..."
-        return http_get(url, params)
+    return urllib2.urlopen("http://www.tibia.com" + url + "?" + urllib.urlencode(params)).read()
 
 def __ci_info(html):
         FIELDS = (
