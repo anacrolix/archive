@@ -35,25 +35,29 @@ def unescape_tibia_html(string):
         # replace nbsp, there may be others too..
         return decode_entity(string).replace("\xa0", " ")
 
+def pp_death(death):
+    b = death
+    print b[0] + ":",
+    print "killed" if b[2][0] else "died", "at Level", b[1],
+    print "by", b[2][1]
+    if b[3] is not None:
+            print "\tand by", b[3][1]
+
 def pretty_print_char_info(info):
-        simple = info.keys()
-        for a in ["deaths", "name"]: simple.remove(a)
-        for k in ["name"] + simple:
-                print k + ":", info[k],
-                if k in ["created", "last login"] and info[k] is not None:
-                        print "(" + str(int(time.time()) - tibia_time_to_unix(info[k])) + "s ago)"
-                elif k is "timestamp":
-                        print "(" + time.asctime(time.gmtime(info[k] + 3600)), "CET)"
-                else:
-                        print
-        a = info["deaths"]
-        if a != None:
-                for b in a:
-                        print b[0] + ":",
-                        print "killed" if b[2][0] else "died", "at Level", b[1],
-                        print "by", b[2][1]
-                        if b[3] is not None:
-                                print "\tand by", b[3][1]
+    simple = info.keys()
+    for a in ["deaths", "name"]: simple.remove(a)
+    for k in ["name"] + simple:
+            print k + ":", info[k],
+            if k in ["created", "last login"] and info[k] is not None:
+                    print "(" + str(int(time.time()) - tibia_time_to_unix(info[k])) + "s ago)"
+            elif k is "timestamp":
+                    print "(" + time.asctime(time.gmtime(info[k] + 3600)), "CET)"
+            else:
+                    print
+    a = info["deaths"]
+    if a != None:
+        for b in a:
+            pp_death(b)
 
 def http_get(url, params):
     return urllib2.urlopen("http://www.tibia.com" + url + "?" + urllib.urlencode(params)).read()
@@ -127,15 +131,15 @@ def __ci_deaths(html):
         return deaths
 
 def char_info(name):
-        rv = {"timestamp": int(time.time())}
-        html = http_get("/community/", {"subtopic": "characters", "name": name})
-        try: rv.update(__ci_info(html))
-        except Exception, a:
-                print "name:", name
-                raise
-        assert not rv.has_key("deaths")
-        rv["deaths"] = __ci_deaths(html)
-        return rv
+    rv = {"timestamp": int(time.time())}
+    html = http_get("/community/", {"subtopic": "characters", "name": name})
+    try: rv.update(__ci_info(html))
+    except Exception, a:
+        print "name:", name
+        raise
+    assert not rv.has_key("deaths")
+    rv["deaths"] = __ci_deaths(html)
+    return rv
 
 class Character:
     def __init__(self, **stats):

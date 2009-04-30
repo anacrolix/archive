@@ -3,82 +3,90 @@
 import sys
 sys.path.append("tibdb")
 import tibiacom
-import Tkinter
-import tkFont
+#import copy
 import os
-import shelve
+#import shelve
 import threading
 import time
+import Tkinter
+import tkFont
 import urllib
 import webbrowser
+
+class Functor:
+    def __init__(self, func, *largs, **kwargs):
+        self.func = func
+        self.largs = largs
+        self.kwargs = kwargs
+    def __call__(self):
+        self.func(*self.largs, **self.kwargs)
+
+STANCES = ("Friend", "Ally", "Enemy")
+
+class CharListboxMenu:
+    def __init__(self, parent, listbox):
+        self.menu = Tkinter.Menu(parent, tearoff=False)
+        for i in range(len(STANCES)):
+            self.menu.add_command(
+                    label="Set as " + STANCES[i],
+                    command=Functor(lambda s: self.set_stance(s), i))
+        self.menu.add_command(label="Close")
+        self.listbox = listbox
+    def set_stance(self, stance):
+        print "set stance", stance, "on index", self.index
+    def handler(self, event):
+        self.menu.post(event.x_root, event.y_root)
+        self.index = self.listbox.nearest(event.y)
 
 def open_char_page(event):
     name = event.widget.data[int(event.widget.curselection()[0])]
     print "opening character info in browser:", name
     webbrowser.open("http://www.tibia.com/community/?" + urllib.urlencode({"subtopic": "characters", "name": name}))
 
-root = Tkinter.Tk()
-root.title("prolepsis 0.2.0")
+class MainDialog:
+    def __init__(self, root):
+        self.tkref = root
+        self.tkref.title("Prolepsis 0.2.0")
 
-label = Tkinter.Label(root, text="Loading...", anchor=Tkinter.W)
-label.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
+        statusbar = Tkinter.Label(self.tkref,
+                text="Loading...",
+                anchor=Tkinter.W,
+                relief=Tkinter.SUNKEN,
+                borderwidth=1)
+        statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
-scrollbar = Tkinter.Scrollbar(root)
-scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+        scrollbar = Tkinter.Scrollbar(self.tkref)
+        scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
-def listbox_popup(event):
-    print type, listbox.nearest(event.y)
-    context.post(event.x_root, event.y_root)
+        listbox_font = tkFont.Font(size=9)
+        try:
+            listbox_font.config(family={
+                    "posix": "Monospace",
+                    "nt": "Courier New"
+                }[os.name])
+        except KeyError:
+            pass
 
-listbox_font = tkFont.Font(size=9)
-try: listbox_font.config(family={"posix": "Monospace", "nt": "Courier New"}[os.name])
-except KeyError: pass
-listbox = Tkinter.Listbox(
-        root,
-        yscrollcommand=scrollbar.set,
-        font=listbox_font,
-        bg="light yellow",
-        selectmode=Tkinter.SINGLE,
-        height=30,
-        width=40,
-        relief=Tkinter.FLAT,
-    )
-listbox.config(selectbackground=listbox["bg"], selectforeground=listbox["fg"])
-listbox.bind("<Double-Button-1>", open_char_page)
-listbox.bind("<Button-3>", listbox_popup)
-listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
+        listbox = Tkinter.Listbox(
+                self.tkref,
+                yscrollcommand=scrollbar.set,
+                font=listbox_font,
+                bg="light yellow",
+                selectmode=Tkinter.SINGLE,
+                height=30,
+                width=40,
+                relief=Tkinter.FLAT,
+            )
+        listbox.config(selectbackground=listbox["bg"], selectforeground=listbox["fg"])
+        listbox.bind("<Double-Button-1>", open_char_page)
 
-scrollbar.config(command=listbox.yview)
-root.update_idletasks()
+        listbox.bind("<Button-3>", CharListboxMenu(root, listbox).handler)
+        listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
-context = Tkinter.Menu(root, tearoff=False)
-context.add_command(label="Set as Friend", state="disabled")
-context.add_command(label="Set as Ally", state="disabled")
-context.add_command(label="Set as Enemy", state="disabled")
-context.add_command(label="Close")
+        scrollbar.config(command=listbox.yview)
 
-stale = []
-oldcount = None
-
-guild_members = {}
-def _update_guild_members(gld):
-    guild_members[gld] = tibiacom.guild_info(gld)
-    print "retrieved", len(guild_members[gld]), "members of guild:", gld
-
-def update_guild_members(glds):
-    thrds = []
-    for g in glds:
-        thrds.append(threading.Thread(target=_update_guild_members, args=[g]))
-        thrds[-1].start()
-    for t in thrds:
-        t.join()
-
-# 0 friend, 1 ally, 2 enemy
-char_stances = {'Lyndon': 0, 'Red Hat': 0, 'Eruanno': 0}
-guild_stances = {'Del Chaos': 1, 'Murderers Inc': 1, 'Deadly': 1, 'Blackened': 1, 'Torture': 1, 'Blitzkriieg': 1, 'Malibu-Nam': 1, 'Chaos Riders': 1, 'Ka Bros': 1, 'Unholly Soulz': 1, 'Tartaro': 1, 'Dipset': 2, 'Waterloo': 2}
-
-update_guild_members(guild_stances.keys())
-root.update_idletasks()
+        root.update_idletasks()
+        root.after_idle(update, root, statusbar, listbox)
 
 def char_item_string(char):
     fmt = "%3i%3s %-20s"
@@ -104,12 +112,12 @@ def get_fg_config(char):
             if char.name in guild_members[gld]:
                 return colors[clri]
 
-def update():
+def update(root, statusbar, listbox):
     start = time.time()
     count = None
-    oldlabel = label.cget("text")
+    oldlabel = statusbar.cget("text")
     try:
-        label.config(text="Updating...")
+        statusbar.config(text="Updating...")
         root.update_idletasks()
         stamp, online = tibiacom.online_list("Dolera")
         oldsize = listbox.size()
@@ -141,12 +149,12 @@ def update():
         listbox.delete(0, oldsize - 1)
         #global listbox_data
         listbox.data = [x[0].name for x in items]
-        label.config(text="Updated: " + time.ctime(stamp))
+        statusbar.config(text="Updated: " + time.ctime(stamp))
     except:
-        label.config(text=oldlabel)
+        statusbar.config(text=oldlabel)
         raise
     else:
-        label.config(text="Updated: " + time.ctime(stamp))
+        statusbar.config(text="Updated: " + time.ctime(stamp))
     finally:
         # update every 60s, until the online count changes, this must be within 60s of the server update time, which has an alleged interval of 5min. then we delay 5s short of 5mins until we get a repeated online count, we must have fallen short of the next update. this prevents us from migrating away from the best time to update.
         if not oldcount or count is None or oldcount == count:
@@ -156,9 +164,36 @@ def update():
         # take into account the time taken to perform this update. negative delays will just trigger an immediate update
         delay -= int((time.time() - start) * 1000)
         print "next update in", delay, "ms"
-        root.after(delay, update)
+        root.after(delay, update, root, statusbar, listbox)
     stale = online
     oldcount = count
 
-update()
+guild_members = {}
+def _update_guild_members(gld):
+    guild_members[gld] = tibiacom.guild_info(gld)
+    print "retrieved", len(guild_members[gld]), "members of guild:", gld
+
+def update_guild_members(glds):
+    thrds = []
+    for g in glds:
+        thrds.append(threading.Thread(target=_update_guild_members, args=[g]))
+        thrds[-1].start()
+    for t in thrds:
+        t.join()
+
+# 0 friend, 1 ally, 2 enemy
+char_stances = {'Lyndon': 0, 'Red Hat': 0, 'Eruanno': 0, 'Chaotic Resonance': 0}
+guild_stances = {'Del Chaos': 1, 'Murderers Inc': 1, 'Deadly': 1, 'Blackened': 1, 'Torture': 1, 'Blitzkriieg': 1, 'Malibu-Nam': 1, 'Chaos Riders': 1, 'Ka Bros': 1, 'Unholly Soulz': 1, 'Tartaro': 1, 'Dipset': 2, 'Waterloo': 2}
+
+stale = []
+oldcount = None
+
+root = Tkinter.Tk()
+main = MainDialog(root)
+
+update_guild_members(guild_stances.keys())
+root.update_idletasks()
+
+
 root.mainloop()
+
