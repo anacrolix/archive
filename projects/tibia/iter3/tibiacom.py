@@ -5,12 +5,12 @@ import socket
 import time
 
 def tibia_time_to_unix(s):
-        a = s.split()
-        b = time.strptime(" ".join(a[:-1]) + " UTC", "%b %d %Y, %H:%M:%S %Z")
-        c = int(time.mktime(b))
-        c -= time.timezone
-        c -= {"CET": 3600, "CEST": 2 * 3600}[a[-1]]
-        return c
+    a = s.split()
+    b = time.strptime(" ".join(a[:-1]) + " UTC", "%b %d %Y, %H:%M:%S %Z")
+    c = int(time.mktime(b))
+    c -= time.timezone
+    c -= {"CET": 3600, "CEST": 2 * 3600}[a[-1]]
+    return c
 
 def unescape_tibia_html(string):
         from htmlentitydefs import name2codepoint as n2cp
