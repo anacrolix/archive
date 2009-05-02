@@ -60,7 +60,10 @@ def pretty_print_char_info(info):
             pp_death(b)
 
 def http_get(url, params):
-    return urllib2.urlopen("http://www.tibia.com" + url + "?" + urllib.urlencode(params)).read()
+    try:
+        return urllib2.urlopen("http://www.tibia.com" + url + "?" + urllib.urlencode(params)).read()
+    except urllib2.URLError:
+        return http_get(url, params)
 
 def __ci_info(html):
         FIELDS = (

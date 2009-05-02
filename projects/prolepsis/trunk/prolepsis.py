@@ -3,9 +3,8 @@
 import sys
 sys.path.append("tibdb")
 import tibiacom
-#import copy
 import os
-#import shelve
+import shelve
 import threading
 import time
 import Tkinter
@@ -25,29 +24,30 @@ class Functor:
 STANCES = ("Friend", "Ally", "Enemy")
 
 class CharListboxMenu:
-    def __init__(self, parent, listbox):
+    def __init__(self, parent, listbox, callback, listbox_data):
         self.menu = Tkinter.Menu(parent, tearoff=False)
         for i in range(len(STANCES)):
             self.menu.add_command(
                     label="Set as " + STANCES[i],
                     command=Functor(lambda s: self.set_stance(s), i))
         self.menu.add_command(label="Close")
+        self.parent = parent
         self.listbox = listbox
+        self.callback = callback
+        self.listbox_data = listbox_data
     def set_stance(self, stance):
         print "set stance", stance, "on index", self.index
-        char_stances[self.listbox.data[self.index]] = stance
+        char_stances[self.listbox_data[self.index]] = stance
         print char_stances
+        self.callback()
     def handler(self, event):
         self.menu.post(event.x_root, event.y_root)
         self.index = self.listbox.nearest(event.y)
 
-def open_char_page(event):
-    name = event.widget.data[int(event.widget.curselection()[0])]
+def open_char_page(event, data):
+    name = data[int(event.widget.curselection()[0])]
     print "opening character info in browser:", name
     webbrowser.open("http://www.tibia.com/community/?" + urllib.urlencode({"subtopic": "characters", "name": name}))
-
-#class OnlineList:
-    #pass
 
 class MainDialog:
     def __init__(self, root):
@@ -56,7 +56,7 @@ class MainDialog:
 
         self.statusbar = Tkinter.Label(
                 self.tkref,
-                text="Loading...",
+                text="Error!",
                 anchor=Tkinter.W,
                 relief=Tkinter.SUNKEN,
                 borderwidth=1)
@@ -74,6 +74,7 @@ class MainDialog:
         except KeyError:
             pass
 
+        self.listbox_data = []
         self.listbox = Tkinter.Listbox(
                 self.tkref,
                 yscrollcommand=scrollbar.set,
@@ -87,9 +88,15 @@ class MainDialog:
         self.listbox.config(
                 selectbackground=self.listbox["bg"],
                 selectforeground=self.listbox["fg"])
-        self.listbox.bind("<Double-Button-1>", open_char_page)
+        self.listbox.bind(
+                "<Double-Button-1>",
+                lambda event: open_char_page(event, self.listbox_data))
 
-        self.listbox.bind("<Button-3>", CharListboxMenu(root, self.listbox).handler)
+        self.listbox.bind(
+                "<Button-3>",
+                CharListboxMenu(
+                        root, self.listbox, self.refresh, self.listbox_data)
+                    .handler)
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
         scrollbar.config(command=self.listbox.yview)
@@ -97,90 +104,100 @@ class MainDialog:
         self.tkref.update_idletasks()
         self.tkref.after_idle(self.update)
 
+        self.last_count = None
+        self.stale_chars = {}
+        self.online_chars = {}
+
     def refresh(self):
-        pass
+        # list(tuple(name, level, vocation, background))
+        listbox_items = []
+        for name, (level, vocation, stamp) in self.stale_chars.iteritems():
+            if not name in self.online_chars.keys() \
+                    and display_predicate(name, level, vocation) \
+                    and time.time() - stamp < 900:
+                print "add stale:", time.ctime(stamp), name
+                listbox_items += [(name, level, vocation, "light grey")]
+        for name, (level, vocation, stamp) in self.online_chars.iteritems():
+            if display_predicate(name, level, vocation):
+                # bg is default unless the char has recently logged in
+                if self.stale_chars.has_key(name) and stamp - self.stale_chars[name][2] > 150:
+                    bg = None
+                else:
+                    bg = "white"
+                listbox_items.append((name, level, vocation, bg))
+        listbox_items.sort(key=lambda x: x[1], reverse=True)
+        self.listbox.delete(0, self.listbox.size() - 1)
+        for name, level, vocation, bg in listbox_items:
+            # this must be done before the call to char_item_string to ensure the necessary guilds have been populated
+            fg = get_fg_config(name)
+            self.listbox.insert(Tkinter.END, char_item_string(name, level, vocation))
+            if fg is not None:
+                self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
+            if bg is not None:
+                self.listbox.itemconfig(Tkinter.END, bg=bg, selectbackground=bg)
+        self.listbox_data[:] = [x[0] for x in listbox_items]
 
     def update(self):
-        start = time.time()
-        count = None
-        oldlabel = self.statusbar.cget("text")
+        update_started = time.time()
+        prev_sb_text = self.statusbar.cget("text")
+        update_delay = 60000
         try:
             self.statusbar.config(text="Updating...")
             self.tkref.update_idletasks()
-            stamp, online = tibiacom.online_list("Dolera")
-            oldsize = self.listbox.size()
-            count = len(online)
-            print time.ctime(stamp) + ":", "retrieved", count, "characters"
-            # list(tuple(Character, background))
-            items = []
-            global stale, oldcount
-            for char in stale:
-                if not char in online and display_predicate(char):
-                    items += [(char, "light grey")]
-            # take a copy of online, modifying the list being iterated caused a serious bug
-            for char in online[:]:
-                if display_predicate(char):
-                    # bg is default unless the char has recently logged in
-                    items += [(char, None if char in stale else "white")]
+
+            stamp, o = tibiacom.online_list("Dolera")
+            print time.ctime(stamp) + ":", "retrieved", len(o), "characters"
+            for k, v in self.online_chars.iteritems():
+                if self.stale_chars.has_key(k):
+                    self.stale_chars[k] = (v[0], v[1], self.stale_chars[k][2])
                 else:
-                    # prevent the char from hitting the stale list. this way a char suddenly satisfying the predicate is considered a new threat
-                    online.remove(char)
-            items.sort(key=lambda x: x[0].level, reverse=True)
-            for i in items:
-                # this must be done before the call to char_item_string to ensure the necessary guilds have been populated
-                fg = get_fg_config(i[0])
-                self.listbox.insert(Tkinter.END, char_item_string(i[0]))
-                if fg is not None:
-                    self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
-                if i[1] is not None:
-                    self.listbox.itemconfig(Tkinter.END, bg=i[1], selectbackground=i[1])
-            self.listbox.delete(0, oldsize - 1)
-            #global listbox_data
-            self.listbox.data = [x[0].name for x in items]
-            self.statusbar.config(text="Updated: " + time.ctime(stamp))
+                    self.stale_chars[k] = v
+            self.online_chars = {}
+            for c in o:
+                self.online_chars[c.name] = (c.level, c.vocation, stamp)
+            del c, o
+
+            self.refresh()
+
+            self.statusbar.config(text="Updated: " + time.strftime("%I:%M:%S %p", time.localtime(stamp)))
         except:
-            self.statusbar.config(text=oldlabel)
+            self.statusbar.config(text=prev_sb_text)
             raise
         else:
-            self.statusbar.config(text="Updated: " + time.ctime(stamp))
+            if len(self.online_chars) != self.last_count and self.last_count is not None:
+                update_delay = 290000
+            self.last_count = len(self.online_chars)
         finally:
-            # update every 60s, until the online count changes, this must be within 60s of the server update time, which has an alleged interval of 5min. then we delay 10s short of 5mins until we get a repeated online count, we must have fallen short of the next update. this prevents us from migrating away from the best time to update.
-            if not oldcount or count is None or oldcount == count:
-                delay = 60000
-            else:
-                delay = 290000
             # take into account the time taken to perform this update. negative delays will just trigger an immediate update
-            delay -= int((time.time() - start) * 1000)
-            print "next update in", delay, "ms"
-            self.tkref.after(delay, self.update)
-        stale = online
-        oldcount = count
+            update_delay -= int((time.time() - update_started) * 1000)
+            print "next update in", update_delay, "ms"
+            self.tkref.after(update_delay, self.update)
 
-def char_item_string(char):
+def char_item_string(name, level, vocation):
     fmt = "%3i%3s %-20s"
-    vals = [char.level, char.vocation, char.name]
+    vals = [level, vocation, name]
     for gld, mbrs in guild_members.iteritems():
-        if char.name in mbrs:
+        if name in mbrs:
             fmt += " (%s)"
             vals.append(gld)
             break
     return fmt % tuple(vals)
 
-def display_predicate(char):
-    return char.level >= 45 and char.vocation != "N" or not get_fg_config(char) is None
+def display_predicate(name, level, vocation):
+    return level >= 45 and vocation != "N" or not get_fg_config(name) is None
 
-def get_fg_config(char):
+def get_fg_config(name):
     colors = ("blue", "sea green", "red")
     try:
-        return colors[char_stances[char.name]]
+        return colors[char_stances[name]]
     except:
         for gld, clri in guild_stances.iteritems():
             if not guild_members.has_key(gld):
                 update_guild_members([gld])
-            if char.name in guild_members[gld]:
+            if name in guild_members[gld]:
                 return colors[clri]
 
-guild_members = {}
+guild_members = shelve.open("members")
 stdout_lock = threading.Lock()
 def _update_guild_members(gld):
     guild_members[gld] = tibiacom.guild_info(gld)
@@ -197,13 +214,9 @@ def update_guild_members(glds):
         t.join()
 
 # 0 friend, 1 ally, 2 enemy
-char_stances = {'Lyndon': 0, 'Red Hat': 0, 'Eruanno': 0, 'Chaotic Resonance': 0}
-guild_stances = {'Del Chaos': 1, 'Murderers Inc': 1, 'Deadly': 1, 'Blackened': 1, 'Torture': 1, 'Blitzkriieg': 1, 'Malibu-Nam': 1, 'Chaos Riders': 1, 'Ka Bros': 1, 'Unholly Soulz': 1, 'Tartaro': 1, 'Dipset': 2, 'Waterloo': 2}
-
-stale = []
-oldcount = None
+char_stances = shelve.open("stances").setdefault("char", {})
+guild_stances = {'Del Chaos': 1, 'Murderers Inc': 1, 'Deadly': 1, 'Blackened': 1, 'Torture': 1, 'Blitzkriieg': 1, 'Malibu-Nam': 1, 'Chaos Riders': 1, 'Ka Bros': 1, 'Unholly Soulz': 1, 'Tartaro': 1, 'Dipset': 2, 'Waterloo': 2, 'State': 0}
 
 root = Tkinter.Tk()
 main = MainDialog(root)
-update_guild_members(guild_stances.keys())
 root.mainloop()
