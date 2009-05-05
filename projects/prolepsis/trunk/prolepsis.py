@@ -101,12 +101,22 @@ class MainDialog:
 
         scrollbar.config(command=self.listbox.yview)
 
+        self.menubar = Tkinter.Menu(root)
+        self.guild_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.guild_menu.add_command(label="Update", command=self.update_guild_members)
+        self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
+        self.tkref.config(menu=self.menubar)
+
         self.tkref.update_idletasks()
         self.tkref.after_idle(self.update)
 
         self.last_count = None
         self.stale_chars = {}
         self.online_chars = {}
+
+    def update_guild_members(self):
+        update_guild_members()
+        self.refresh()
 
     def refresh(self):
         # list(tuple(name, level, vocation, background))
@@ -155,11 +165,13 @@ class MainDialog:
             self.online_chars = {}
             for c in o:
                 self.online_chars[c.name] = (c.level, c.vocation, stamp)
-            del c, o
 
             self.refresh()
 
-            self.statusbar.config(text="Updated: " + time.strftime("%I:%M:%S %p", time.localtime(stamp)))
+            new_sb_text = "Updated %s (%i online)" % (
+                    time.strftime("%I:%M:%S %p", time.localtime(stamp)),
+                    len(self.online_chars))
+            self.statusbar.config(text=new_sb_text)
         except:
             self.statusbar.config(text=prev_sb_text)
             raise
@@ -197,15 +209,24 @@ def get_fg_config(name):
             if name in guild_members[gld]:
                 return colors[clri]
 
-guild_members = shelve.open("members")
+members_shelf = shelve.open("members", writeback=True)
+guild_members = members_shelf
 stdout_lock = threading.Lock()
 def _update_guild_members(gld):
-    guild_members[gld] = tibiacom.guild_info(gld)
+    fresh_gi = tibiacom.guild_info(gld)
+    guild_members.setdefault(gld, set())
     with stdout_lock:
-        print "retrieved", len(guild_members[gld]), "members of guild:", gld
+        print "retrieved", len(fresh_gi), "members of guild:", gld
+        for mbr in guild_members[gld].difference(fresh_gi):
+            print "removed", mbr
+        for mbr in fresh_gi.difference(guild_members[gld]):
+            print "added", mbr
+    guild_members[gld].clear()
+    guild_members[gld].update(fresh_gi)
 
-def update_guild_members(glds):
+def update_guild_members(glds=None):
     assert not isinstance(glds, types.StringTypes)
+    if glds is None: glds = guild_members.keys()
     thrds = []
     for g in glds:
         thrds.append(threading.Thread(target=_update_guild_members, args=(g,)))
@@ -214,9 +235,12 @@ def update_guild_members(glds):
         t.join()
 
 # 0 friend, 1 ally, 2 enemy
-char_stances = shelve.open("stances").setdefault("char", {})
+stances_shelf = shelve.open("stances", writeback=True)
+char_stances = stances_shelf['char']
 guild_stances = {'Del Chaos': 1, 'Murderers Inc': 1, 'Deadly': 1, 'Blackened': 1, 'Torture': 1, 'Blitzkriieg': 1, 'Malibu-Nam': 1, 'Chaos Riders': 1, 'Ka Bros': 1, 'Unholly Soulz': 1, 'Tartaro': 1, 'Dipset': 2, 'Waterloo': 2, 'State': 0}
 
 root = Tkinter.Tk()
 main = MainDialog(root)
 root.mainloop()
+
+print "exited mainloop cleanly"
