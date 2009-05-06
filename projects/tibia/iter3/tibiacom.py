@@ -62,7 +62,7 @@ def pretty_print_char_info(info):
 def http_get(url, params):
     try:
         return urllib2.urlopen("http://www.tibia.com" + url + "?" + urllib.urlencode(params)).read()
-    except urllib2.URLError:
+    except:
         return http_get(url, params)
 
 def __ci_info(html):
@@ -173,12 +173,23 @@ def online_list(world):
             assert len(players) == 0
         return stamp, players
 
+def guild_list(world):
+    html = http_get("/community/", {"subtopic": "guilds", "world": world})
+    groups = re.findall(r'<INPUT TYPE=hidden NAME=GuildName VALUE="([^"]+)', html)
+    retval = set()
+    for guild in [set([x]) for x in groups]:
+        assert len(guild) == 1
+        assert retval.isdisjoint(guild)
+        retval.update(guild)
+    return retval
+
 def guild_info(guild):
     html = http_get("/community/", {"subtopic": "guilds", "page": "view", "GuildName": guild})
-    members = []
+    members = set()
     matches = re.findall(r'<TD><A HREF="http://www.tibia.com/community/\?subtopic=characters&name=[^"]+">([^<]+)</A>[^<>]*</TD>', html)
     for m in matches:
-        members.append(unescape_tibia_html(m))
+        assert m not in members
+        members.add(unescape_tibia_html(m))
     return members
 
 def pretty_print_online_list(ol, stamp):

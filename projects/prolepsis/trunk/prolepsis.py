@@ -22,9 +22,10 @@ class Functor:
         self.func(*self.largs, **self.kwargs)
 
 STANCES = ("Friend", "Ally", "Enemy")
+COLORS = ("blue", "sea green", "red")
 
-class CharListboxMenu:
-    def __init__(self, parent, listbox, callback, listbox_data):
+class StanceContextMenu:
+    def __init__(self, parent, listbox, callback, itemdata, stances):
         self.menu = Tkinter.Menu(parent, tearoff=False)
         for i in range(len(STANCES)):
             self.menu.add_command(
@@ -34,20 +35,70 @@ class CharListboxMenu:
         self.parent = parent
         self.listbox = listbox
         self.callback = callback
-        self.listbox_data = listbox_data
+        self.itemdata = itemdata
+        self.stances = stances
     def set_stance(self, stance):
         print "set stance", stance, "on index", self.index
-        char_stances[self.listbox_data[self.index]] = stance
-        print char_stances
+        self.stances[self.itemdata[self.index]] = stance
+        print self.stances
         self.callback()
     def handler(self, event):
-        self.menu.post(event.x_root, event.y_root)
         self.index = self.listbox.nearest(event.y)
+        if self.index >= 0:
+            self.menu.post(event.x_root, event.y_root)
 
 def open_char_page(event, data):
     name = data[int(event.widget.curselection()[0])]
     print "opening character info in browser:", name
-    webbrowser.open("http://www.tibia.com/community/?" + urllib.urlencode({"subtopic": "characters", "name": name}))
+    webbrowser.open(
+            "http://www.tibia.com/community/?"
+            + urllib.urlencode({"subtopic": "characters", "name": name}))
+
+class GuildStanceDialog:
+    def __init__(self, parent):
+        #self.parent = parent
+
+        self.dialog = Tkinter.Toplevel(parent)
+        self.dialog.title("Guild Stances")
+        self.dialog.grab_set()
+
+        self.scrollbar = Tkinter.Scrollbar(self.dialog)
+        self.scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+
+        self.listbox_data = []
+
+        self.listbox = Tkinter.Listbox(
+                self.dialog,
+                yscrollcommand=self.scrollbar.set)
+        self.listbox.bind(
+                "<Button-3>",
+                StanceContextMenu(
+                        self.dialog,
+                        self.listbox,
+                        self.stance_changed,
+                        self.listbox_data,
+                        guild_stances)
+                    .handler)
+        self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
+        self.scrollbar.config(command=self.listbox.yview)
+
+        self.refresh_listbox()
+
+    def stance_changed(self):
+        self.refresh_listbox()
+        main_dialog.refresh()
+
+    def refresh_listbox(self):
+        self.listbox.delete(0, Tkinter.END)
+        del self.listbox_data[:]
+        # sort by stances first, then by guild name
+        items = sorted(guild_stances.items(), key=lambda (k, v): (v, k))
+        items += [ (x, None) for x in sorted(guild_members.keys()) if x not in guild_stances.keys() ]
+        for guild, stance in items:
+            self.listbox.insert(Tkinter.END, guild)
+            if stance is not None:
+                self.listbox.itemconfig(Tkinter.END, fg=COLORS[stance])
+            self.listbox_data.append(guild)
 
 class MainDialog:
     def __init__(self, root):
@@ -94,8 +145,8 @@ class MainDialog:
 
         self.listbox.bind(
                 "<Button-3>",
-                CharListboxMenu(
-                        root, self.listbox, self.refresh, self.listbox_data)
+                StanceContextMenu(
+                        root, self.listbox, self.refresh, self.listbox_data, char_stances)
                     .handler)
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
@@ -103,7 +154,10 @@ class MainDialog:
 
         self.menubar = Tkinter.Menu(root)
         self.guild_menu = Tkinter.Menu(self.menubar, tearoff=False)
-        self.guild_menu.add_command(label="Update", command=self.update_guild_members)
+        self.guild_menu.add_command(label="Update members", command=self.update_guild_members)
+        self.guild_menu.add_command(
+                label="Modify stances",
+                command=lambda: GuildStanceDialog(self.tkref))
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
         self.tkref.config(menu=self.menubar)
 
@@ -136,10 +190,10 @@ class MainDialog:
                     bg = "white"
                 listbox_items.append((name, level, vocation, bg))
         listbox_items.sort(key=lambda x: x[1], reverse=True)
-        self.listbox.delete(0, self.listbox.size() - 1)
+        self.listbox.delete(0, Tkinter.END)
         for name, level, vocation, bg in listbox_items:
             # this must be done before the call to char_item_string to ensure the necessary guilds have been populated
-            fg = get_fg_config(name)
+            fg = get_char_fg_config(name)
             self.listbox.insert(Tkinter.END, char_item_string(name, level, vocation))
             if fg is not None:
                 self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
@@ -196,18 +250,20 @@ def char_item_string(name, level, vocation):
     return fmt % tuple(vals)
 
 def display_predicate(name, level, vocation):
-    return level >= 45 and vocation != "N" or not get_fg_config(name) is None
+    return level >= 45 and vocation != "N" or not get_char_fg_config(name) is None
 
-def get_fg_config(name):
-    colors = ("blue", "sea green", "red")
+def get_guild_fg_config(guild_name):
+    return COLORS[guild_stances[guild_name]]
+
+def get_char_fg_config(name):
     try:
-        return colors[char_stances[name]]
+        return COLORS[char_stances[name]]
     except:
         for gld, clri in guild_stances.iteritems():
             if not guild_members.has_key(gld):
                 update_guild_members([gld])
             if name in guild_members[gld]:
-                return colors[clri]
+                return COLORS[clri]
 
 members_shelf = shelve.open("members", writeback=True)
 guild_members = members_shelf
@@ -216,31 +272,41 @@ def _update_guild_members(gld):
     fresh_gi = tibiacom.guild_info(gld)
     guild_members.setdefault(gld, set())
     with stdout_lock:
-        print "retrieved", len(fresh_gi), "members of guild:", gld
+        print "updated %-32s (%4d members)" % (gld, len(fresh_gi))
         for mbr in guild_members[gld].difference(fresh_gi):
-            print "removed", mbr
+            print mbr, "left", gld
         for mbr in fresh_gi.difference(guild_members[gld]):
-            print "added", mbr
+            print mbr, "joined", gld
     guild_members[gld].clear()
     guild_members[gld].update(fresh_gi)
 
-def update_guild_members(glds=None):
-    assert not isinstance(glds, types.StringTypes)
-    if glds is None: glds = guild_members.keys()
+def update_guild_members(guilds=None):
+    assert not isinstance(guilds, types.StringTypes)
+    if guilds is None:
+        guilds = tibiacom.guild_list("Dolera")
+        prune = True
+    else:
+        prune = False
     thrds = []
-    for g in glds:
+    for g in sorted(guilds):
         thrds.append(threading.Thread(target=_update_guild_members, args=(g,)))
         thrds[-1].start()
     for t in thrds:
         t.join()
+    if prune:
+        for g in guild_members.keys():
+            if g not in guilds:
+                print "pruning", g
+                del guild_members[g]
+    print "guild member update completed."
 
 # 0 friend, 1 ally, 2 enemy
 stances_shelf = shelve.open("stances", writeback=True)
-char_stances = stances_shelf['char']
-guild_stances = {'Del Chaos': 1, 'Murderers Inc': 1, 'Deadly': 1, 'Blackened': 1, 'Torture': 1, 'Blitzkriieg': 1, 'Malibu-Nam': 1, 'Chaos Riders': 1, 'Ka Bros': 1, 'Unholly Soulz': 1, 'Tartaro': 1, 'Dipset': 2, 'Waterloo': 2, 'State': 0}
+char_stances = stances_shelf.setdefault("char", {})
+guild_stances = stances_shelf.setdefault("guild", {})
 
 root = Tkinter.Tk()
-main = MainDialog(root)
+main_dialog = MainDialog(root)
 root.mainloop()
 
 print "exited mainloop cleanly"
