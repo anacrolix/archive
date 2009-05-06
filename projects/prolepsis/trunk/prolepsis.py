@@ -22,7 +22,7 @@ class Functor:
         self.func(*self.largs, **self.kwargs)
 
 STANCES = ("Friend", "Ally", "Enemy")
-COLORS = ("blue", "sea green", "red")
+COLORS = ("blue", "#20b020", "red")
 
 class StanceContextMenu:
     def __init__(self, parent, listbox, callback, itemdata, stances):
@@ -30,7 +30,8 @@ class StanceContextMenu:
         for i in range(len(STANCES)):
             self.menu.add_command(
                     label="Set as " + STANCES[i],
-                    command=Functor(lambda s: self.set_stance(s), i))
+                    command=Functor(self.set_stance, i))
+        self.menu.add_command(label="Unset stance", command=Functor(self.set_stance, None))
         self.menu.add_command(label="Close")
         self.parent = parent
         self.listbox = listbox
@@ -39,7 +40,12 @@ class StanceContextMenu:
         self.stances = stances
     def set_stance(self, stance):
         print "set stance", stance, "on index", self.index
-        self.stances[self.itemdata[self.index]] = stance
+        key = self.itemdata[self.index]
+        if stance is None:
+            if self.stances.has_key(key):
+                del self.stances[key]
+        else:
+            self.stances[key] = stance
         print self.stances
         self.callback()
     def handler(self, event):
@@ -56,9 +62,8 @@ def open_char_page(event, data):
 
 class GuildStanceDialog:
     def __init__(self, parent):
-        #self.parent = parent
-
         self.dialog = Tkinter.Toplevel(parent)
+        self.dialog.transient(parent)
         self.dialog.title("Guild Stances")
         self.dialog.grab_set()
 
@@ -82,6 +87,9 @@ class GuildStanceDialog:
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
         self.scrollbar.config(command=self.listbox.yview)
 
+        self.button = Tkinter.Button(self.dialog, text="Fetch Guild List", command=self.fetch_guild_list)
+        self.button.pack()
+
         self.refresh_listbox()
 
     def stance_changed(self):
@@ -100,10 +108,18 @@ class GuildStanceDialog:
                 self.listbox.itemconfig(Tkinter.END, fg=COLORS[stance])
             self.listbox_data.append(guild)
 
+    def fetch_guild_list(self):
+        guilds = tibiacom.guild_list("Dolera")
+        for g in guilds:
+            guild_members.setdefault(g, set())
+        self.refresh_listbox()
+
+
 class MainDialog:
     def __init__(self, root):
         self.tkref = root
         self.tkref.title("Prolepsis 0.2.0")
+        #self.tkref.wm_attributes("-topmost", True)
 
         self.statusbar = Tkinter.Label(
                 self.tkref,
@@ -153,12 +169,31 @@ class MainDialog:
         scrollbar.config(command=self.listbox.yview)
 
         self.menubar = Tkinter.Menu(root)
+
         self.guild_menu = Tkinter.Menu(self.menubar, tearoff=False)
         self.guild_menu.add_command(label="Update members", command=self.update_guild_members)
         self.guild_menu.add_command(
                 label="Modify stances",
                 command=lambda: GuildStanceDialog(self.tkref))
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
+
+        self.window_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.always_on_top = Tkinter.BooleanVar()
+        self.always_on_top.set(False)
+        self.window_menu.add_checkbutton(
+                label="Always on top",
+                variable=self.always_on_top,
+                command=self.always_on_top_command)
+        self.menubar.add_cascade(label="Window", menu=self.window_menu)
+
+        self.help_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.help_menu.add_command(
+                label="Report issue...",
+                command=lambda: webbrowser.open("http://code.google.com/p/anacrolix/issues/list"))
+        self.help_menu.add_separator()
+        self.help_menu.add_command(label="About", state=Tkinter.DISABLED)
+        self.menubar.add_cascade(label="Help", menu=self.help_menu)
+
         self.tkref.config(menu=self.menubar)
 
         self.tkref.update_idletasks()
@@ -171,6 +206,9 @@ class MainDialog:
     def update_guild_members(self):
         update_guild_members()
         self.refresh()
+
+    def always_on_top_command(self):
+        self.tkref.wm_attributes("-topmost", self.always_on_top.get())
 
     def refresh(self):
         # list(tuple(name, level, vocation, background))
@@ -252,13 +290,10 @@ def char_item_string(name, level, vocation):
 def display_predicate(name, level, vocation):
     return level >= 45 and vocation != "N" or not get_char_fg_config(name) is None
 
-def get_guild_fg_config(guild_name):
-    return COLORS[guild_stances[guild_name]]
-
 def get_char_fg_config(name):
     try:
         return COLORS[char_stances[name]]
-    except:
+    except KeyError:
         for gld, clri in guild_stances.iteritems():
             if not guild_members.has_key(gld):
                 update_guild_members([gld])
@@ -309,4 +344,4 @@ root = Tkinter.Tk()
 main_dialog = MainDialog(root)
 root.mainloop()
 
-print "exited mainloop cleanly"
+print "exited mainloop cleanly."
