@@ -21,15 +21,18 @@ class Functor:
     def __call__(self):
         self.func(*self.largs, **self.kwargs)
 
-STANCES = ("Friend", "Ally", "Enemy")
-COLORS = ("blue", "#20b020", "red")
+STANCES = (
+        ("Friend", "blue"),
+        ("Ally", "#20b020"),
+        ("Enemy", "red"),
+    )
 
 class StanceContextMenu:
     def __init__(self, parent, listbox, callback, itemdata, stances):
         self.menu = Tkinter.Menu(parent, tearoff=False)
         for i in range(len(STANCES)):
             self.menu.add_command(
-                    label="Set as " + STANCES[i],
+                    label="Set as " + STANCES[i][0],
                     command=Functor(self.set_stance, i))
         self.menu.add_command(label="Unset stance", command=Functor(self.set_stance, None))
         self.menu.add_command(label="Close")
@@ -105,7 +108,7 @@ class GuildStanceDialog:
         for guild, stance in items:
             self.listbox.insert(Tkinter.END, guild)
             if stance is not None:
-                self.listbox.itemconfig(Tkinter.END, fg=COLORS[stance])
+                self.listbox.itemconfig(Tkinter.END, fg=STANCES[stance][1])
             self.listbox_data.append(guild)
 
     def fetch_guild_list(self):
@@ -178,8 +181,7 @@ class MainDialog:
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
 
         self.window_menu = Tkinter.Menu(self.menubar, tearoff=False)
-        self.always_on_top = Tkinter.BooleanVar()
-        self.always_on_top.set(False)
+        self.always_on_top = Tkinter.BooleanVar(value=False)
         self.window_menu.add_checkbutton(
                 label="Always on top",
                 variable=self.always_on_top,
@@ -196,7 +198,7 @@ class MainDialog:
 
         self.tkref.config(menu=self.menubar)
 
-        self.tkref.update_idletasks()
+        self.tkref.update()
         self.tkref.after_idle(self.update)
 
         self.last_count = None
@@ -292,13 +294,13 @@ def display_predicate(name, level, vocation):
 
 def get_char_fg_config(name):
     try:
-        return COLORS[char_stances[name]]
+        return STANCES[char_stances[name]][1]
     except KeyError:
         for gld, clri in guild_stances.iteritems():
             if not guild_members.has_key(gld):
                 update_guild_members([gld])
             if name in guild_members[gld]:
-                return COLORS[clri]
+                return STANCES[clri][1]
 
 members_shelf = shelve.open("members", writeback=True)
 guild_members = members_shelf
