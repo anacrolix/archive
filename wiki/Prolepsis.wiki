@@ -5,6 +5,9 @@
 
 Prolepsis tracks players online on Dolera. It displays their name, level, vocation and guild. The foreground text color indicates your stance towards that character. The background color indicates how long they've been on or offline.
 
+= Screenshots =
+http://anacrolix.googlecode.com/files/Screenshot-Prolepsis%200.2.0-unix.png http://anacrolix.googlecode.com/files/prolepsis-0.2.0-win32.PNG
+
 = Colors =
 
 || *Foreground Color* || *Stance* ||
