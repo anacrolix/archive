@@ -1,0 +1,27 @@
+#summary Why and how to use Prolepsis.
+#labels Featured,Phase-Deploy
+
+= Introduction =
+
+Prolepsis tracks players online on Dolera. It displays their name, level, vocation and guild. The foreground text color indicates your stance towards that character. The background color indicates how long they've been on or offline.
+
+= Colors =
+
+|| *Foreground Color* || *Stance* ||
+|| Black || Unknown or no specific stance ||
+|| Red || Enemy ||
+|| Green || Ally ||
+|| Blue || Friend ||
+
+*Note: Character stances will override guild stances.*
+
+|| *Background Color* || *Status* ||
+|| Yellow || Online ||
+|| White || Logged in very recently (or you recently started the application) ||
+|| Grey || Offline for less than 15 minutes ||
+
+= Installation =
+
+You can download the [http://code.google.com/p/anacrolix/source/browse/#svn/projects/prolepsis source package], or the [http://anacrolix.googlecode.com/files/prolepsis-0.2.0_win32.rar prebuilt executable for windows].
+
+Double click the prolepsis.pyw or prolepsis.exe file (whichever is in your package).
