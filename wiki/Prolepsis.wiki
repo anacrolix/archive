@@ -5,6 +5,23 @@
 
 Prolepsis tracks players online on Dolera. It displays their name, level, vocation and guild. The foreground text color indicates your stance towards that character. The background color indicates how long they've been on or offline.
 
+= Installation =
+
+== Noobs ==
+
+Download the latest version [http://anacrolix.googlecode.com/files/prolepsis-0.2.0_win32.rar here]. Extract the archive, and double click on *prolepsis.exe* inside the folder that appears.
+
+== Technical Users ==
+
+=== Recommended software on Windows ===
+
+ * [http://www.python.org/ftp/python/2.6.2/python-2.6.2.msi Python 2.6.2 Windows installer]
+ * [http://sourceforge.net/project/downloading.php?group_id=138498&filename=TortoiseSVN-1.5.9.15518-win32-svn-1.5.6.msi TortoiseSVN] _(only if you intend to checkout the source code)_
+
+[http://code.google.com/p/anacrolix/downloads/list Download the desired source archive] or checkout from http://anacrolix.googlecode.com/svn/projects/prolepsis/trunk.
+
+Double click prolepsis.py.
+
 = Screenshots =
 http://anacrolix.googlecode.com/files/Screenshot-Prolepsis%200.2.0-unix.png http://anacrolix.googlecode.com/files/prolepsis-0.2.0-win32.PNG
 
@@ -22,9 +39,3 @@ http://anacrolix.googlecode.com/files/Screenshot-Prolepsis%200.2.0-unix.png http
 || Yellow || Online ||
 || White || Logged in very recently (or you recently started the application) ||
 || Grey || Offline for less than 15 minutes ||
-
-= Installation =
-
-You can download the [http://code.google.com/p/anacrolix/source/browse/#svn/projects/prolepsis source package], or the [http://anacrolix.googlecode.com/files/prolepsis-0.2.0_win32.rar prebuilt executable for windows].
-
-Double click the prolepsis.pyw or prolepsis.exe file (whichever is in your package).
