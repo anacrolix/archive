@@ -1,14 +1,18 @@
 #!/usr/bin/python
 
+# imports ordered in ascending ubiquity
+
 import sys
 sys.path.append("tibdb")
 import tibiacom
+
+import tkFont
+import Tkinter
+
 import os
 import shelve
 import threading
 import time
-import Tkinter
-import tkFont
 import types
 import urllib
 import webbrowser
@@ -70,6 +74,12 @@ class GuildStanceDialog:
         self.dialog.title("Guild Stances")
         self.dialog.grab_set()
 
+        self.button = Tkinter.Button(
+                self.dialog,
+                text="Fetch Guild List",
+                command=self.fetch_guild_list)
+        self.button.pack(side=Tkinter.BOTTOM)
+
         self.scrollbar = Tkinter.Scrollbar(self.dialog)
         self.scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
@@ -88,10 +98,8 @@ class GuildStanceDialog:
                         guild_stances)
                     .handler)
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
-        self.scrollbar.config(command=self.listbox.yview)
 
-        self.button = Tkinter.Button(self.dialog, text="Fetch Guild List", command=self.fetch_guild_list)
-        self.button.pack()
+        self.scrollbar.config(command=self.listbox.yview)
 
         self.refresh_listbox()
 
@@ -135,7 +143,7 @@ class MainDialog:
         scrollbar = Tkinter.Scrollbar(self.tkref)
         scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
-        listbox_font = tkFont.Font(size=9)
+        listbox_font = tkFont.Font(size=9, weight=tkFont.BOLD)
         try:
             listbox_font.config(family={
                     "posix": "Monospace",
@@ -145,6 +153,7 @@ class MainDialog:
             pass
 
         self.listbox_data = []
+
         self.listbox = Tkinter.Listbox(
                 self.tkref,
                 yscrollcommand=scrollbar.set,
@@ -178,6 +187,7 @@ class MainDialog:
         self.guild_menu.add_command(
                 label="Modify stances",
                 command=lambda: GuildStanceDialog(self.tkref))
+
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
 
         self.window_menu = Tkinter.Menu(self.menubar, tearoff=False)
@@ -186,6 +196,7 @@ class MainDialog:
                 label="Always on top",
                 variable=self.always_on_top,
                 command=self.always_on_top_command)
+
         self.menubar.add_cascade(label="Window", menu=self.window_menu)
 
         self.help_menu = Tkinter.Menu(self.menubar, tearoff=False)
@@ -194,6 +205,7 @@ class MainDialog:
                 command=lambda: webbrowser.open("http://code.google.com/p/anacrolix/issues/list"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label="About", state=Tkinter.DISABLED)
+
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
 
         self.tkref.config(menu=self.menubar)
@@ -202,6 +214,7 @@ class MainDialog:
         self.tkref.after_idle(self.update)
 
         self.last_count = None
+        self.first_stamp = None
         self.stale_chars = {}
         self.online_chars = {}
 
@@ -215,7 +228,7 @@ class MainDialog:
     def refresh(self):
         # list(tuple(name, level, vocation, background))
         listbox_items = []
-        for name, (level, vocation, stamp) in self.stale_chars.iteritems():
+        for name, (level, vocation, stamp, online) in self.stale_chars.iteritems():
             if not name in self.online_chars.keys() \
                     and display_predicate(name, level, vocation) \
                     and time.time() - stamp < 900:
@@ -224,10 +237,11 @@ class MainDialog:
         for name, (level, vocation, stamp) in self.online_chars.iteritems():
             if display_predicate(name, level, vocation):
                 # bg is default unless the char has recently logged in
-                if self.stale_chars.has_key(name) and stamp - self.stale_chars[name][2] > 150:
-                    bg = None
-                else:
+                assert self.first_stamp != None
+                if stamp != self.first_stamp and (not self.stale_chars.has_key(name) or stamp - self.stale_chars[name][2] < 250 and not self.stale_chars[name][3]):
                     bg = "white"
+                else:
+                    bg = None
                 listbox_items.append((name, level, vocation, bg))
         listbox_items.sort(key=lambda x: x[1], reverse=True)
         self.listbox.delete(0, Tkinter.END)
@@ -250,15 +264,18 @@ class MainDialog:
             self.tkref.update_idletasks()
 
             stamp, o = tibiacom.online_list("Dolera")
+            if self.first_stamp is None: self.first_stamp = stamp
             print time.ctime(stamp) + ":", "retrieved", len(o), "characters"
+            for v in self.stale_chars.itervalues():
+                v[3] = False
             for k, v in self.online_chars.iteritems():
                 if self.stale_chars.has_key(k):
-                    self.stale_chars[k] = (v[0], v[1], self.stale_chars[k][2])
+                    self.stale_chars[k] = v[0:-1] + [self.stale_chars[k][2], True]
                 else:
-                    self.stale_chars[k] = v
-            self.online_chars = {}
+                    self.stale_chars[k] = v + [True]
+            self.online_chars.clear()
             for c in o:
-                self.online_chars[c.name] = (c.level, c.vocation, stamp)
+                self.online_chars[c.name] = [c.level, c.vocation, stamp]
 
             self.refresh()
 
