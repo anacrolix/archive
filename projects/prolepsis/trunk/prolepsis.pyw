@@ -17,6 +17,14 @@ import types
 import urllib
 import webbrowser
 
+STANCES = (
+        ("Friend", "blue"),
+        ("Ally", "#20b020"),
+        ("Enemy", "red"),
+    )
+
+VERSION = "0.3.0_svn"
+
 class Functor:
     def __init__(self, func, *largs, **kwargs):
         self.func = func
@@ -24,12 +32,6 @@ class Functor:
         self.kwargs = kwargs
     def __call__(self):
         self.func(*self.largs, **self.kwargs)
-
-STANCES = (
-        ("Friend", "blue"),
-        ("Ally", "#20b020"),
-        ("Enemy", "red"),
-    )
 
 class StanceContextMenu:
     def __init__(self, parent, listbox, callback, itemdata, stances):
@@ -87,6 +89,7 @@ class GuildStanceDialog:
 
         self.listbox = Tkinter.Listbox(
                 self.dialog,
+                height=20,
                 yscrollcommand=self.scrollbar.set)
         self.listbox.bind(
                 "<Button-3>",
@@ -105,7 +108,7 @@ class GuildStanceDialog:
 
     def stance_changed(self):
         self.refresh_listbox()
-        main_dialog.refresh()
+        main_dialog.refresh_listbox()
 
     def refresh_listbox(self):
         self.listbox.delete(0, Tkinter.END)
@@ -125,22 +128,58 @@ class GuildStanceDialog:
             guild_members.setdefault(g, set())
         self.refresh_listbox()
 
+class ActiveCharacterList:
+    def __init__(self, world):
+        self.world = world
+        self.chars = {}
+        self.last_online_list = None
+    def update_from_online_list(self):
+        stamp, chars = tibiacom.online_list(self.world)
+        print time.ctime(stamp) + ": retrieved", len(chars), "characters"
+        char_set = set([
+                tuple([getattr(x, y) for y in ("name", "level", "vocation")])
+                for x in chars])
+        if self.last_online_list is not None:
+            went_offline = self.last_online_list.difference(char_set)
+            came_online = char_set.difference(self.last_online_list)
+            changed = len(went_offline) + len(came_online)
+            print "came online:", sorted(came_online, key=lambda x: x[1], reverse=True)
+            print "went offline:", sorted(went_offline, key=lambda x: x[1], reverse=True)
+        else:
+            changed = False
+        self.last_online_list = char_set
+        for name, info in self.chars.iteritems():
+            assert "name" not in vars(info)
+            if not name in [x.name for x in chars]:
+                info.last_offline = stamp
+        for c in chars:
+            name = c.name
+            del c.name
+            c.last_online = stamp
+            if self.chars.has_key(name):
+                self.chars[name].update(c)
+            else:
+                c.last_offline = None
+                self.chars[name] = c
+        return stamp, changed
+    def online_count(self):
+        return len(filter(lambda x: x.last_offline is None or x.last_offline < x.last_online, self.chars.values()))
 
 class MainDialog:
     def __init__(self, root):
-        self.tkref = root
-        self.tkref.title("Prolepsis 0.2.0")
-        #self.tkref.wm_attributes("-topmost", True)
+        self.dialog = root
+        self.dialog.title("Prolepsis " + VERSION)
 
         self.statusbar = Tkinter.Label(
-                self.tkref,
+                self.dialog,
                 text="Error!",
                 anchor=Tkinter.W,
+                justify=Tkinter.LEFT,
                 relief=Tkinter.SUNKEN,
                 borderwidth=1)
         self.statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
-        scrollbar = Tkinter.Scrollbar(self.tkref)
+        scrollbar = Tkinter.Scrollbar(self.dialog)
         scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
         listbox_font = tkFont.Font(size=9, weight=tkFont.BOLD)
@@ -155,7 +194,7 @@ class MainDialog:
         self.listbox_data = []
 
         self.listbox = Tkinter.Listbox(
-                self.tkref,
+                self.dialog,
                 yscrollcommand=scrollbar.set,
                 font=listbox_font,
                 bg="light yellow",
@@ -170,11 +209,10 @@ class MainDialog:
         self.listbox.bind(
                 "<Double-Button-1>",
                 lambda event: open_char_page(event, self.listbox_data))
-
         self.listbox.bind(
                 "<Button-3>",
                 StanceContextMenu(
-                        root, self.listbox, self.refresh, self.listbox_data, char_stances)
+                        root, self.listbox, self.refresh_listbox, self.listbox_data, char_stances)
                     .handler)
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
@@ -182,16 +220,45 @@ class MainDialog:
 
         self.menubar = Tkinter.Menu(root)
 
+        self.list_sort_mode = Tkinter.StringVar(value='level')
+
+        self.list_menu = Tkinter.Menu(self.menubar, tearoff=False)
+
+        self.sortby_menu = Tkinter.Menu(self.dialog, tearoff=False)
+        for s in ("level", "stance", "vocation", "guild"):
+            self.sortby_menu.add_radiobutton(
+                    label=s.capitalize(),
+                    variable=self.list_sort_mode,
+                    command=self.refresh_listbox,
+                    value=s)
+
+        self.list_menu.add_cascade(label="Sort by", menu=self.sortby_menu)
+
+        self.list_show_guild = Tkinter.BooleanVar(value=True)
+        self.list_show_unguilded = Tkinter.BooleanVar(value=True)
+
+        self.list_menu.add_checkbutton(
+                label="Show character's guild",
+                variable=self.list_show_guild,
+                command=self.refresh_listbox)
+        self.list_menu.add_checkbutton(
+                label="Show unguilded characters",
+                variable=self.list_show_unguilded,
+                command=self.refresh_listbox)
+
+        self.menubar.add_cascade(label="List", menu=self.list_menu)
+
         self.guild_menu = Tkinter.Menu(self.menubar, tearoff=False)
         self.guild_menu.add_command(label="Update members", command=self.update_guild_members)
         self.guild_menu.add_command(
                 label="Modify stances",
-                command=lambda: GuildStanceDialog(self.tkref))
+                command=lambda: GuildStanceDialog(self.dialog))
 
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
 
-        self.window_menu = Tkinter.Menu(self.menubar, tearoff=False)
         self.always_on_top = Tkinter.BooleanVar(value=False)
+
+        self.window_menu = Tkinter.Menu(self.menubar, tearoff=False)
         self.window_menu.add_checkbutton(
                 label="Always on top",
                 variable=self.always_on_top,
@@ -201,123 +268,151 @@ class MainDialog:
 
         self.help_menu = Tkinter.Menu(self.menubar, tearoff=False)
         self.help_menu.add_command(
-                label="Report issue...",
+                label="Wiki Howto",
+                command=lambda: webbrowser.open("http://code.google.com/p/anacrolix/wiki/Prolepsis"))
+        self.help_menu.add_command(
+                label="Report issue",
                 command=lambda: webbrowser.open("http://code.google.com/p/anacrolix/issues/list"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label="About", state=Tkinter.DISABLED)
 
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
 
-        self.tkref.config(menu=self.menubar)
+        self.dialog.config(menu=self.menubar)
 
-        self.tkref.update()
-        self.tkref.after_idle(self.update)
+        self.dialog.update()
+        self.dialog.after_idle(self.refresh_statusbar, True)
+        self.dialog.after_idle(self.refresh_listbox, True)
+        self.dialog.after_idle(self.update)
 
-        self.last_count = None
-        self.first_stamp = None
-        self.stale_chars = {}
-        self.online_chars = {}
+        self.first_update = None
+        self.last_update = None
+        self.next_update = None
+        self.char_data = ActiveCharacterList("Dolera")
 
     def update_guild_members(self):
         update_guild_members()
-        self.refresh()
+        self.refresh_listbox()
 
     def always_on_top_command(self):
-        self.tkref.wm_attributes("-topmost", self.always_on_top.get())
+        self.dialog.wm_attributes("-topmost", self.always_on_top.get())
 
-    def refresh(self):
-        # list(tuple(name, level, vocation, background))
-        listbox_items = []
-        for name, (level, vocation, stamp, online) in self.stale_chars.iteritems():
-            if not name in self.online_chars.keys() \
-                    and display_predicate(name, level, vocation) \
-                    and time.time() - stamp < 900:
-                print "add stale:", time.ctime(stamp), name
-                listbox_items += [(name, level, vocation, "light grey")]
-        for name, (level, vocation, stamp) in self.online_chars.iteritems():
-            if display_predicate(name, level, vocation):
-                # bg is default unless the char has recently logged in
-                assert self.first_stamp != None
-                if stamp != self.first_stamp and (not self.stale_chars.has_key(name) or stamp - self.stale_chars[name][2] < 250 and not self.stale_chars[name][3]):
-                    bg = "white"
+    def refresh_statusbar(self, daemonic=False):
+        try:
+            if self.last_update is None:
+                last = "never"
+            else:
+                last = "%ds ago" % (time.time() - self.last_update,)
+            if self.next_update is None:
+                next = "now"
+            else:
+                next = "in %ds" % (self.next_update - time.time(),)
+            text = \
+                ("World: Dolera (%d players online)\n" + \
+                "Last update: %s. Next update: %s") \
+                % (self.char_data.online_count(), last, next,)
+            self.statusbar.config(text=text)
+            self.statusbar.pack()
+        except:
+            self.statusbar.config(text="Fucking Error!")
+            raise
+        finally:
+            if daemonic:
+                self.dialog.after(1000, self.refresh_statusbar, True)
+            #else:
+                # considering an idle update here to push statusbar changes
+
+    def refresh_listbox(self, daemonic=False):
+        try:
+            items = []
+            for name, info in self.char_data.chars.iteritems():
+                if info.vocation == "N": continue
+                # get guild
+                for g, m in guild_members.iteritems():
+                    if name in m:
+                        guild = g
+                        break
+                    else:
+                        guild = None
+                # get stance
+                try: stance = char_stances[name]
+                except KeyError:
+                    try: stance = guild_stances[guild]
+                    except KeyError: stance = None
+                if stance is None and (info.level < 45 or not self.list_show_unguilded.get()):
+                    continue
+                # background
+                assert info.last_offline != info.last_online
+                background = None
+                if info.last_online > info.last_offline:
+                    if not info.last_offline is None and time.time() - info.last_offline < 300:
+                        background = "white"
                 else:
-                    bg = None
-                listbox_items.append((name, level, vocation, bg))
-        listbox_items.sort(key=lambda x: x[1], reverse=True)
-        self.listbox.delete(0, Tkinter.END)
-        for name, level, vocation, bg in listbox_items:
-            # this must be done before the call to char_item_string to ensure the necessary guilds have been populated
-            fg = get_char_fg_config(name)
-            self.listbox.insert(Tkinter.END, char_item_string(name, level, vocation))
-            if fg is not None:
-                self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
-            if bg is not None:
-                self.listbox.itemconfig(Tkinter.END, bg=bg, selectbackground=bg)
-        self.listbox_data[:] = [x[0] for x in listbox_items]
+                    if time.time() - info.last_online < 600:
+                        background = "light grey"
+                    else:
+                        continue
+                items.append([name, info.level, info.vocation, background, stance, guild])
+
+            level_sort = lambda x: -x[1]
+            stance_sort = lambda x: dict(zip((0, 2, 1, None), range(4)))[x[4]]
+            vocation_sort = lambda x: dict(
+                    zip(("MS", "ED", "RP", "EK", "S", "D", "P", "K", "N"), range(9)))[x[2]]
+            guild_sort = lambda x: x[5]
+
+            items.sort(key=lambda x: tuple([y(x) for y in {
+                    'level': (level_sort,),
+                    'stance': (stance_sort, level_sort,),
+                    'vocation': (vocation_sort, stance_sort, level_sort,),
+                    'guild': (guild_sort, level_sort,),
+                }[self.list_sort_mode.get()]]))
+
+            self.listbox.delete(0, Tkinter.END)
+            for i in items:
+                fmt = "%3i%3s %-20s"
+                vals = [i[1], i[2], i[0]]
+                if not i[5] is None and self.list_show_guild.get():
+                    fmt += " (%s)"
+                    vals.append(i[5])
+                text = fmt % tuple(vals)
+                self.listbox.insert(Tkinter.END, text)
+                if not i[3] is None:
+                    self.listbox.itemconfig(Tkinter.END, bg=i[3], selectbackground=i[3])
+                stance = i[4]
+                if stance is not None:
+                    fg = STANCES[i[4]][1]
+                    if not i[4] is None:
+                        self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
+            self.listbox_data[:] = [x[0] for x in items]
+            print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
+        finally:
+            if daemonic:
+                self.dialog.after(30000, self.refresh_listbox, True)
 
     def update(self):
         update_started = time.time()
-        prev_sb_text = self.statusbar.cget("text")
         update_delay = 60000
+        self.next_update = None
         try:
-            self.statusbar.config(text="Updating...")
-            self.tkref.update_idletasks()
+            self.refresh_statusbar(daemonic=False)
+            self.dialog.update_idletasks()
 
-            stamp, o = tibiacom.online_list("Dolera")
-            if self.first_stamp is None: self.first_stamp = stamp
-            print time.ctime(stamp) + ":", "retrieved", len(o), "characters"
-            for v in self.stale_chars.itervalues():
-                v[3] = False
-            for k, v in self.online_chars.iteritems():
-                if self.stale_chars.has_key(k):
-                    self.stale_chars[k] = v[0:-1] + [self.stale_chars[k][2], True]
-                else:
-                    self.stale_chars[k] = v + [True]
-            self.online_chars.clear()
-            for c in o:
-                self.online_chars[c.name] = [c.level, c.vocation, stamp]
+            stamp, changed = self.char_data.update_from_online_list()
+            self.last_update = stamp
 
-            self.refresh()
+            if changed: update_delay = 290000
 
-            new_sb_text = "Updated %s (%i online)" % (
-                    time.strftime("%I:%M:%S %p", time.localtime(stamp)),
-                    len(self.online_chars))
-            self.statusbar.config(text=new_sb_text)
-        except:
-            self.statusbar.config(text=prev_sb_text)
-            raise
-        else:
-            if len(self.online_chars) != self.last_count and self.last_count is not None:
-                update_delay = 290000
-            self.last_count = len(self.online_chars)
+            self.refresh_listbox()
         finally:
             # take into account the time taken to perform this update. negative delays will just trigger an immediate update
-            update_delay -= int((time.time() - update_started) * 1000)
+            mark = time.time()
+            update_delay -= int((mark - update_started) * 1000)
+            self.dialog.after(update_delay, self.update)
+            self.next_update = mark + update_delay / 1000
             print "next update in", update_delay, "ms"
-            self.tkref.after(update_delay, self.update)
-
-def char_item_string(name, level, vocation):
-    fmt = "%3i%3s %-20s"
-    vals = [level, vocation, name]
-    for gld, mbrs in guild_members.iteritems():
-        if name in mbrs:
-            fmt += " (%s)"
-            vals.append(gld)
-            break
-    return fmt % tuple(vals)
 
 def display_predicate(name, level, vocation):
     return level >= 45 and vocation != "N" or not get_char_fg_config(name) is None
-
-def get_char_fg_config(name):
-    try:
-        return STANCES[char_stances[name]][1]
-    except KeyError:
-        for gld, clri in guild_stances.iteritems():
-            if not guild_members.has_key(gld):
-                update_guild_members([gld])
-            if name in guild_members[gld]:
-                return STANCES[clri][1]
 
 members_shelf = shelve.open("members", writeback=True)
 guild_members = members_shelf

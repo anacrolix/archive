@@ -144,34 +144,46 @@ def char_info(name):
     rv["deaths"] = __ci_deaths(html)
     return rv
 
-class Character:
+class Character():
     def __init__(self, **stats):
         for k, v in stats.iteritems():
             setattr(self, k, v)
-    def __cmp__(self, other):
-        return cmp(self.name, other.name)
+    #def __cmp__(self, other):
+        #return cmp(self.name, other.name)
+    def update(self, other):
+        vars(self).update(vars(other))
 
 def online_list(world):
-        stamp = int(time.time())
-        html = http_get("/community/", {"subtopic": "whoisonline", "world": world})
-        FIELDS = (
-                        ("name", lambda x: unescape_tibia_html(x)),
-                        ("level", lambda x: int(x)),
-                        ("vocation", lambda x: {"None": "N", "Knight": "K", "Elite Knight": "EK", "Paladin": "P", "Royal Paladin": "RP", "Druid": "D", "Elder Druid": "ED", "Sorcerer": "S", "Master Sorcerer": "MS"}[x]))
-        players = []
-        row_re = re.compile("""<TR BGCOLOR=#[A-F0-9]+><TD WIDTH=\d+%><A HREF="http://www.tibia.com/community/\?subtopic=characters&name=[^"]+">([^<]+)</A></TD><TD WIDTH=\d+%>(\d+)</TD><TD WIDTH=\d+%>([^<]+)</TD></TR>""")
-        for a in row_re.finditer(html):
-                assert len(a.groups()) == len(FIELDS)
-                # generate a dict from a list of pairs,
-                # with keys and values processed through FIELDS
-                players.append(Character(**dict(
-                    [(FIELDS[b][0], FIELDS[b][1](a.group(b + 1)))
-                     for b in range(len(FIELDS))] + [("online", True)])))
-        try:
-            assert int(re.search(r"Currently (\d+) players are online\.", html).group(1)) == len(players)
-        except AttributeError:
-            assert len(players) == 0
-        return stamp, players
+    stamp = time.time()
+    html = http_get("/community/", {"subtopic": "whoisonline", "world": world})
+    FIELDS = (
+        ("name", lambda x: unescape_tibia_html(x)),
+        ("level", lambda x: int(x)),
+        ("vocation", lambda x: {
+                "None": "N",
+                "Knight": "K",
+                "Elite Knight": "EK",
+                "Paladin": "P",
+                "Royal Paladin": "RP",
+                "Druid": "D",
+                "Elder Druid": "ED",
+                "Sorcerer": "S",
+                "Master Sorcerer": "MS"}
+            [x]))
+    players = []
+    row_re = re.compile("""<TR BGCOLOR=#[A-F0-9]+><TD WIDTH=\d+%><A HREF="http://www.tibia.com/community/\?subtopic=characters&name=[^"]+">([^<]+)</A></TD><TD WIDTH=\d+%>(\d+)</TD><TD WIDTH=\d+%>([^<]+)</TD></TR>""")
+    for a in row_re.finditer(html):
+        assert len(a.groups()) == len(FIELDS)
+        # generate a dict from a list of pairs,
+        # with keys and values processed through FIELDS
+        players.append(Character(**dict(
+            [(FIELDS[b][0], FIELDS[b][1](a.group(b + 1)))
+             for b in range(len(FIELDS))] + [("online", True)])))
+    try:
+        assert int(re.search(r"Currently (\d+) players are online\.", html).group(1)) == len(players)
+    except AttributeError:
+        assert len(players) == 0
+    return stamp, players
 
 def guild_list(world):
     html = http_get("/community/", {"subtopic": "guilds", "world": world})
