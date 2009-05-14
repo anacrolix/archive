@@ -1,13 +1,12 @@
 import os
 import sys
 import time
-import types
 
 import tkFont
 import Tkinter
 
 from tibdb import tibiacom
-from functions import get_char_guild, open_char_page
+from functions import get_char_guild, open_char_page, update_guild_members
 from globals import char_stances, guild_stances, guild_members, VERSION, STANCES
 
 class Functor:
@@ -107,9 +106,10 @@ class ListboxContextMenu:
         print self.guild_stances
         self.callback()
 
-
 class GuildStanceDialog:
-    def __init__(self, parent):
+    def __init__(self, parent, callback):
+	self.callback = callback
+
         self.dialog = Tkinter.Toplevel(parent)
         self.dialog.transient(parent)
         self.dialog.title("Guild Stances")
@@ -147,7 +147,7 @@ class GuildStanceDialog:
 
     def stance_changed(self):
         self.refresh_listbox()
-        main_dialog.refresh_listbox()
+        self.callback()
 
     def refresh_listbox(self):
         self.listbox.delete(0, Tkinter.END)
@@ -220,6 +220,7 @@ class MainDialog:
                 borderwidth=1)
         self.statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
+		# can't seem to flatten the scrollbar on windows
         scrollbar = Tkinter.Scrollbar(self.dialog)
         scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
 
@@ -294,7 +295,7 @@ class MainDialog:
         self.guild_menu.add_command(label="Update members", command=self.update_guild_members)
         self.guild_menu.add_command(
                 label="Modify stances",
-                command=lambda: GuildStanceDialog(self.dialog))
+                command=lambda: GuildStanceDialog(self.dialog, self.refresh_listbox))
 
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
 

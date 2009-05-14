@@ -1,5 +1,10 @@
 import threading
+import types
+import urllib
 import webbrowser
+
+from tibdb import tibiacom
+
 from globals import guild_members
 
 def get_char_guild(name):
@@ -7,8 +12,8 @@ def get_char_guild(name):
         if name in m:
             guild = g
             break
-        else:
-            guild = None
+    else:
+	guild = None
     return guild
 
 def open_char_page(event, data):
