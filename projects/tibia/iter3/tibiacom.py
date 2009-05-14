@@ -152,6 +152,18 @@ class Character():
         #return cmp(self.name, other.name)
     def update(self, other):
         vars(self).update(vars(other))
+    def is_online(self):
+        return self.online
+    def set_online(self, online, stamp):
+        if not hasattr(self, "online") or online != self.online:
+            self.last_status_change = stamp
+            self.online = online
+    def last_online(self):
+        assert not self.online
+        return self.last_status_change
+    def last_offline(self):
+        assert self.online
+        return self.last_status_change
 
 def online_list(world):
     stamp = time.time()
@@ -178,7 +190,7 @@ def online_list(world):
         # with keys and values processed through FIELDS
         players.append(Character(**dict(
             [(FIELDS[b][0], FIELDS[b][1](a.group(b + 1)))
-             for b in range(len(FIELDS))] + [("online", True)])))
+             for b in range(len(FIELDS))])))
     try:
         assert int(re.search(r"Currently (\d+) players are online\.", html).group(1)) == len(players)
     except AttributeError:
