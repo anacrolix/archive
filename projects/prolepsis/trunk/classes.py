@@ -1,29 +1,14 @@
-#!/usr/bin/python
-
-# imports ordered in ascending ubiquity
-
+import os
 import sys
-sys.path.append("tibdb")
-import tibiacom
+import time
+import types
 
 import tkFont
 import Tkinter
 
-import os
-import shelve
-import threading
-import time
-import types
-import urllib
-import webbrowser
-
-STANCES = (
-        ("Friend", "blue"),
-        ("Ally", "#20b020"),
-        ("Enemy", "red"),
-    )
-
-VERSION = "0.3.0_svn"
+from tibdb import tibiacom
+from functions import get_char_guild, open_char_page
+from globals import char_stances, guild_stances, guild_members, VERSION, STANCES
 
 class Functor:
     def __init__(self, func, *largs, **kwargs):
@@ -41,7 +26,8 @@ class StanceContextMenu:
                     label="Set as " + STANCES[i][0],
                     command=Functor(self.set_stance, i))
         self.menu.add_command(label="Unset stance", command=Functor(self.set_stance, None))
-        self.menu.add_command(label="Close")
+        if sys.platform not in ("win32",):
+            self.menu.add_command(label="Close")
         self.parent = parent
         self.listbox = listbox
         self.callback = callback
@@ -62,12 +48,65 @@ class StanceContextMenu:
         if self.index >= 0:
             self.menu.post(event.x_root, event.y_root)
 
-def open_char_page(event, data):
-    name = data[int(event.widget.curselection()[0])]
-    print "opening character info in browser:", name
-    webbrowser.open(
-            "http://www.tibia.com/community/?"
-            + urllib.urlencode({"subtopic": "characters", "name": name}))
+class ListboxContextMenu:
+    def __init__(self, parent, listbox, callback, itemdata, char_stances, guild_stances):
+        self.parent = parent
+        self.listbox = listbox
+        self.callback = callback
+        self.itemdata = itemdata
+        self.char_stances = char_stances
+        self.guild_stances = guild_stances
+    def handler(self, event):
+        try: self.menu.destroy()
+        except AttributeError: pass
+
+        index = self.listbox.nearest(event.y)
+        if index < 0: return
+        self.curdatum = self.itemdata[index]
+        self.menu = Tkinter.Menu(self.parent, tearoff=False)
+        for i in range(len(STANCES)):
+            self.menu.add_command(
+                    label="Set char as " + STANCES[i][0],
+                    command=Functor(self.set_char_stance, i))
+        if self.char_stances.has_key(self.curdatum):
+            self.menu.add_command(
+                    label="Unset char stance",
+                    command=Functor(self.set_char_stance, None))
+        guild = get_char_guild(self.curdatum)
+        if guild is not None:
+            self.menu.add_separator()
+            for i in range(len(STANCES)):
+                self.menu.add_command(
+                        label="Set guild as " + STANCES[i][0],
+                        command=Functor(self.set_guild_stance, i))
+            if self.guild_stances.has_key(guild):
+                self.menu.add_command(
+                        label="Unset guild stance",
+                        command=Functor(self.set_guild_stance, None))
+        if sys.platform not in ("win32",):
+            self.menu.add_separator()
+            self.menu.add_command(label="Close")
+        self.menu.post(event.x_root, event.y_root)
+    def set_char_stance(self, stance):
+        key = self.curdatum
+        if stance is None:
+            if self.char_stances.has_key(key):
+                del self.char_stances[key]
+        else:
+            self.char_stances[key] = stance
+        print self.char_stances
+        self.callback()
+    def set_guild_stance(self, stance):
+        key = get_char_guild(self.curdatum)
+        assert key is not None
+        if stance is None:
+            if self.guild_stances.has_key(key):
+                del self.guild_stances[key]
+        else:
+            self.guild_stances[key] = stance
+        print self.guild_stances
+        self.callback()
+
 
 class GuildStanceDialog:
     def __init__(self, parent):
@@ -136,6 +175,7 @@ class ActiveCharacterList:
     def update_from_online_list(self):
         stamp, chars = tibiacom.online_list(self.world)
         print time.ctime(stamp) + ": retrieved", len(chars), "characters"
+        # determine changed
         char_set = set([
                 tuple([getattr(x, y) for y in ("name", "level", "vocation")])
                 for x in chars])
@@ -143,27 +183,28 @@ class ActiveCharacterList:
             went_offline = self.last_online_list.difference(char_set)
             came_online = char_set.difference(self.last_online_list)
             changed = len(went_offline) + len(came_online)
-            print "came online:", sorted(came_online, key=lambda x: x[1], reverse=True)
-            print "went offline:", sorted(went_offline, key=lambda x: x[1], reverse=True)
+            if changed:
+                print "came online:", sorted(came_online, key=lambda x: x[1], reverse=True)
+                print "went offline:", sorted(went_offline, key=lambda x: x[1], reverse=True)
         else:
             changed = False
         self.last_online_list = char_set
+        # update chars
         for name, info in self.chars.iteritems():
-            assert "name" not in vars(info)
+            assert "name" not in vars(info).keys()
             if not name in [x.name for x in chars]:
-                info.last_offline = stamp
+                info.set_online(False, stamp)
         for c in chars:
             name = c.name
             del c.name
-            c.last_online = stamp
             if self.chars.has_key(name):
                 self.chars[name].update(c)
             else:
-                c.last_offline = None
                 self.chars[name] = c
+            self.chars[name].set_online(True, stamp)
         return stamp, changed
     def online_count(self):
-        return len(filter(lambda x: x.last_offline is None or x.last_offline < x.last_online, self.chars.values()))
+        return len(filter(lambda x: x.is_online(), self.chars.values()))
 
 class MainDialog:
     def __init__(self, root):
@@ -211,8 +252,9 @@ class MainDialog:
                 lambda event: open_char_page(event, self.listbox_data))
         self.listbox.bind(
                 "<Button-3>",
-                StanceContextMenu(
-                        root, self.listbox, self.refresh_listbox, self.listbox_data, char_stances)
+                ListboxContextMenu(
+                        root, self.listbox, self.refresh_listbox,
+                        self.listbox_data, char_stances, guild_stances)
                     .handler)
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
@@ -302,11 +344,11 @@ class MainDialog:
             if self.last_update is None:
                 last = "never"
             else:
-                last = "%ds ago" % (time.time() - self.last_update,)
+                last = "%ds ago" % (round(time.time() - self.last_update),)
             if self.next_update is None:
                 next = "now"
             else:
-                next = "in %ds" % (self.next_update - time.time(),)
+                next = "in %ds" % (round(self.next_update - time.time()),)
             text = \
                 ("World: Dolera (%d players online)\n" + \
                 "Last update: %s. Next update: %s") \
@@ -328,12 +370,7 @@ class MainDialog:
             for name, info in self.char_data.chars.iteritems():
                 if info.vocation == "N": continue
                 # get guild
-                for g, m in guild_members.iteritems():
-                    if name in m:
-                        guild = g
-                        break
-                    else:
-                        guild = None
+                guild = get_char_guild(name)
                 # get stance
                 try: stance = char_stances[name]
                 except KeyError:
@@ -342,23 +379,30 @@ class MainDialog:
                 if stance is None and (info.level < 45 or not self.list_show_unguilded.get()):
                     continue
                 # background
-                assert info.last_offline != info.last_online
+                #assert info.last_offline != info.last_online
                 background = None
-                if info.last_online > info.last_offline:
-                    if not info.last_offline is None and time.time() - info.last_offline < 300:
+                if info.is_online():
+                    assert self.first_update is not None
+                    if time.time() - info.last_offline() < 300 and info.last_offline() != self.first_update:
                         background = "white"
                 else:
-                    if time.time() - info.last_online < 600:
+                    if time.time() - info.last_online() < 600:
                         background = "light grey"
                     else:
                         continue
                 items.append([name, info.level, info.vocation, background, stance, guild])
 
+            STANCE_KEY = dict(zip((2, 0, 1, None), range(4)))
             level_sort = lambda x: -x[1]
-            stance_sort = lambda x: dict(zip((0, 2, 1, None), range(4)))[x[4]]
+            stance_sort = lambda x: STANCE_KEY[x[4]]
             vocation_sort = lambda x: dict(
                     zip(("MS", "ED", "RP", "EK", "S", "D", "P", "K", "N"), range(9)))[x[2]]
-            guild_sort = lambda x: x[5]
+
+            def guild_sort(item):
+                guild = item[5]
+                try: guild_stance = guild_stances[item[5]]
+                except KeyError: guild_stance = None
+                return (STANCE_KEY[guild_stance], guild)
 
             items.sort(key=lambda x: tuple([y(x) for y in {
                     'level': (level_sort,),
@@ -398,6 +442,7 @@ class MainDialog:
             self.dialog.update_idletasks()
 
             stamp, changed = self.char_data.update_from_online_list()
+            if self.first_update is None: self.first_update = stamp
             self.last_update = stamp
 
             if changed: update_delay = 290000
@@ -410,52 +455,3 @@ class MainDialog:
             self.dialog.after(update_delay, self.update)
             self.next_update = mark + update_delay / 1000
             print "next update in", update_delay, "ms"
-
-def display_predicate(name, level, vocation):
-    return level >= 45 and vocation != "N" or not get_char_fg_config(name) is None
-
-members_shelf = shelve.open("members", writeback=True)
-guild_members = members_shelf
-stdout_lock = threading.Lock()
-def _update_guild_members(gld):
-    fresh_gi = tibiacom.guild_info(gld)
-    guild_members.setdefault(gld, set())
-    with stdout_lock:
-        print "updated %-32s (%4d members)" % (gld, len(fresh_gi))
-        for mbr in guild_members[gld].difference(fresh_gi):
-            print mbr, "left", gld
-        for mbr in fresh_gi.difference(guild_members[gld]):
-            print mbr, "joined", gld
-    guild_members[gld].clear()
-    guild_members[gld].update(fresh_gi)
-
-def update_guild_members(guilds=None):
-    assert not isinstance(guilds, types.StringTypes)
-    if guilds is None:
-        guilds = tibiacom.guild_list("Dolera")
-        prune = True
-    else:
-        prune = False
-    thrds = []
-    for g in sorted(guilds):
-        thrds.append(threading.Thread(target=_update_guild_members, args=(g,)))
-        thrds[-1].start()
-    for t in thrds:
-        t.join()
-    if prune:
-        for g in guild_members.keys():
-            if g not in guilds:
-                print "pruning", g
-                del guild_members[g]
-    print "guild member update completed."
-
-# 0 friend, 1 ally, 2 enemy
-stances_shelf = shelve.open("stances", writeback=True)
-char_stances = stances_shelf.setdefault("char", {})
-guild_stances = stances_shelf.setdefault("guild", {})
-
-root = Tkinter.Tk()
-main_dialog = MainDialog(root)
-root.mainloop()
-
-print "exited mainloop cleanly."
