@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import webbrowser
 
 import tkFont
 import Tkinter
