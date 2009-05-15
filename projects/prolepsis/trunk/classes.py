@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 import time
 import webbrowser
 
@@ -109,7 +110,7 @@ class ListboxContextMenu:
 
 class GuildStanceDialog:
     def __init__(self, parent, callback):
-	self.callback = callback
+        self.callback = callback
 
         self.dialog = Tkinter.Toplevel(parent)
         self.dialog.transient(parent)
@@ -204,8 +205,44 @@ class ActiveCharacterList:
                 self.chars[name] = c
             self.chars[name].set_online(True, stamp)
         return stamp, changed
+    def parse_potential_recent_deaths(self):
+        threads = []
+        slowdown = threading.Semaphore(20)
+        for name, info in self.chars.iteritems():
+            if not info.is_online() or time.time() - info.last_offline() > 1200:
+                continue
+            def get_info(name):
+                with slowdown:
+                    info = tibiacom.char_info(name)
+                self.chars[name].deaths = info["deaths"]
+                sys.stdout.write(".")
+                sys.stdout.flush()
+            thrd = threading.Thread(target=get_info, args=(name,))
+            thrd.start()
+            threads.append(thrd)
+        for t in threads: t.join()
     def online_count(self):
         return len(filter(lambda x: x.is_online(), self.chars.values()))
+    class PlayerKill:
+        def __init__(self, victim, time, final):
+            self.victim = victim
+            self.time = time
+            self.final = final
+        def is_pzlocked(self):
+            return time.time() - tibiacom.tibia_time_to_unix(self.time) < (1020 if self.final else 180)
+    def get_player_killers(self):
+        retval = {}
+        def add_player_kill(killer, victim, time, final):
+            retval.setdefault(killer, [])
+            retval[killer].append(self.PlayerKill(victim, time, final))
+        for name, info in self.chars.iteritems():
+            if not hasattr(info, "deaths"): continue
+            for death in info.deaths:
+                if death[2][0]:
+                    add_player_kill(death[2][1], name, death[0], True)
+                if death[3] is not None and death[3][0]:
+                    add_player_kill(death[3][1], name, death[0], False)
+        return retval
 
 class MainDialog:
     def __init__(self, root):
@@ -221,9 +258,13 @@ class MainDialog:
                 borderwidth=1)
         self.statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
-		# can't seem to flatten the scrollbar on windows
-        scrollbar = Tkinter.Scrollbar(self.dialog)
-        scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+        self.pzlock_button = Tkinter.Button(text="Update PZ locks", command=self.update_pzlocks)
+        self.pzlock_button.pack(side=Tkinter.BOTTOM)
+
+        # can't seem to flatten the scrollbar on windows
+        self.scrollbar = Tkinter.Scrollbar(self.dialog)
+        self.scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+
 
         listbox_font = tkFont.Font(size=9, weight=tkFont.BOLD)
         try:
@@ -238,7 +279,7 @@ class MainDialog:
 
         self.listbox = Tkinter.Listbox(
                 self.dialog,
-                yscrollcommand=scrollbar.set,
+                yscrollcommand=self.scrollbar.set,
                 font=listbox_font,
                 bg="light yellow",
                 selectmode=Tkinter.SINGLE,
@@ -260,7 +301,7 @@ class MainDialog:
                     .handler)
         self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
 
-        scrollbar.config(command=self.listbox.yview)
+        self.scrollbar.config(command=self.listbox.yview)
 
         self.menubar = Tkinter.Menu(root)
 
@@ -368,9 +409,15 @@ class MainDialog:
 
     def refresh_listbox(self, daemonic=False):
         try:
+            player_kills = self.char_data.get_player_killers()
             items = []
             for name, info in self.char_data.chars.iteritems():
-                if info.vocation == "N": continue
+                death = False
+                if hasattr(info, "deaths"):
+                    for d in info.deaths:
+                        if tibiacom.tibia_time_to_unix(d[0]) > time.time() - 1200:
+                            death = True
+                            break
                 # get guild
                 guild = get_char_guild(name)
                 # get stance
@@ -378,8 +425,6 @@ class MainDialog:
                 except KeyError:
                     try: stance = guild_stances[guild]
                     except KeyError: stance = None
-                if stance is None and (info.level < 45 or not self.list_show_unguilded.get()):
-                    continue
                 # background
                 #assert info.last_offline != info.last_online
                 background = None
@@ -388,11 +433,18 @@ class MainDialog:
                     if time.time() - info.last_offline() < 300 and info.last_offline() != self.first_update:
                         background = "white"
                 else:
-                    if time.time() - info.last_online() < 600:
+                    if time.time() - info.last_online() < 300:
                         background = "light grey"
                     else:
-                        continue
-                items.append([name, info.level, info.vocation, background, stance, guild])
+                        if not death: continue
+                pzlocked = False
+                if player_kills.has_key(name):
+                    for kill in player_kills[name]:
+                        if kill.is_pzlocked():
+                            pzlocked = True
+                if not death and not pzlocked and (info.vocation == "N" or stance is None and (info.level < 45 or not self.list_show_unguilded.get())):
+                    continue
+                items.append((name, info.level, info.vocation, background, stance, guild, death, pzlocked))
 
             STANCE_KEY = dict(zip((2, 0, 1, None), range(4)))
             level_sort = lambda x: -x[1]
@@ -413,27 +465,42 @@ class MainDialog:
                     'guild': (guild_sort, level_sort,),
                 }[self.list_sort_mode.get()]]))
 
+            listbox_offset = self.listbox.yview()[0]
+            print listbox_offset
             self.listbox.delete(0, Tkinter.END)
-            for i in items:
+            for name, level, vocation, background, stance, guild, death, pzlocked in items:
                 fmt = "%3i%3s %-20s"
-                vals = [i[1], i[2], i[0]]
-                if not i[5] is None and self.list_show_guild.get():
+                vals = [level, vocation, name]
+                if guild is not None and self.list_show_guild.get():
                     fmt += " (%s)"
-                    vals.append(i[5])
+                    vals.append(guild)
                 text = fmt % tuple(vals)
                 self.listbox.insert(Tkinter.END, text)
-                if not i[3] is None:
-                    self.listbox.itemconfig(Tkinter.END, bg=i[3], selectbackground=i[3])
-                stance = i[4]
+                fg = None
                 if stance is not None:
-                    fg = STANCES[i[4]][1]
-                    if not i[4] is None:
-                        self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
+                    fg = STANCES[stance][1]
+                if death: fg = "magenta"
+                if not fg is None:
+                    self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
+                if not background is None:
+                    self.listbox.itemconfig(Tkinter.END, bg=background, selectbackground=background)
+                if pzlocked:
+                    for opt in ("bg", "fg"):
+                        clrstr = self.listbox.itemcget(Tkinter.END, opt) or self.listbox.cget(opt)
+                        fliprgb = tuple([255 - (x >> 8) for x in self.listbox.winfo_rgb(clrstr)])
+                        clrstr = "#" + 3 * "%02x" % fliprgb
+                        print name, opt, clrstr
+                        self.listbox.itemconfig(Tkinter.END, **dict(((opt, clrstr),)))
+            self.listbox.yview_moveto(listbox_offset)
             self.listbox_data[:] = [x[0] for x in items]
             print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
         finally:
             if daemonic:
                 self.dialog.after(30000, self.refresh_listbox, True)
+
+    def update_pzlocks(self):
+        self.char_data.parse_potential_recent_deaths()
+        self.refresh_listbox()
 
     def update(self):
         update_started = time.time()
