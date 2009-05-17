@@ -205,9 +205,9 @@ class ActiveCharacterList:
                 self.chars[name] = c
             self.chars[name].set_online(True, stamp)
         return stamp, changed
-    def parse_potential_recent_deaths(self):
+    def parse_potential_recent_deaths(self, refresh):
         threads = []
-        slowdown = threading.Semaphore(20)
+        slowdown = threading.BoundedSemaphore(20)
         for name, info in self.chars.iteritems():
             if not info.is_online() or time.time() - info.last_offline() > 1200:
                 continue
@@ -215,12 +215,15 @@ class ActiveCharacterList:
                 with slowdown:
                     info = tibiacom.char_info(name)
                 self.chars[name].deaths = info["deaths"]
+                #refresh()
                 sys.stdout.write(".")
                 sys.stdout.flush()
             thrd = threading.Thread(target=get_info, args=(name,))
             thrd.start()
             threads.append(thrd)
-        for t in threads: t.join()
+        for t in threads:
+            t.join()
+            refresh()
     def online_count(self):
         return len(filter(lambda x: x.is_online(), self.chars.values()))
     class PlayerKill:
@@ -244,10 +247,107 @@ class ActiveCharacterList:
                     add_player_kill(death[3][1], name, death[0], False)
         return retval
 
+class DateRape:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.thread = None
+    def __call__(self):
+        if not self.lock.acquire(False):
+            return False
+        try:
+            assert self.thread is None or self.thread.is_alive() is False
+            self.thread = threading.Thread(target=self.run)
+            self.thread.daemon = True
+            self.thread.start()
+            return True
+        finally:
+            self.lock.release()
+    def run(self):
+        raise NotImplementedError
+
+class WidgetState:
+    def __init__(self, widget, set="config", get="cget", index=None):
+        self.widget = widget
+        self._set = set
+        self._get = get
+        self.index = index
+    def set(self, *args, **kwargs):
+        if self.index is None:
+            getattr(self.widget, self._set)(*args, **kwargs)
+        else:
+            getattr(self.widget, self._set)(self.index, *args, **kwargs)
+    def get(self, *args, **kwargs):
+        if self.index is None:
+            return getattr(self.widget, self._get)(*args, **kwargs)
+        else:
+            return getattr(self.widget, self._get)(self.index, *args, **kwargs)
+    def disable(self):
+        assert self.get("state") != Tkinter.DISABLED
+        self.set(state=Tkinter.DISABLED)
+    def enable(self):
+        assert self.get("state") == Tkinter.DISABLED
+        self.set(state=Tkinter.NORMAL)
+
+class AsyncWidgetCommand(DateRape):
+    def __init__(self, command=None):
+        DateRape.__init__(self)
+        self.widgets = []
+        if command is not None:
+            self.command = command
+    def add_widget(self, widget, setcmd):
+        if not isinstance(widget, WidgetState):
+            widget = WidgetState(widget)
+        if setcmd: widget.set(command=self)
+        self.widgets.append(widget)
+        if not setcmd: return self
+    def run(self):
+        for w in self.widgets:
+            w.disable()
+        self.command()
+        for w in self.widgets:
+            w.enable()
+    def command(self):
+        raise NotImplementedError
+
 class MainDialog:
+
+    def __update_pzlocks(self):
+        self.char_data.parse_potential_recent_deaths(
+                lambda: self.dialog.after_idle(self.refresh_listbox))
+        print "done updating pzlocks."
+
+    def __update_from_online_list(self):
+        update_started = time.time()
+        update_delay = 60000
+        self.next_update = None
+        self.refresh_statusbar(daemonic=False)
+        self.dialog.update_idletasks()
+        try:
+            stamp, changed = self.char_data.update_from_online_list()
+            if self.first_update is None: self.first_update = stamp
+            self.last_update = stamp
+            if changed: update_delay = 290000
+            self.refresh_listbox()
+        finally:
+            # take into account the time taken to perform this update,
+            # negative delays will just trigger an immediate update.
+            mark = time.time()
+            update_delay -= int((mark - update_started) * 1000)
+            self.dialog.after(update_delay, self.__update_from_online_list)
+            self.next_update = mark + update_delay / 1000
+            print "next update in", update_delay, "ms"
+
+    def __update_guild_members(self):
+        update_guild_members()
+        self.refresh_listbox()
+
     def __init__(self, root):
         self.dialog = root
         self.dialog.title("Prolepsis " + VERSION)
+
+        self.update_pzlocks = AsyncWidgetCommand(self.__update_pzlocks)
+        self.update_online_list = AsyncWidgetCommand(self.__update_from_online_list)
+        self.update_guild_members = AsyncWidgetCommand(self.__update_guild_members)
 
         self.statusbar = Tkinter.Label(
                 self.dialog,
@@ -258,13 +358,13 @@ class MainDialog:
                 borderwidth=1)
         self.statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
-        self.pzlock_button = Tkinter.Button(text="Update PZ locks", command=self.update_pzlocks)
+        self.pzlock_button = Tkinter.Button(self.dialog, text="Update PZ locks")
+        self.update_pzlocks.add_widget(self.pzlock_button, True)
         self.pzlock_button.pack(side=Tkinter.BOTTOM)
 
         # can't seem to flatten the scrollbar on windows
         self.scrollbar = Tkinter.Scrollbar(self.dialog)
         self.scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
-
 
         listbox_font = tkFont.Font(size=9, weight=tkFont.BOLD)
         try:
@@ -334,7 +434,10 @@ class MainDialog:
         self.menubar.add_cascade(label="List", menu=self.list_menu)
 
         self.guild_menu = Tkinter.Menu(self.menubar, tearoff=False)
-        self.guild_menu.add_command(label="Update members", command=self.update_guild_members)
+        self.guild_menu.add_command(label="Update members")
+        self.update_guild_members.add_widget(
+                WidgetState(self.guild_menu, get="entrycget", set="entryconfig", index=0),
+                True)
         self.guild_menu.add_command(
                 label="Modify stances",
                 command=lambda: GuildStanceDialog(self.dialog, self.refresh_listbox))
@@ -368,16 +471,12 @@ class MainDialog:
         self.dialog.update()
         self.dialog.after_idle(self.refresh_statusbar, True)
         self.dialog.after_idle(self.refresh_listbox, True)
-        self.dialog.after_idle(self.update)
+        self.dialog.after_idle(self.update_online_list)
 
         self.first_update = None
         self.last_update = None
         self.next_update = None
         self.char_data = ActiveCharacterList("Dolera")
-
-    def update_guild_members(self):
-        update_guild_members()
-        self.refresh_listbox()
 
     def always_on_top_command(self):
         self.dialog.wm_attributes("-topmost", self.always_on_top.get())
@@ -485,7 +584,7 @@ class MainDialog:
                 if not background is None:
                     self.listbox.itemconfig(Tkinter.END, bg=background, selectbackground=background)
                 if pzlocked:
-                    for opt in ("bg", "fg"):
+                    for opt in ("background", "selectbackground", "foreground", "selectforeground"):
                         clrstr = self.listbox.itemcget(Tkinter.END, opt) or self.listbox.cget(opt)
                         fliprgb = tuple([255 - (x >> 8) for x in self.listbox.winfo_rgb(clrstr)])
                         clrstr = "#" + 3 * "%02x" % fliprgb
@@ -497,30 +596,3 @@ class MainDialog:
         finally:
             if daemonic:
                 self.dialog.after(30000, self.refresh_listbox, True)
-
-    def update_pzlocks(self):
-        self.char_data.parse_potential_recent_deaths()
-        self.refresh_listbox()
-
-    def update(self):
-        update_started = time.time()
-        update_delay = 60000
-        self.next_update = None
-        try:
-            self.refresh_statusbar(daemonic=False)
-            self.dialog.update_idletasks()
-
-            stamp, changed = self.char_data.update_from_online_list()
-            if self.first_update is None: self.first_update = stamp
-            self.last_update = stamp
-
-            if changed: update_delay = 290000
-
-            self.refresh_listbox()
-        finally:
-            # take into account the time taken to perform this update. negative delays will just trigger an immediate update
-            mark = time.time()
-            update_delay -= int((mark - update_started) * 1000)
-            self.dialog.after(update_delay, self.update)
-            self.next_update = mark + update_delay / 1000
-            print "next update in", update_delay, "ms"
