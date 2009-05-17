@@ -27,8 +27,8 @@ class StanceContextMenu:
                     label="Set as " + STANCES[i][0],
                     command=Functor(self.set_stance, i))
         self.menu.add_command(label="Unset stance", command=Functor(self.set_stance, None))
-        if sys.platform not in ("win32",):
-            self.menu.add_command(label="Close")
+        #if sys.platform not in ("win32",):
+            #self.menu.add_command(label="Close")
         self.parent = parent
         self.listbox = listbox
         self.callback = callback
@@ -47,7 +47,7 @@ class StanceContextMenu:
     def handler(self, event):
         self.index = self.listbox.nearest(event.y)
         if self.index >= 0:
-            self.menu.post(event.x_root, event.y_root)
+            self.menu.tk_popup(event.x_root, event.y_root)
 
 class ListboxContextMenu:
     def __init__(self, parent, listbox, callback, itemdata, char_stances, guild_stances):
@@ -84,10 +84,10 @@ class ListboxContextMenu:
                 self.menu.add_command(
                         label="Unset guild stance",
                         command=Functor(self.set_guild_stance, None))
-        if sys.platform not in ("win32",):
-            self.menu.add_separator()
-            self.menu.add_command(label="Close")
-        self.menu.post(event.x_root, event.y_root)
+        #if sys.platform not in ("win32",):
+            #self.menu.add_separator()
+            #self.menu.add_command(label="Close")
+        self.menu.tk_popup(event.x_root, event.y_root)
     def set_char_stance(self, stance):
         key = self.curdatum
         if stance is None:
