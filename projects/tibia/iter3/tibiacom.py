@@ -150,6 +150,8 @@ class Character():
             setattr(self, k, v)
     #def __cmp__(self, other):
         #return cmp(self.name, other.name)
+        if not hasattr(self, "deaths"):
+            self.deaths = []
     def update(self, other):
         vars(self).update(vars(other))
     def is_online(self):

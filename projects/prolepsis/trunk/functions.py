@@ -13,7 +13,7 @@ def get_char_guild(name):
             guild = g
             break
     else:
-	guild = None
+        guild = None
     return guild
 
 def open_char_page(event, data):
@@ -43,11 +43,12 @@ def update_guild_members(guilds=None):
         prune = True
     else:
         prune = False
-    thrds = []
+    threads = []
     for g in sorted(guilds):
-        thrds.append(threading.Thread(target=_update_guild_members, args=(g,)))
-        thrds[-1].start()
-    for t in thrds:
+        thrd = threading.Thread(target=_update_guild_members, args=(g,))
+        thrd.start()
+        threads.append(thrd)
+    for t in threads:
         t.join()
     if prune:
         for g in guild_members.keys():

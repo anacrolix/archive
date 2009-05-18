@@ -112,6 +112,8 @@ class GuildStanceDialog:
     def __init__(self, parent, callback):
         self.callback = callback
 
+        self.fetch_guild_list = AsyncWidgetCommand(self.__fetch_guild_list)
+
         self.dialog = Tkinter.Toplevel(parent)
         self.dialog.transient(parent)
         self.dialog.title("Guild Stances")
@@ -119,8 +121,8 @@ class GuildStanceDialog:
 
         self.button = Tkinter.Button(
                 self.dialog,
-                text="Fetch Guild List",
-                command=self.fetch_guild_list)
+                text="Fetch Guild List")
+        self.fetch_guild_list.add_widget(self.button, True)
         self.button.pack(side=Tkinter.BOTTOM)
 
         self.scrollbar = Tkinter.Scrollbar(self.dialog)
@@ -163,7 +165,7 @@ class GuildStanceDialog:
                 self.listbox.itemconfig(Tkinter.END, fg=STANCES[stance][1])
             self.listbox_data.append(guild)
 
-    def fetch_guild_list(self):
+    def __fetch_guild_list(self):
         guilds = tibiacom.guild_list("Dolera")
         for g in guilds:
             guild_members.setdefault(g, set())
@@ -207,23 +209,25 @@ class ActiveCharacterList:
         return stamp, changed
     def parse_potential_recent_deaths(self, refresh):
         threads = []
-        slowdown = threading.BoundedSemaphore(20)
+        slowdown = threading.BoundedSemaphore(10)
         for name, info in self.chars.iteritems():
             if not info.is_online() or time.time() - info.last_offline() > 1200:
                 continue
             def get_info(name):
                 with slowdown:
                     info = tibiacom.char_info(name)
+                changed = not hasattr(self.chars[name], "deaths") or \
+                        self.chars[name].deaths != info["deaths"]
                 self.chars[name].deaths = info["deaths"]
-                #refresh()
-                sys.stdout.write(".")
-                sys.stdout.flush()
+                if changed and len(info["deaths"]) != 0:
+                    refresh()
             thrd = threading.Thread(target=get_info, args=(name,))
             thrd.start()
             threads.append(thrd)
         for t in threads:
             t.join()
-            refresh()
+            print "pzlock update: %d/%d" % (threads.index(t) + 1, len(threads))
+            #refresh()
     def online_count(self):
         return len(filter(lambda x: x.is_online(), self.chars.values()))
     class PlayerKill:
@@ -231,8 +235,18 @@ class ActiveCharacterList:
             self.victim = victim
             self.time = time
             self.final = final
-        def is_pzlocked(self):
-            return time.time() - tibiacom.tibia_time_to_unix(self.time) < (1020 if self.final else 180)
+        def is_pzlocked(self, deaths):
+            assert isinstance(deaths, tuple) and len(deaths) == 4
+            if time.time() - tibiacom.tibia_time_to_unix(self.time) >= (1080 if self.final else 180):
+                print "rejected:", self.victim, self.time, self.final
+                return False
+            for d in deaths:
+                if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
+                    print "rejected for subsequence death:", self.victim, self.time, "->", d
+                    return False
+            else:
+                print "accepted pzlock!"
+                return True
     def get_player_killers(self):
         retval = {}
         def add_player_kill(killer, victim, time, final):
@@ -270,17 +284,11 @@ class WidgetState:
         self.widget = widget
         self._set = set
         self._get = get
-        self.index = index
+        self.index = (index,) if index is not None else ()
     def set(self, *args, **kwargs):
-        if self.index is None:
-            getattr(self.widget, self._set)(*args, **kwargs)
-        else:
-            getattr(self.widget, self._set)(self.index, *args, **kwargs)
+        return getattr(self.widget, self._set)(*self.index + args, **kwargs)
     def get(self, *args, **kwargs):
-        if self.index is None:
-            return getattr(self.widget, self._get)(*args, **kwargs)
-        else:
-            return getattr(self.widget, self._get)(self.index, *args, **kwargs)
+        return getattr(self.widget, self._get)(*self.index + args, **kwargs)
     def disable(self):
         assert self.get("state") != Tkinter.DISABLED
         self.set(state=Tkinter.DISABLED)
@@ -539,7 +547,7 @@ class MainDialog:
                 pzlocked = False
                 if player_kills.has_key(name):
                     for kill in player_kills[name]:
-                        if kill.is_pzlocked():
+                        if kill.is_pzlocked(info.deaths):
                             pzlocked = True
                 if not death and not pzlocked and (info.vocation == "N" or stance is None and (info.level < 45 or not self.list_show_unguilded.get())):
                     continue
