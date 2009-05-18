@@ -1,8 +1,8 @@
 from distutils.core import setup
 import py2exe
 
-#import sys
-#sys.path.append("tibdb")
+import sys
+sys.path.append("tibdb")
 
 setup(
 	windows=['prolepsis.py'],
