@@ -236,11 +236,11 @@ class ActiveCharacterList:
             self.time = time
             self.final = final
         def is_pzlocked(self, deaths):
-            assert isinstance(deaths, tuple) and len(deaths) == 4
             if time.time() - tibiacom.tibia_time_to_unix(self.time) >= (1080 if self.final else 180):
                 print "rejected:", self.victim, self.time, self.final
                 return False
             for d in deaths:
+		assert isinstance(d, tuple) and len(d) == 4
                 if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
                     print "rejected for subsequence death:", self.victim, self.time, "->", d
                     return False
@@ -476,15 +476,15 @@ class MainDialog:
 
         self.dialog.config(menu=self.menubar)
 
-        self.dialog.update()
-        self.dialog.after_idle(self.refresh_statusbar, True)
-        self.dialog.after_idle(self.refresh_listbox, True)
-        self.dialog.after_idle(self.update_online_list)
-
         self.first_update = None
         self.last_update = None
         self.next_update = None
         self.char_data = ActiveCharacterList("Dolera")
+
+        self.dialog.update()
+        self.dialog.after_idle(self.refresh_statusbar, True)
+        self.dialog.after_idle(self.refresh_listbox, True)
+        self.dialog.after_idle(self.update_online_list)
 
     def always_on_top_command(self):
         self.dialog.wm_attributes("-topmost", self.always_on_top.get())
