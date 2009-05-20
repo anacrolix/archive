@@ -97,7 +97,7 @@ class ListboxContextMenu:
                 del self.char_stances[key]
         else:
             self.char_stances[key] = stance
-        print self.char_stances
+        #print self.char_stances
         self.callback()
     def set_guild_stance(self, stance):
         key = get_char_guild(self.curdatum)
@@ -107,7 +107,7 @@ class ListboxContextMenu:
                 del self.guild_stances[key]
         else:
             self.guild_stances[key] = stance
-        print self.guild_stances
+        #print self.guild_stances
         self.callback()
 
 class GuildStanceDialog:
@@ -263,24 +263,6 @@ class ActiveCharacterList:
                     add_player_kill(death[3][1], name, death[0], False)
         return retval
 
-class DateRape:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.thread = None
-    def __call__(self):
-        if not self.lock.acquire(False):
-            return False
-        try:
-            assert self.thread is None or self.thread.is_alive() is False
-            self.thread = threading.Thread(target=self.run)
-            self.thread.daemon = True
-            self.thread.start()
-            return True
-        finally:
-            self.lock.release()
-    def run(self):
-        raise NotImplementedError
-
 class WidgetState:
     def __init__(self, widget, set="config", get="cget", index=None):
         self.widget = widget
@@ -308,13 +290,31 @@ class JobQueue:
         self.post(callback, *args, **kwargs)
         self.__queue.join()
     def process(self):
-        try:
-            while True:
+        while True:
+            try:
                 callback, args, kwargs = self.__queue.get(False)
-                callback(*args, **kwargs)
-                self.__queue.task_done()
-        except Queue.Empty:
-            pass
+            except Queue.Empty:
+                break
+            callback(*args, **kwargs)
+            self.__queue.task_done()
+
+class DateRape:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.thread = None
+    def __call__(self):
+        if not self.lock.acquire(False):
+            return False
+        try:
+            assert self.thread is None or self.thread.is_alive() is False
+            self.thread = threading.Thread(target=self.run)
+            self.thread.daemon = True
+            self.thread.start()
+            return True
+        finally:
+            self.lock.release()
+    def run(self):
+        raise NotImplementedError
 
 class AsyncWidgetCommand(DateRape):
     def __init__(self, tkroot, command):
@@ -335,8 +335,9 @@ class AsyncWidgetCommand(DateRape):
         for w in self.widgets:
             self.jobqueue.send(w.disable)
         cmdrv = self.command(self.jobqueue)
-        print cmdrv
+        #print cmdrv
         if cmdrv is not None:
+            assert isinstance(cmdrv, tuple)
             self.jobqueue.send(self.tkroot.after, cmdrv[0], self, *cmdrv[1:])
         for w in self.widgets:
             self.jobqueue.post(w.enable)
@@ -604,8 +605,7 @@ class MainDialog:
                 }[self.list_sort_mode.get()]]))
 
             listbox_offset = self.listbox.yview()[0]
-            print listbox_offset
-            self.listbox.delete(0, Tkinter.END)
+            listbox_size = self.listbox.size()
             for name, level, vocation, background, stance, guild, death, pzlocked in items:
                 fmt = "%3i%3s %-20s"
                 vals = [level, vocation, name]
@@ -629,9 +629,11 @@ class MainDialog:
                         clrstr = "#" + 3 * "%02x" % fliprgb
                         #print name, opt, clrstr
                         self.listbox.itemconfig(Tkinter.END, **dict(((opt, clrstr),)))
+            self.listbox_data += [x[0] for x in items]
+            self.listbox.delete(0, listbox_size - 1)
+            del self.listbox_data[:listbox_size]
             self.listbox.yview_moveto(listbox_offset)
-            self.listbox_data[:] = [x[0] for x in items]
-            print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
+            #print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
         finally:
             if daemonic:
                 self.dialog.after(30000, self.refresh_listbox, True)
