@@ -74,7 +74,7 @@ class MainDialog:
     def __update_pzlocks(self, gui):
         assert threading.current_thread().name != "MainThread"
         self.char_data.parse_potential_recent_deaths(
-                lambda: gui.send(self.refresh_listbox))
+                lambda: gui.post(self.refresh_listbox))
         print "done updating pzlocks."
 
     def __update_from_online_list(self, gui):
@@ -263,7 +263,7 @@ class MainDialog:
         try:
             player_kills = self.char_data.get_player_killers()
             items = []
-            for name, info in self.char_data.chars.iteritems():
+            for name, info in self.char_data.chars.copy().iteritems():
                 death = False
                 if hasattr(info, "deaths"):
                     for d in info.deaths:
@@ -292,8 +292,9 @@ class MainDialog:
                 pzlocked = False
                 if player_kills.has_key(name):
                     for kill in player_kills[name]:
-                        if hasattr(info, "deaths") and kill.is_pzlocked(info.deaths):
+                        if kill.is_pzlocked(info.deaths if hasattr(info, "deaths") else None):
                             pzlocked = True
+                            break
                 if not death and not pzlocked and (info.vocation == "N" or stance is None and (info.level < 45 or not self.list_show_unguilded.get())):
                     continue
                 items.append((name, info.level, info.vocation, background, stance, guild, death, pzlocked))
@@ -336,17 +337,20 @@ class MainDialog:
                 if not background is None:
                     self.listbox.itemconfig(Tkinter.END, bg=background, selectbackground=background)
                 if pzlocked:
-                    for opt in ("background", "selectbackground", "foreground", "selectforeground"):
-                        clrstr = self.listbox.itemcget(Tkinter.END, opt) or self.listbox.cget(opt)
-                        fliprgb = tuple([255 - (x >> 8) for x in self.listbox.winfo_rgb(clrstr)])
-                        clrstr = "#" + 3 * "%02x" % fliprgb
-                        #print name, opt, clrstr
-                        self.listbox.itemconfig(Tkinter.END, **dict(((opt, clrstr),)))
+                    for opt in ("background", "selectbackground"):
+                        #clrstr = self.listbox.itemcget(Tkinter.END, opt) or self.listbox.cget(opt)
+                        #fliprgb = tuple([255 - (x >> 8) for x in self.listbox.winfo_rgb(clrstr)])
+                        #clrstr = "#" + 3 * "%02x" % fliprgb
+                        self.listbox.itemconfig(Tkinter.END, **dict(((opt, "black"),)))
+                    for opt in ("foreground", "selectforeground"):
+                        clrstr = self.listbox.itemcget(Tkinter.END, opt)
+                        if not clrstr: # ie the default color is in use
+                            self.listbox.itemconfig(Tkinter.END, **dict(((opt, "white"),)))
             self.listbox_data += [x[0] for x in items]
             self.listbox.delete(0, listbox_size - 1)
             del self.listbox_data[:listbox_size]
             self.listbox.yview_moveto(listbox_offset)
-            #print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
+            print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
         finally:
             if daemonic:
                 self.dialog.after(30000, self.refresh_listbox, True)

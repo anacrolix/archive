@@ -147,26 +147,31 @@ class ActiveCharacterList:
             self.chars[name].set_online(True, stamp)
         return stamp, changed
     def parse_potential_recent_deaths(self, refresh):
-        threads = []
-        slowdown = threading.BoundedSemaphore(10)
+        queue = Queue.Queue()
         for name, info in self.chars.iteritems():
-            if not info.is_online() or time.time() - info.last_offline() > 1200:
-                continue
-            def get_info(name):
-                with slowdown:
-                    info = tibiacom.char_info(name)
-                changed = not hasattr(self.chars[name], "deaths") or \
-                        self.chars[name].deaths != info["deaths"]
+            if (info.is_online() or time.time() - info.last_online() < 1200) and info.vocation != 'N':
+                queue.put(name)
+        task_count = queue.qsize()
+        def get_info():
+            while True:
+                try:
+                    name = queue.get(block=False)
+                    tasks_left = queue.qsize()
+                except Queue.Empty:
+                    return
+                info = tibiacom.char_info(name)
                 self.chars[name].deaths = info["deaths"]
-                if changed and len(info["deaths"]) != 0:
-                    refresh()
-            thrd = threading.Thread(target=get_info, args=(name,))
+                refresh()
+                queue.task_done()
+                print "pzlock update: %d/%d" % ((task_count - tasks_left), task_count)
+        threads = []
+        for i in xrange(10):
+            thrd = threading.Thread(target=get_info)
             thrd.start()
             threads.append(thrd)
+        queue.join()
         for t in threads:
             t.join()
-            print "pzlock update: %d/%d" % (threads.index(t) + 1, len(threads))
-            #refresh()
     def online_count(self):
         return len(filter(lambda x: x.is_online(), self.chars.values()))
     class PlayerKill:
@@ -176,16 +181,16 @@ class ActiveCharacterList:
             self.final = final
         def is_pzlocked(self, deaths):
             if time.time() - tibiacom.tibia_time_to_unix(self.time) >= (1080 if self.final else 180):
-                print "rejected:", self.victim, self.time, self.final
+                #print "rejected:", self.victim, self.time, self.final
                 return False
-            for d in deaths:
-                assert isinstance(d, tuple) and len(d) == 4
-                if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
-                    print "rejected for subsequence death:", self.victim, self.time, "->", d
-                    return False
-            else:
-                print "accepted pzlock!"
-                return True
+            if deaths is not None:
+                for d in deaths:
+                    assert isinstance(d, tuple) and len(d) == 4
+                    if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
+                        print "rejected for subsequence death:", self.victim, self.time, "->", d
+                        return False
+            print "accepted pzlock!"
+            return True
     def get_player_killers(self):
         retval = {}
         def add_player_kill(killer, victim, time, final):
