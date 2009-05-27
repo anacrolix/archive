@@ -127,7 +127,7 @@ class PlayerKill:
                 if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
                     print "LATER DIED", d
                     return False
-        if killer_info.last_offline() > tibiacom.tibia_time_to_unix(self.time):
+        if killer_info.is_online() and killer_info.last_offline() > tibiacom.tibia_time_to_unix(self.time):
             print "OFFLINE SINCE KILL"
             return False
         #print "accepted pzlock!"
