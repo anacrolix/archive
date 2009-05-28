@@ -1,3 +1,4 @@
+import pdb
 import threading
 import time
 import Tkinter
@@ -119,6 +120,16 @@ class MainDialog:
                 relief=Tkinter.SUNKEN,
                 borderwidth=1)
         self.statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
+
+        self.min_level_var = Tkinter.IntVar(value=45)
+        self.level_scale = Tkinter.Scale(
+                self.dialog,
+                orient=Tkinter.HORIZONTAL,
+                from_=5, to=150, resolution=5,
+                variable=self.min_level_var,
+                command=lambda v: self.refresh_listbox(daemonic=False),
+                label="Min unstanced level to show")
+        self.level_scale.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
         self.pzlock_button = Tkinter.Button(self.dialog, text="Update PZ locks")
         self.update_pzlocks.add_widget(self.pzlock_button, True)
@@ -259,6 +270,8 @@ class MainDialog:
                 # considering an idle update here to push statusbar changes
 
     def refresh_listbox(self, daemonic=False):
+        print daemonic
+        assert isinstance(daemonic, bool)
         try:
             player_kills = self.char_data.get_player_killers()
             items = []
@@ -295,7 +308,7 @@ class MainDialog:
                         if kill.is_pzlocked(info):
                             pzlocked = True
                             break
-                if not death and not pzlocked and (info.vocation == "N" or stance is None and (info.level < 45 or not self.list_show_unguilded.get())):
+                if not death and not pzlocked and (info.vocation == "N" or stance is None and (info.level < self.min_level_var.get() or not self.list_show_unguilded.get())):
                     continue
                 items.append((name, info.level, info.vocation, background, stance, guild, death, pzlocked))
 
@@ -353,4 +366,5 @@ class MainDialog:
             print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
         finally:
             if daemonic:
+                print "adding repeat"
                 self.dialog.after(30000, self.refresh_listbox, True)
