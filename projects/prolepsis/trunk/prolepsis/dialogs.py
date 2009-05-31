@@ -1,4 +1,3 @@
-import pdb
 import threading
 import time
 import Tkinter
@@ -106,6 +105,10 @@ class MainDialog:
 
     def __init__(self, root, listbox_font):
         self.dialog = root
+        #from PIL import Image#, ImageTk
+
+        #icon = Tkinter.PhotoImage(Image.open("prolepsis/ProlepsisIcon.gif"))
+        #self.dialog.iconbitmap(icon)
         self.dialog.title("Prolepsis " + VERSION)
 
         self.update_pzlocks = AsyncWidgetCommand(root, self.__update_pzlocks)
