@@ -156,10 +156,10 @@ class Character():
         return self.online
     def set_online(self, online, stamp):
         if not hasattr(self, "online"):
-            self.last_status_change = 0
+            self.last_status_change = stamp if online else 0
         elif online != self.online:
             self.last_status_change = stamp
-        self.online = online
+       	self.online = online
     def last_online(self):
         assert not self.online
         return self.last_status_change
