@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 import PIL.Image
-import Tix
+import tkinter.tix
 
-root = Tix.Tk()
+root = tkinter.tix.Tk()
 
-listbox = Tix.TList(root)
+listbox = tkinter.tix.TList(root)
 listbox.pack()
 
-listbox.insert(Tix.END, text="hi")
+listbox.insert(tkinter.tix.END, text="hi")
 
-balloon = Tix.Balloon(root)
+balloon = tkinter.tix.Balloon(root)
 balloon.bind(listbox, msg="yoyo ;D")
 
 #a = root.getimage("../1240838489448.jpg")

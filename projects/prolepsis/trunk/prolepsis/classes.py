@@ -1,17 +1,17 @@
 import os
 import pdb
-import Queue
+import queue
 import sys
 import threading
 import time
 import webbrowser
 
-import tkFont
-import Tkinter
+import tkinter.font
+import tkinter
 
-from tibdb import tibiacom
-from functions import get_char_guild, open_char_page, update_guild_members
-from globals import char_stances, guild_stances, guild_members, VERSION, STANCES
+from .tibdb import tibiacom
+from .functions import get_char_guild, open_char_page, update_guild_members
+from .globals import char_stances, guild_stances, guild_members, VERSION, STANCES
 
 class Functor:
     def __init__(self, func, *largs, **kwargs):
@@ -23,7 +23,7 @@ class Functor:
 
 class StanceContextMenu:
     def __init__(self, parent, listbox, callback, itemdata, stances):
-        self.menu = Tkinter.Menu(parent, tearoff=False)
+        self.menu = tkinter.Menu(parent, tearoff=False)
         for i in range(len(STANCES)):
             self.menu.add_command(
                     label="Set as " + STANCES[i][0],
@@ -37,14 +37,14 @@ class StanceContextMenu:
         self.itemdata = itemdata
         self.stances = stances
     def set_stance(self, stance):
-        print "set stance", stance, "on index", self.index
+        print("set stance", stance, "on index", self.index)
         key = self.itemdata[self.index]
         if stance is None:
-            if self.stances.has_key(key):
+            if key in self.stances:
                 del self.stances[key]
         else:
             self.stances[key] = stance
-        print self.stances
+        print(self.stances)
         self.callback()
     def handler(self, event):
         self.index = self.listbox.nearest(event.y)
@@ -66,12 +66,12 @@ class ListboxContextMenu:
         index = self.listbox.nearest(event.y)
         if index < 0: return
         self.curdatum = self.itemdata[index]
-        self.menu = Tkinter.Menu(self.parent, tearoff=False)
+        self.menu = tkinter.Menu(self.parent, tearoff=False)
         for i in range(len(STANCES)):
             self.menu.add_command(
                     label="Set char as " + STANCES[i][0],
                     command=Functor(self.set_char_stance, i))
-        if self.char_stances.has_key(self.curdatum):
+        if self.curdatum in self.char_stances:
             self.menu.add_command(
                     label="Unset char stance",
                     command=Functor(self.set_char_stance, None))
@@ -82,7 +82,7 @@ class ListboxContextMenu:
                 self.menu.add_command(
                         label="Set guild as " + STANCES[i][0],
                         command=Functor(self.set_guild_stance, i))
-            if self.guild_stances.has_key(guild):
+            if guild in self.guild_stances:
                 self.menu.add_command(
                         label="Unset guild stance",
                         command=Functor(self.set_guild_stance, None))
@@ -93,7 +93,7 @@ class ListboxContextMenu:
     def set_char_stance(self, stance):
         key = self.curdatum
         if stance is None:
-            if self.char_stances.has_key(key):
+            if key in self.char_stances:
                 del self.char_stances[key]
         else:
             self.char_stances[key] = stance
@@ -103,7 +103,7 @@ class ListboxContextMenu:
         key = get_char_guild(self.curdatum)
         assert key is not None
         if stance is None:
-            if self.guild_stances.has_key(key):
+            if key in self.guild_stances:
                 del self.guild_stances[key]
         else:
             self.guild_stances[key] = stance
@@ -119,19 +119,19 @@ class PlayerKill:
         assert isinstance(killer_info, tibiacom.Character)
         if time.time() - tibiacom.tibia_time_to_unix(self.time) >= (1080 if self.final else 180):
             #print "rejected:", self.victim, self.time, self.final
-            print "NOT RECENT"
+            print("NOT RECENT")
             return False
         if hasattr(killer_info, "deaths"):
             for d in killer_info.deaths:
                 assert isinstance(d, tuple) and len(d) == 4
                 if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
-                    print "LATER DIED", d
+                    print("LATER DIED", d)
                     return False
         if killer_info.is_online() and killer_info.last_offline() > tibiacom.tibia_time_to_unix(self.time):
-            print "OFFLINE SINCE KILL"
+            print("OFFLINE SINCE KILL")
             return False
         #print "accepted pzlock!"
-        print "ACCEPTED"
+        print("ACCEPTED")
         return True
     def __repr__(self):
         return " ".join((self.time, self.victim, "(" + ("final" if self.final else "assist") + ")"))
@@ -143,7 +143,7 @@ class ActiveCharacterList:
         self.last_online_list = None
     def update_from_online_list(self):
         stamp, chars = tibiacom.online_list(self.world)
-        print time.ctime(stamp) + ": retrieved", len(chars), "characters"
+        print(time.ctime(stamp) + ": retrieved", len(chars), "characters")
         # determine changed
         char_set = set([
                 tuple([getattr(x, y) for y in ("name", "level", "vocation")])
@@ -153,28 +153,28 @@ class ActiveCharacterList:
             came_online = char_set.difference(self.last_online_list)
             changed = len(went_offline) + len(came_online)
             if changed:
-                print "came online:", sorted(came_online, key=lambda x: x[1], reverse=True)
-                print "went offline:", sorted(went_offline, key=lambda x: x[1], reverse=True)
+                print("came online:", sorted(came_online, key=lambda x: x[1], reverse=True))
+                print("went offline:", sorted(went_offline, key=lambda x: x[1], reverse=True))
         else:
             changed = False
         self.last_online_list = char_set
         # update chars
-        for name, info in self.chars.iteritems():
-            assert "name" not in vars(info).keys()
+        for name, info in self.chars.items():
+            assert "name" not in list(vars(info).keys())
             if not name in [x.name for x in chars]:
                 info.set_online(False, stamp)
         for c in chars:
             name = c.name
             del c.name
-            if self.chars.has_key(name):
+            if name in self.chars:
                 self.chars[name].update(c)
             else:
                 self.chars[name] = c
             self.chars[name].set_online(True, stamp)
         return stamp, changed
     def parse_potential_recent_deaths(self, refresh):
-        queue = Queue.Queue()
-        for name, info in self.chars.iteritems():
+        queue = queue.Queue()
+        for name, info in self.chars.items():
             if (info.is_online() or time.time() - info.last_online() < 1200) and info.vocation != 'N':
                 queue.put(name)
         task_count = queue.qsize()
@@ -183,15 +183,15 @@ class ActiveCharacterList:
                 try:
                     name = queue.get(block=False)
                     tasks_left = queue.qsize()
-                except Queue.Empty:
+                except queue.Empty:
                     return
                 info = tibiacom.char_info(name)
                 self.chars[name].deaths = info["deaths"]
                 refresh()
                 queue.task_done()
-                print "pzlock update: %d/%d" % ((task_count - tasks_left), task_count)
+                print("pzlock update: %d/%d" % ((task_count - tasks_left), task_count))
         threads = []
-        for i in xrange(10):
+        for i in range(10):
             thrd = threading.Thread(target=get_info)
             thrd.start()
             threads.append(thrd)
@@ -199,13 +199,13 @@ class ActiveCharacterList:
         for t in threads:
             t.join()
     def online_count(self):
-        return len(filter(lambda x: x.is_online(), self.chars.values()))
+        return len([x for x in list(self.chars.values()) if x.is_online()])
     def get_player_killers(self):
         retval = {}
         def add_player_kill(killer, victim, time, final):
             retval.setdefault(killer, [])
             retval[killer].append(PlayerKill(victim, time, final))
-        for name, info in self.chars.iteritems():
+        for name, info in self.chars.items():
             if not hasattr(info, "deaths"): continue
             for death in info.deaths:
                 if death[2][0]:
@@ -225,17 +225,17 @@ class WidgetState:
     def get(self, *args, **kwargs):
         return getattr(self.widget, self._get)(*self.index + args, **kwargs)
     def disable(self):
-        assert self.get("state") != Tkinter.DISABLED
-        self.set(state=Tkinter.DISABLED)
+        assert self.get("state") != tkinter.DISABLED
+        self.set(state=tkinter.DISABLED)
     def enable(self):
-        assert self.get("state") == Tkinter.DISABLED
-        self.set(state=Tkinter.NORMAL)
+        assert self.get("state") == tkinter.DISABLED
+        self.set(state=tkinter.NORMAL)
 
 class JobQueue:
     def __init__(self):
-        self.__queue = Queue.Queue()
+        self.__queue = queue.Queue()
     def post(self, callback, *args, **kwargs):
-        assert callable(callback)
+        assert hasattr(callback, '__call__')
         self.__queue.put((callback, args, kwargs))
     def send(self, callback, *args, **kwargs):
         self.post(callback, *args, **kwargs)
@@ -244,7 +244,7 @@ class JobQueue:
         while True:
             try:
                 callback, args, kwargs = self.__queue.get(False)
-            except Queue.Empty:
+            except queue.Empty:
                 break
             callback(*args, **kwargs)
             self.__queue.task_done()

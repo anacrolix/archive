@@ -1,15 +1,15 @@
 import atexit
 import os
 import shelve
-import ConfigParser
-import tkFont
+import configparser
+import tkinter.font
 
-print "run config"
+print("run config")
 
-config = ConfigParser.RawConfigParser()
+config = configparser.RawConfigParser()
 config.add_section("listbox font")
 config.set("listbox font", "size", 9)
-config.set("listbox font", "weight", tkFont.BOLD)
+config.set("listbox font", "weight", tkinter.font.BOLD)
 try:
     config.set("listbox font", "family", {
             "posix": "Monospace",

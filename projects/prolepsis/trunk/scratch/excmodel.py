@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
-print "before"
+print("before")
 try:
-    print "try"
+    print("try")
 except:
-    print "except"
+    print("except")
 else:
-    print "else"
+    print("else")
 finally:
-    print "finally"
-print "after"
+    print("finally")
+print("after")

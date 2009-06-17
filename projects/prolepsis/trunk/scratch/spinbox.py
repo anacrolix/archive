@@ -1,18 +1,18 @@
 #!/usr/bin/python
 
-import Tkinter
+import tkinter
 
 def vcmd(*args):
-    print "vcmd(", args, ")"
+    print("vcmd(", args, ")")
     #print spinbox.cget("validate")
-    print text.get()
+    print(text.get())
     return True
 
-root = Tkinter.Tk()
-text = Tkinter.StringVar()
+root = tkinter.Tk()
+text = tkinter.StringVar()
 text.trace('w', vcmd)
-spinbox = Tkinter.Scale(root, from_= 5, to=150, command=vcmd, orient=Tkinter.HORIZONTAL)
-spinbox.pack(fill=Tkinter.X)
+spinbox = tkinter.Scale(root, from_= 5, to=150, command=vcmd, orient=tkinter.HORIZONTAL)
+spinbox.pack(fill=tkinter.X)
 spinbox.config(label="hi")
 #spinbox.config(validate="key")
 #spinbox.config(validatecommand=vcmd)

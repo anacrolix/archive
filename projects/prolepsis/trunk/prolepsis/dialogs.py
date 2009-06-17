@@ -1,30 +1,31 @@
 import threading
 import time
-import Tkinter
+import tkinter
+from tkinter import ttk
 
-from tibdb import tibiacom
-from classes import \
+from .tibdb import tibiacom
+from .classes import \
         AsyncWidgetCommand, ListboxContextMenu, WidgetState, ActiveCharacterList, StanceContextMenu
-from functions import get_char_guild, update_guild_members, open_char_page
-from globals import VERSION, STANCES, char_stances, guild_stances, guild_members
+from .functions import get_char_guild, update_guild_members, open_char_page
+from .globals import VERSION, STANCES, char_stances, guild_stances, guild_members
 
 class GuildStanceDialog:
     def __init__(self, parent, callback):
         self.callback = callback
         self.fetch_guild_list = AsyncWidgetCommand(parent, self.__fetch_guild_list)
-        self.dialog = Tkinter.Toplevel(parent)
+        self.dialog = tkinter.Toplevel(parent)
         self.dialog.transient(parent)
         self.dialog.title("Guild Stances")
         self.dialog.grab_set()
-        self.button = Tkinter.Button(
+        self.button = ttk.Button(
                 self.dialog,
                 text="Fetch Guild List")
         self.fetch_guild_list.add_widget(self.button, True)
-        self.button.pack(side=Tkinter.BOTTOM)
-        self.scrollbar = Tkinter.Scrollbar(self.dialog)
-        self.scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+        self.button.pack(side=tkinter.BOTTOM)
+        self.scrollbar = ttk.Scrollbar(self.dialog)
+        self.scrollbar.pack(side=tkinter.RIGHT, fill=tkinter.Y)
         self.listbox_data = []
-        self.listbox = Tkinter.Listbox(
+        self.listbox = tkinter.Listbox(
                 self.dialog,
                 height=20,
                 yscrollcommand=self.scrollbar.set)
@@ -37,7 +38,7 @@ class GuildStanceDialog:
                         self.listbox_data,
                         guild_stances)
                     .handler)
-        self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
+        self.listbox.pack(fill=tkinter.BOTH, expand=tkinter.YES)
         self.scrollbar.config(command=self.listbox.yview)
         self.refresh_listbox()
     def stance_changed(self):
@@ -45,17 +46,17 @@ class GuildStanceDialog:
         self.callback()
     def refresh_listbox(self):
         listbox_offset = self.listbox.yview()[0]
-        self.listbox.delete(0, Tkinter.END)
+        self.listbox.delete(0, tkinter.END)
         del self.listbox_data[:]
         # sort by stances first, then by guild name
-        items = sorted(guild_stances.items(), key=lambda (k, v): (v, k))
-        items += [ (x, None) for x in sorted(guild_members.keys()) if x not in guild_stances.keys() ]
+        items = sorted(list(guild_stances.items()), key=lambda k_v: (k_v[1], k_v[0]))
+        items += [ (x, None) for x in sorted(guild_members.keys()) if x not in list(guild_stances.keys()) ]
         for guild, stance in items:
-            self.listbox.insert(Tkinter.END, guild)
+            self.listbox.insert(tkinter.END, guild)
             if stance is not None:
-                self.listbox.itemconfig(Tkinter.END, fg=STANCES[stance][1])
+                self.listbox.itemconfig(tkinter.END, fg=STANCES[stance][1])
             self.listbox_data.append(guild)
-        for index in xrange(self.listbox.size()):
+        for index in range(self.listbox.size()):
             for opt in (("selectforeground", "fg"), ("selectbackground", "bg")):
                 self.listbox.itemconfig(
                         index, **dict(((
@@ -74,7 +75,7 @@ class MainDialog:
         assert threading.current_thread().name != "MainThread"
         self.char_data.parse_potential_recent_deaths(
                 lambda: gui.post(self.refresh_listbox))
-        print "done updating pzlocks."
+        print("done updating pzlocks.")
 
     def __update_from_online_list(self, gui):
         assert threading.current_thread().name != "MainThread"
@@ -95,7 +96,7 @@ class MainDialog:
             mark = time.time()
             update_delay -= int((mark - update_started) * 1000)
             self.next_update = mark + update_delay / 1000
-            print "next update in", update_delay, "ms"
+            print("next update in", update_delay, "ms")
             return update_delay,
 
     def __update_guild_members(self, gui):
@@ -115,44 +116,45 @@ class MainDialog:
         self.update_online_list = AsyncWidgetCommand(root, self.__update_from_online_list)
         self.update_guild_members = AsyncWidgetCommand(root, self.__update_guild_members)
 
-        self.statusbar = Tkinter.Label(
+        self.statusbar = ttk.Label(
                 self.dialog,
                 text="Error!",
-                anchor=Tkinter.W,
-                justify=Tkinter.LEFT,
-                relief=Tkinter.SUNKEN,
+                anchor=tkinter.W,
+                justify=tkinter.LEFT,
+                relief=tkinter.SUNKEN,
                 borderwidth=1)
-        self.statusbar.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
+        self.statusbar.pack(side=tkinter.BOTTOM, fill=tkinter.X)
 
-        self.min_level_var = Tkinter.IntVar(value=45)
-        self.level_scale = Tkinter.Scale(
+        self.min_level_var = tkinter.IntVar(value=45)
+        self.level_scale = tkinter.Scale(
                 self.dialog,
-                orient=Tkinter.HORIZONTAL,
+                orient=tkinter.HORIZONTAL,
                 from_=5, to=150, resolution=5,
                 variable=self.min_level_var,
                 command=lambda v: self.refresh_listbox(daemonic=False),
-                label="Min unstanced level to show")
-        self.level_scale.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
+                label="Min unstanced level to show"
+			)
+        self.level_scale.pack(side=tkinter.BOTTOM, fill=tkinter.X)
 
-        self.pzlock_button = Tkinter.Button(self.dialog, text="Update PZ locks")
+        self.pzlock_button = ttk.Button(self.dialog, text="Update PZ locks")
         self.update_pzlocks.add_widget(self.pzlock_button, True)
-        self.pzlock_button.pack(side=Tkinter.BOTTOM)
+        self.pzlock_button.pack(side=tkinter.BOTTOM)
 
         # can't seem to flatten the scrollbar on windows
-        self.scrollbar = Tkinter.Scrollbar(self.dialog)
-        self.scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+        self.scrollbar = ttk.Scrollbar(self.dialog)
+        self.scrollbar.pack(side=tkinter.RIGHT, fill=tkinter.Y)
 
         self.listbox_data = []
 
-        self.listbox = Tkinter.Listbox(
+        self.listbox = tkinter.Listbox(
                 self.dialog,
                 yscrollcommand=self.scrollbar.set,
                 font=listbox_font,
                 bg="light yellow",
-                selectmode=Tkinter.SINGLE,
+                selectmode=tkinter.SINGLE,
                 height=30,
                 width=40,
-                relief=Tkinter.FLAT,
+                relief=tkinter.FLAT,
             )
         self.listbox.config(
                 selectbackground=self.listbox["bg"],
@@ -166,17 +168,17 @@ class MainDialog:
                         root, self.listbox, self.refresh_listbox,
                         self.listbox_data, char_stances, guild_stances)
                     .handler)
-        self.listbox.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
+        self.listbox.pack(fill=tkinter.BOTH, expand=tkinter.YES)
 
         self.scrollbar.config(command=self.listbox.yview)
 
-        self.menubar = Tkinter.Menu(root)
+        self.menubar = tkinter.Menu(root)
 
-        self.list_sort_mode = Tkinter.StringVar(value='level')
+        self.list_sort_mode = tkinter.StringVar(value='level')
 
-        self.list_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.list_menu = tkinter.Menu(self.menubar, tearoff=False)
 
-        self.sortby_menu = Tkinter.Menu(self.dialog, tearoff=False)
+        self.sortby_menu = tkinter.Menu(self.dialog, tearoff=False)
         for s in ("level", "stance", "vocation", "guild"):
             self.sortby_menu.add_radiobutton(
                     label=s.capitalize(),
@@ -186,8 +188,8 @@ class MainDialog:
 
         self.list_menu.add_cascade(label="Sort by", menu=self.sortby_menu)
 
-        self.list_show_guild = Tkinter.BooleanVar(value=True)
-        self.list_show_unguilded = Tkinter.BooleanVar(value=True)
+        self.list_show_guild = tkinter.BooleanVar(value=True)
+        self.list_show_unguilded = tkinter.BooleanVar(value=True)
 
         self.list_menu.add_checkbutton(
                 label="Show character's guild",
@@ -200,7 +202,7 @@ class MainDialog:
 
         self.menubar.add_cascade(label="List", menu=self.list_menu)
 
-        self.guild_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.guild_menu = tkinter.Menu(self.menubar, tearoff=False)
         self.guild_menu.add_command(label="Update members")
         self.update_guild_members.add_widget(
                 WidgetState(self.guild_menu, get="entrycget", set="entryconfig", index=0),
@@ -211,9 +213,9 @@ class MainDialog:
 
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
 
-        self.always_on_top = Tkinter.BooleanVar(value=False)
+        self.always_on_top = tkinter.BooleanVar(value=False)
 
-        self.window_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.window_menu = tkinter.Menu(self.menubar, tearoff=False)
         self.window_menu.add_checkbutton(
                 label="Always on top",
                 variable=self.always_on_top,
@@ -221,7 +223,7 @@ class MainDialog:
 
         self.menubar.add_cascade(label="Window", menu=self.window_menu)
 
-        self.help_menu = Tkinter.Menu(self.menubar, tearoff=False)
+        self.help_menu = tkinter.Menu(self.menubar, tearoff=False)
         self.help_menu.add_command(
                 label="Wiki Howto",
                 command=lambda: webbrowser.open("http://code.google.com/p/anacrolix/wiki/Prolepsis"))
@@ -229,7 +231,7 @@ class MainDialog:
                 label="Report issue",
                 command=lambda: webbrowser.open("http://code.google.com/p/anacrolix/issues/list"))
         self.help_menu.add_separator()
-        self.help_menu.add_command(label="About", state=Tkinter.DISABLED)
+        self.help_menu.add_command(label="About", state=tkinter.DISABLED)
 
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
 
@@ -273,12 +275,12 @@ class MainDialog:
                 # considering an idle update here to push statusbar changes
 
     def refresh_listbox(self, daemonic=False):
-        print daemonic
+        print(daemonic)
         assert isinstance(daemonic, bool)
         try:
             player_kills = self.char_data.get_player_killers()
             items = []
-            for name, info in self.char_data.chars.copy().iteritems():
+            for name, info in self.char_data.chars.copy().items():
                 death = False
                 if hasattr(info, "deaths"):
                     for d in info.deaths:
@@ -305,9 +307,9 @@ class MainDialog:
                     else:
                         if not death: continue
                 pzlocked = False
-                if player_kills.has_key(name):
+                if name in player_kills:
                     for kill in player_kills[name]:
-                        print name, kill,
+                        print(name, kill, end=' ')
                         if kill.is_pzlocked(info):
                             pzlocked = True
                             break
@@ -315,11 +317,11 @@ class MainDialog:
                     continue
                 items.append((name, info.level, info.vocation, background, stance, guild, death, pzlocked))
 
-            STANCE_KEY = dict(zip((2, 0, 1, None), range(4)))
+            STANCE_KEY = dict(list(zip((2, 0, 1, None), list(range(4)))))
             level_sort = lambda x: -x[1]
             stance_sort = lambda x: STANCE_KEY[x[4]]
             vocation_sort = lambda x: dict(
-                    zip(("MS", "ED", "RP", "EK", "S", "D", "P", "K", "N"), range(9)))[x[2]]
+                    list(zip(("MS", "ED", "RP", "EK", "S", "D", "P", "K", "N"), list(range(9)))))[x[2]]
 
             def guild_sort(item):
                 guild = item[5]
@@ -343,31 +345,31 @@ class MainDialog:
                     fmt += " (%s)"
                     vals.append(guild)
                 text = fmt % tuple(vals)
-                self.listbox.insert(Tkinter.END, text)
+                self.listbox.insert(tkinter.END, text)
                 fg = None
                 if stance is not None:
                     fg = STANCES[stance][1]
                 if death: fg = "magenta"
                 if not fg is None:
-                    self.listbox.itemconfig(Tkinter.END, fg=fg, selectforeground=fg)
+                    self.listbox.itemconfig(tkinter.END, fg=fg, selectforeground=fg)
                 if not background is None:
-                    self.listbox.itemconfig(Tkinter.END, bg=background, selectbackground=background)
+                    self.listbox.itemconfig(tkinter.END, bg=background, selectbackground=background)
                 if pzlocked:
                     for opt in ("background", "selectbackground"):
                         #clrstr = self.listbox.itemcget(Tkinter.END, opt) or self.listbox.cget(opt)
                         #fliprgb = tuple([255 - (x >> 8) for x in self.listbox.winfo_rgb(clrstr)])
                         #clrstr = "#" + 3 * "%02x" % fliprgb
-                        self.listbox.itemconfig(Tkinter.END, **dict(((opt, "black"),)))
+                        self.listbox.itemconfig(tkinter.END, **dict(((opt, "black"),)))
                     for opt in ("foreground", "selectforeground"):
-                        clrstr = self.listbox.itemcget(Tkinter.END, opt)
+                        clrstr = self.listbox.itemcget(tkinter.END, opt)
                         if not clrstr: # ie the default color is in use
-                            self.listbox.itemconfig(Tkinter.END, **dict(((opt, "white"),)))
+                            self.listbox.itemconfig(tkinter.END, **dict(((opt, "white"),)))
             self.listbox_data += [x[0] for x in items]
             self.listbox.delete(0, listbox_size - 1)
             del self.listbox_data[:listbox_size]
             self.listbox.yview_moveto(listbox_offset)
-            print "refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime()
+            print("refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime())
         finally:
             if daemonic:
-                print "adding repeat"
+                print("adding repeat")
                 self.dialog.after(30000, self.refresh_listbox, True)
