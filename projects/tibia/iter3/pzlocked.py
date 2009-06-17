@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import threading
-import tibiacom
+from . import tibiacom
 
 stamp, online = tibiacom.online_list('Dolera')
 online.sort(reverse=True, key=lambda x: int(x.level))
@@ -13,7 +13,7 @@ def print_recent_deaths(char):
     with sem:
         info = tibiacom.char_info(char.name)
     with outl:
-        print char.name, char.level, char.vocation
+        print(char.name, char.level, char.vocation)
         for dth in info["deaths"]:
             if tibiacom.tibia_time_to_unix(dth[0]) >= stamp - 1800:
                 tibiacom.pp_death(dth)

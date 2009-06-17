@@ -1,6 +1,6 @@
 import re
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import socket
 import time
 
@@ -13,7 +13,7 @@ def tibia_time_to_unix(s):
     return c
 
 def unescape_tibia_html(string):
-        from htmlentitydefs import name2codepoint as n2cp
+        from html.entities import name2codepoint as n2cp
         import re
 
         def substitute_entity(match):
@@ -24,12 +24,12 @@ def unescape_tibia_html(string):
                         cp = n2cp.get(ent)
 
                 if cp:
-                        return unichr(cp)
+                        return chr(cp)
                 else:
                         return match.group()
 
         def decode_entity(string):
-                entity_re = re.compile("&(#?)(\d{1,5}|\w{1,8});")
+                entity_re = re.compile(r"&(#?)(\d{1,5}|\w{1,8});")
                 return entity_re.subn(substitute_entity, string)[0]
 
         # replace nbsp, there may be others too..
@@ -37,33 +37,33 @@ def unescape_tibia_html(string):
 
 def pp_death(death):
     b = death
-    print b[0] + ":",
-    print "killed" if b[2][0] else "died", "at Level", b[1],
-    print "by", b[2][1]
+    print(b[0] + ":",)
+    print("killed" if b[2][0] else "died", "at Level", b[1],)
+    print("by", b[2][1])
     if b[3] is not None:
-            print "\tand by", b[3][1]
+            print("\tand by", b[3][1])
 
 def pretty_print_char_info(info):
-    simple = info.keys()
+    simple = list(info.keys())
     for a in ["deaths", "name"]: simple.remove(a)
     for k in ["name"] + simple:
-        print k + ":", info[k],
+        print(k + ":", info[k],)
         if k in ["created", "last login"] and info[k] is not None:
-            print "(" + str(int(time.time()) - tibia_time_to_unix(info[k])) + "s ago)"
+            print("(" + str(int(time.time()) - tibia_time_to_unix(info[k])) + "s ago)")
         elif k is "timestamp":
-            print "(" + time.asctime(time.gmtime(info[k] + 3600)), "CET)"
+            print("(" + time.asctime(time.gmtime(info[k] + 3600)), "CET)")
         else:
-            print
+            print()
     a = info["deaths"]
     if a != None:
         for b in a:
             pp_death(b)
 
 def http_get(url, params):
-    try:
-        return urllib2.urlopen("http://www.tibia.com" + url + "?" + urllib.urlencode(params)).read()
-    except:
-        return http_get(url, params)
+    #try:
+	return str(urllib.request.urlopen("http://www.tibia.com" + url + "?" + urllib.parse.urlencode(params)).read())
+    #except:
+     #   return http_get(url, params)
 
 def __ci_info(html):
     FIELDS = (
@@ -80,13 +80,15 @@ def __ci_info(html):
     info = {}
     for a in FIELDS:
         hits = re.findall(
-            r"<TR.*?><TD.*?>%s:</TD><TD>(.+?)</TD></TR>" % a[1],
+            "<TR.*?><TD.*?>%s:</TD><TD>([^<]+?)</TD></TR>" % a[1],
             html)
         if len(hits) == 0:
             info[a[0]] = None
         elif len(hits) == 1:
             info[a[0]] = a[2](hits[0]) if a[2] != None else hits[0]
         else:
+            import pdb
+            pdb.set_trace()
             assert False
     return info
 
@@ -137,16 +139,16 @@ def char_info(name):
     rv = {"timestamp": int(time.time())}
     html = http_get("/community/", {"subtopic": "characters", "name": name})
     try: rv.update(__ci_info(html))
-    except Exception, a:
-        print "name:", name
+    except Exception:
+        print("name:", name)
         raise
-    assert not rv.has_key("deaths")
+    assert "deaths" not in rv
     rv["deaths"] = __ci_deaths(html)
     return rv
 
 class Character():
     def __init__(self, **stats):
-        for k, v in stats.iteritems():
+        for k, v in stats.items():
             setattr(self, k, v)
     #def __cmp__(self, other):
         #return cmp(self.name, other.name)
@@ -220,5 +222,5 @@ def guild_info(guild):
 
 def pretty_print_online_list(ol, stamp):
         for a in ol:
-                print "%-32s%5s %s" % (a.name, a.level, a.vocation)
-        print len(ol), "players online as of", time.ctime(stamp)
+                print("%-32s%5s %s" % (a.name, a.level, a.vocation))
+        print(len(ol), "players online as of", time.ctime(stamp))

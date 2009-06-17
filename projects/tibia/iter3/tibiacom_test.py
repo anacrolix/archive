@@ -1,15 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 def assert_equal(expected, actual, description=None):
         if expected != actual:
-                print "FAILED:",
-                if description != None: print description
-                print "\tExpected:", expected
-                print "\tActual:  ", actual
-                print
+                print("FAILED:",)
+                if description != None: print(description)
+                print("\tExpected:", expected)
+                print("\tActual:  ", actual)
+                print()
 
 from tibiacom import *
-print
+print()
 
 # test tibia_time_to_unix()
 A = [("Jan 01 1970, 10:00:00 CET", 9 * 3600),
@@ -19,25 +19,25 @@ assert_equal(0, time.mktime(time.localtime(0)))
 for a in A:
         assert_equal(a[1], tibia_time_to_unix(a[0]), repr(a))
 
-print guild_info("Del Chaos")
-print
+print(guild_info("Del Chaos"))
+print()
 
 # test char_info()
 skeletor = char_info("Skeletor the Vicious")
 assert_equal(1064301567, tibia_time_to_unix(skeletor["created"]))
 
 pretty_print_char_info(char_info("Eruanno"))
-print
+print()
 
 # test online_list()
 stamp, online = online_list("Dolera")
 pretty_print_online_list(online, stamp)
-print
+print()
 
 pretty_print_online_list(sorted(online, reverse=True, key=lambda x: int(x.level))[:10], stamp)
-print
+print()
 
-print "Searching for recent deaths:"
+print("Searching for recent deaths:")
 for a in sorted(online, reverse=True, key=lambda x: int(x.level)):
         b = char_info(a.name)
         for c in b["deaths"]:
@@ -45,4 +45,4 @@ for a in sorted(online, reverse=True, key=lambda x: int(x.level)):
                         pretty_print_char_info(b)
                         break
         else:
-                print a.name
+                print(a.name)
