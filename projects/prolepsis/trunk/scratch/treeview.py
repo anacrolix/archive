@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.1
+
 import tkinter
 from tkinter import ttk
 

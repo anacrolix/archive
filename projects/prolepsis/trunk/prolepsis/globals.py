@@ -1,6 +1,5 @@
 import atexit
 import os
-import shelve
 import configparser
 import tkinter.font
 
@@ -33,12 +32,24 @@ config_file.close()
 del config_file
 
 STANCES = tuple([(st.capitalize(), config.get("stance colors", st)) for st in __STANCE_TITLES])
-VERSION = "0.3.0_svn"
+VERSION = "0.6_svn"
 
-members_shelf = shelve.open("members", writeback=True)
+def __open_shelf(filename):
+    """clobber shelf files if they're somehow incompatible (such as version change)"""
+    import shelve, dbm, sys
+    kwargs = dict(writeback=True)
+    try:
+        return shelve.open(filename, flag='n', **kwargs)
+    except dbm.error as e:
+        print(e, file=sys.stderr)
+        kwargs.update(flag='n')
+        print(kwargs)
+        return shelve.open(filename, **kwargs)
+
+members_shelf = __open_shelf("members")
 guild_members = members_shelf
 
-stances_shelf = shelve.open("stances", writeback=True)
+stances_shelf = __open_shelf("stances")
 char_stances = stances_shelf.setdefault("char", {})
 guild_stances = stances_shelf.setdefault("guild", {})
 

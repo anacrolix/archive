@@ -125,16 +125,24 @@ class MainDialog:
                 borderwidth=1)
         self.statusbar.pack(side=tkinter.BOTTOM, fill=tkinter.X)
 
-        self.min_level_var = tkinter.IntVar(value=45)
-        self.level_scale = tkinter.Scale(
+        self.min_level_frame = ttk.Labelframe(
                 self.dialog,
+                text="Minimum level to display",
+            )
+        self.min_level_var = tkinter.IntVar(value=45)
+        # this is to be replaced with a themed widget, when i find one that can handle resolution
+        self.level_scale = tkinter.Scale(
+                self.min_level_frame,
                 orient=tkinter.HORIZONTAL,
                 from_=5, to=150, resolution=5,
                 variable=self.min_level_var,
                 command=lambda v: self.refresh_listbox(daemonic=False),
-                label="Min unstanced level to show"
-			)
-        self.level_scale.pack(side=tkinter.BOTTOM, fill=tkinter.X)
+                tickinterval=20,
+                bigincrement=40,
+                #label="Minimum level to display",
+            )
+        self.level_scale.pack(fill=tkinter.X)
+        self.min_level_frame.pack(side=tkinter.BOTTOM, fill=tkinter.X)
 
         self.pzlock_button = ttk.Button(self.dialog, text="Update PZ locks")
         self.update_pzlocks.add_widget(self.pzlock_button, True)

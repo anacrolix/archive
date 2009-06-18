@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from time import time
 
 def fact_gen():
@@ -7,14 +9,14 @@ def fact_gen():
         a *= b
         yield a
         b += 1
-        
+
 def factorial(n):
     a = fact_gen()
     while n > 1:
         next(a)
         n -= 1
     return next(a)
-        
+
 
 start = time()
 for a in reversed(range(1, 51)):
