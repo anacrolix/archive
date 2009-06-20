@@ -1,11 +1,18 @@
 import tkinter
 import tkinter.font
+from tkinter import ttk
+
+root = tkinter.Tk()
+print("available ttk themes:", tkinter.ttk.Style().theme_names())
+print("default ttk theme:", tkinter.ttk.Style().theme_use())
+
 from . import dialogs
 from .globals import config
 
-root = tkinter.Tk()
 # this will probably break on windows
-tkinter.ttk.Style().theme_use("clam")
+for theme in eval(config.get("global theme", "priority")):
+    ttk.Style().theme_use(theme)
+    break
 listbox_font = tkinter.font.Font(**dict(config.items("listbox font")))
 main_dialog = dialogs.MainDialog(root, listbox_font)
 

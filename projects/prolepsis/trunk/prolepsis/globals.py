@@ -2,10 +2,14 @@ import atexit
 import os
 import configparser
 import tkinter.font
+from tkinter import ttk
 
 print("run config")
 
 config = configparser.RawConfigParser()
+
+# set the default config values
+
 config.add_section("listbox font")
 config.set("listbox font", "size", 9)
 config.set("listbox font", "weight", tkinter.font.BOLD)
@@ -22,14 +26,27 @@ config.add_section("stance colors")
 for st_c in zip(__STANCE_TITLES, ("blue", "#20b020", "red")):
     config.set("stance colors", *st_c)
 
-__CONFNAME = "prolepsis.conf"
+config.add_section("global theme")
 
+default_theme = ttk.Style().theme_use()
+config.set(
+        "global theme", "priority",
+        [default_theme if default_theme != "default" else "clam"]
+    )
+
+# now clobber default config from configuration file
+
+__CONFNAME = "prolepsis.conf"
 config_file = open(__CONFNAME, "r+" if os.path.exists(__CONFNAME) else "w+")
 config.readfp(config_file)
+# write out the available themes
+config.set("global theme", "available", ttk.Style().theme_names())
 config_file.seek(0)
 config.write(config_file)
 config_file.close()
 del config_file
+
+# load several variables from their shelves
 
 STANCES = tuple([(st.capitalize(), config.get("stance colors", st)) for st in __STANCE_TITLES])
 VERSION = "0.6_svn"
