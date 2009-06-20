@@ -31,7 +31,7 @@ config.add_section("global theme")
 default_theme = ttk.Style().theme_use()
 config.set(
         "global theme", "priority",
-        [default_theme if default_theme != "default" else "clam"]
+        repr([default_theme if default_theme != "default" else "clam"])
     )
 
 # now clobber default config from configuration file
@@ -56,7 +56,7 @@ def __open_shelf(filename):
     import shelve, dbm, sys
     kwargs = dict(writeback=True)
     try:
-        return shelve.open(filename, flag='n', **kwargs)
+        return shelve.open(filename, **kwargs)
     except dbm.error as e:
         print(e, file=sys.stderr)
         kwargs.update(flag='n')

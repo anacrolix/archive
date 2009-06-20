@@ -347,7 +347,6 @@ class MainDialog:
                 except KeyError: guild_stance = None
                 return (STANCE_KEY[guild_stance], guild if not guild is None else "")
 
-
             items.sort(key=lambda x: tuple([y(x) for y in {
                     'level': (level_sort,),
                     'stance': (stance_sort, level_sort,),
@@ -355,7 +354,8 @@ class MainDialog:
                     'guild': (guild_sort, level_sort,),
                 }[self.list_sort_mode.get()]]))
 
-            listbox_offset = self.listbox.yview()[0]
+            #listbox_offset = self.listbox.yview()[0]
+            print("listbox yview =", self.listbox.yview())
             for c in self.listbox.get_children():
                 self.listbox.delete(c)
             for name, level, vocation, background, stance, guild, death, pzlocked in items:
@@ -368,7 +368,7 @@ class MainDialog:
                         values=(name, level, vocation, guild if guild else ""),
                     )
             self.listbox_data[:] = [x[0] for x in items]
-            self.listbox.yview(listbox_offset)
+            #self.listbox.yview(float(listbox_offset))
             print("refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime())
         finally:
             if daemonic:
