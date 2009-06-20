@@ -154,19 +154,29 @@ class MainDialog:
 
         self.listbox_data = []
 
-        self.listbox = tkinter.Listbox(
+        self.listbox = ttk.Treeview(
                 self.dialog,
                 yscrollcommand=self.scrollbar.set,
-                font=listbox_font,
-                bg="light yellow",
-                selectmode=tkinter.SINGLE,
-                height=30,
-                width=40,
-                relief=tkinter.FLAT,
+                #bg="light yellow",
+                selectmode=tkinter.NONE,
+                height=25,
+                columns=["name", "level", "vocation", "guild"],
+                show=["headings"]
+                #width=40,
+                #relief=tkinter.FLAT,
             )
-        self.listbox.config(
-                selectbackground=self.listbox["bg"],
-                selectforeground=self.listbox["fg"])
+        for h in (
+                    ("name", "Name", True, 90),
+                    ("level", "Lvl", False, 25),
+                    ("vocation", "Voc", False, 25),
+                    ("guild", "Guild", True, 60)
+                ):
+            self.listbox.heading(h[0], text=h[1])
+            self.listbox.column(h[0], stretch=h[2], width=h[3])
+        for st in STANCES:
+            self.listbox.tag_configure(st[0], foreground=st[1])
+        self.listbox.tag_configure("joined", background="light yellow")
+        self.listbox.tag_configure("left", background="light grey")
         self.listbox.bind(
                 "<Double-Button-1>",
                 lambda event: open_char_page(event, self.listbox_data))
@@ -308,10 +318,10 @@ class MainDialog:
                 if info.is_online():
                     assert self.first_update is not None
                     if time.time() - info.last_offline() < 300 and info.last_offline() != self.first_update:
-                        background = "white"
+                        background = "joined"
                 else:
                     if time.time() - info.last_online() < 300:
-                        background = "light grey"
+                        background = "left"
                     else:
                         if not death: continue
                 pzlocked = False
@@ -335,7 +345,8 @@ class MainDialog:
                 guild = item[5]
                 try: guild_stance = guild_stances[item[5]]
                 except KeyError: guild_stance = None
-                return (STANCE_KEY[guild_stance], guild)
+                return (STANCE_KEY[guild_stance], guild if not guild is None else "")
+
 
             items.sort(key=lambda x: tuple([y(x) for y in {
                     'level': (level_sort,),
@@ -345,37 +356,19 @@ class MainDialog:
                 }[self.list_sort_mode.get()]]))
 
             listbox_offset = self.listbox.yview()[0]
-            listbox_size = self.listbox.size()
+            for c in self.listbox.get_children():
+                self.listbox.delete(c)
             for name, level, vocation, background, stance, guild, death, pzlocked in items:
-                fmt = "%3i%3s %-20s"
-                vals = [level, vocation, name]
-                if guild is not None and self.list_show_guild.get():
-                    fmt += " (%s)"
-                    vals.append(guild)
-                text = fmt % tuple(vals)
-                self.listbox.insert(tkinter.END, text)
                 fg = None
                 if stance is not None:
-                    fg = STANCES[stance][1]
-                if death: fg = "magenta"
-                if not fg is None:
-                    self.listbox.itemconfig(tkinter.END, fg=fg, selectforeground=fg)
-                if not background is None:
-                    self.listbox.itemconfig(tkinter.END, bg=background, selectbackground=background)
-                if pzlocked:
-                    for opt in ("background", "selectbackground"):
-                        #clrstr = self.listbox.itemcget(Tkinter.END, opt) or self.listbox.cget(opt)
-                        #fliprgb = tuple([255 - (x >> 8) for x in self.listbox.winfo_rgb(clrstr)])
-                        #clrstr = "#" + 3 * "%02x" % fliprgb
-                        self.listbox.itemconfig(tkinter.END, **dict(((opt, "black"),)))
-                    for opt in ("foreground", "selectforeground"):
-                        clrstr = self.listbox.itemcget(tkinter.END, opt)
-                        if not clrstr: # ie the default color is in use
-                            self.listbox.itemconfig(tkinter.END, **dict(((opt, "white"),)))
-            self.listbox_data += [x[0] for x in items]
-            self.listbox.delete(0, listbox_size - 1)
-            del self.listbox_data[:listbox_size]
-            self.listbox.yview_moveto(listbox_offset)
+                    fg = STANCES[stance][0]
+                if death: fg = "died"
+                self.listbox.insert("", tkinter.END,
+                        tags=(background, "pzlocked" if pzlocked else None, fg),
+                        values=(name, level, vocation, guild if guild else ""),
+                    )
+            self.listbox_data[:] = [x[0] for x in items]
+            self.listbox.yview(listbox_offset)
             print("refreshed listbox" + (" (daemon)" if daemonic else ""), time.ctime())
         finally:
             if daemonic:

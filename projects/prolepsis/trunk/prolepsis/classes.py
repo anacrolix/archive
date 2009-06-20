@@ -63,8 +63,11 @@ class ListboxContextMenu:
         try: self.menu.destroy()
         except AttributeError: pass
 
-        index = self.listbox.nearest(event.y)
-        if index < 0: return
+        itemid = self.listbox.identify_row(event.y)
+        assert len(self.listbox.parent(itemid)) == 0
+        index = self.listbox.index(itemid)
+        print(itemid, index)
+        if index < 0 or len(itemid) == 0: return
         self.curdatum = self.itemdata[index]
         self.menu = tkinter.Menu(self.parent, tearoff=False)
         for i in range(len(STANCES)):
