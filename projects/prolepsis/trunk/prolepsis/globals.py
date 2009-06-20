@@ -49,7 +49,7 @@ del config_file
 # load several variables from their shelves
 
 STANCES = tuple([(st.capitalize(), config.get("stance colors", st)) for st in __STANCE_TITLES])
-VERSION = "0.6_svn"
+VERSION = "0.7_svn"
 
 def __open_shelf(filename):
     """clobber shelf files if they're somehow incompatible (such as version change)"""
