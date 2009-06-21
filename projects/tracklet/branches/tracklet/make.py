@@ -29,7 +29,7 @@ CFLAGS = ["-g", "-Wall"] + pkg_config(["--cflags"])
 LDFLAGS = pkg_config(["--libs"])
 cxx.executable("tracklet", "main.cpp Applet.cpp RhythmboxProxy.cpp".split(), CFLAGS, LDFLAGS)
 
-install = Install(prefix=symbols["PREFIX"])
+install = Install(prefix=os.environ.get('DESTDIR', "") + symbols["PREFIX"])
 install.file("tracklet.server", symbols["SERVER_RELPATH"])
 install.file("tracklet", symbols["APPLET_RELPATH"], executable=True)
 
