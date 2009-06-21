@@ -1,5 +1,6 @@
-CC = g++
-CXXFLAGS = -O3 -Wall
+CXX = g++
+CC = $(CXX)
+CXXFLAGS = -O3 -Wall -march=native
 LDFLAGS =
 
 default: clean test
