@@ -13,27 +13,27 @@ def tibia_time_to_unix(s):
     return c
 
 def unescape_tibia_html(string):
-        from html.entities import name2codepoint as n2cp
-        import re
+    from html.entities import name2codepoint as n2cp
+    import re
 
-        def substitute_entity(match):
-                ent = match.group(2)
-                if match.group(1) == "#":
-                        return chr(int(ent))
-                else:
-                        cp = n2cp.get(ent)
+    def substitute_entity(match):
+        ent = match.group(2)
+        if match.group(1) == "#":
+            return chr(int(ent))
+        else:
+            cp = n2cp.get(ent)
 
-                if cp:
-                        return chr(cp)
-                else:
-                        return match.group()
+        if cp:
+            return chr(cp)
+        else:
+            return match.group()
 
-        def decode_entity(string):
-                entity_re = re.compile(r"&(#?)(\d{1,5}|\w{1,8});")
-                return entity_re.subn(substitute_entity, string)[0]
+    def decode_entity(string):
+        entity_re = re.compile(r"&(#?)(\d{1,5}|\w{1,8});")
+        return entity_re.subn(substitute_entity, string)[0]
 
-        # replace nbsp, there may be others too..
-        return decode_entity(string).replace("\xa0", " ")
+    # replace nbsp, there may be others too..
+    return decode_entity(string).replace("\xa0", " ")
 
 def pp_death(death):
     b = death
@@ -60,10 +60,14 @@ def pretty_print_char_info(info):
             pp_death(b)
 
 def http_get(url, params):
-    #try:
-	return str(urllib.request.urlopen("http://www.tibia.com" + url + "?" + urllib.parse.urlencode(params)).read())
-    #except:
-     #   return http_get(url, params)
+    """Perform a GET request on the Tibia webserver, with the given parameters. Return the decoded response data."""
+    response = urllib.request.urlopen(
+            "http://www.tibia.com" + url + "?" + urllib.parse.urlencode(params))
+    # retrieve the encoding, so we can decode the bytes to a string
+    content_type = response.getheader("Content-Type")
+    charset = re.search("charset=([^;\b]+)", content_type).group(1)
+    # read the response data and decode appropriately
+    return response.read().decode(charset)
 
 def __ci_info(html):
     FIELDS = (
@@ -87,8 +91,6 @@ def __ci_info(html):
         elif len(hits) == 1:
             info[a[0]] = a[2](hits[0]) if a[2] != None else hits[0]
         else:
-            import pdb
-            pdb.set_trace()
             assert False
     return info
 
@@ -161,7 +163,7 @@ class Character():
             self.last_status_change = stamp if online else 0
         elif online != self.online:
             self.last_status_change = stamp
-       	self.online = online
+        self.online = online
     def last_online(self):
         assert not self.online
         return self.last_status_change
