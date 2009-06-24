@@ -342,10 +342,15 @@ class MainDialog:
                     list(zip(("MS", "ED", "RP", "EK", "S", "D", "P", "K", "N"), list(range(9)))))[x[2]]
 
             def guild_sort(item):
+                """Generate a 3-tuple to sort by guild."""
                 guild = item[5]
-                try: guild_stance = guild_stances[item[5]]
-                except KeyError: guild_stance = None
-                return (STANCE_KEY[guild_stance], guild if not guild is None else "")
+                try: guild_stance = guild_stances[guild]
+                except: guild_stance = None
+                return (
+                        STANCE_KEY[guild_stance],
+                        {type(str()): 1, type(None): 2}[type(guild)],
+                        guild,
+                    )
 
             items.sort(key=lambda x: tuple([y(x) for y in {
                     'level': (level_sort,),
