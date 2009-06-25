@@ -17,25 +17,25 @@ using namespace boost::assign;
 template <typename KeywordStoreT>
 struct Results
 {
-	Results(KeywordStoreT const & keywords, bool summary = false)
-	:	keywords_(keywords),
-		hits_(keywords.size()),
-		summary_(summary)
-	{
-	}
+    Results(KeywordStoreT const & keywords, bool summary = false)
+    :   keywords_(keywords),
+        hits_(keywords.size()),
+        summary_(summary)
+    {
+    }
 
-	void operator()(size_t what, size_t where)
-	{
-		if (!summary_)
-			cerr << "[" << where << "]" << keywords_[what] << endl;
-		else
-			cerr << ".";
-		hits_[what].insert(where);
-	}
+    void operator()(size_t what, size_t where)
+    {
+        if (!summary_)
+            cerr << "[" << where << "]" << keywords_[what] << endl;
+        else
+            cerr << ".";
+        hits_[what].insert(where);
+    }
 
-	KeywordStoreT const &keywords_;
-	vector<set<size_t> > hits_;
-	bool summary_;
+    KeywordStoreT const &keywords_;
+    vector<set<size_t> > hits_;
+    bool summary_;
 };
 
 typedef vector<set<size_t> > (*test_function_t)(vector<string> const &, char const *, char const *);
@@ -43,84 +43,77 @@ typedef vector<set<size_t> > (*test_function_t)(vector<string> const &, char con
 vector<set<size_t> >
 matt_test_function(vector<string> const & keywords, char const *begin, char const *end)
 {
-	AhoCorasick<char> ac(keywords.begin(), keywords.end());
-	Results <vector<string> > results(keywords);
-	ac.search(begin, end, results);
-	return results.hits_;
+    AhoCorasick<char> ac(keywords.begin(), keywords.end());
+    Results <vector<string> > results(keywords);
+    ac.search(begin, end, results);
+    return results.hits_;
 }
 
 static vector<test_function_t> test_functions =
-		list_of(&matt_test_function);
+        list_of(&matt_test_function);
 
 typedef struct {
-	vector<string> keywords;
-	char const *input;
-	vector<set<size_t> > expected;
+    vector<string> keywords;
+    char const *input;
+    vector<set<size_t> > expected;
 } TestData;
 
 int main(int argc, char **argv)
 {
-	TestData td[2];
-	td[0].keywords = list_of("he")("she")("his")("hers");
-	td[0].input = "ushers";
-	td[0].expected = list_of<set<size_t> >(list_of(3))(list_of(3))()(list_of(5));
-	td[1].keywords = list_of("she")("he")("hehe");
-	td[1].input = "shehe";
-	td[1].expected = list_of<set<size_t> >(list_of(2))(list_of(2)(4))(list_of(4));
+    TestData td[2];
+    td[0].keywords = list_of("he")("she")("his")("hers");
+    td[0].input = "ushers";
+    td[0].expected = list_of<set<size_t> >(list_of(3))(list_of(3))()(list_of(5));
+    td[1].keywords = list_of("she")("he")("hehe");
+    td[1].input = "shehe";
+    td[1].expected = list_of<set<size_t> >(list_of(2))(list_of(2)(4))(list_of(4));
 
-	for (vector<test_function_t>::iterator it = test_functions.begin();
-		it != test_functions.end(); ++it)
-	{
-		for (int i = 0; i < 2; i++)
-		{
-			if (td[i].expected == (**it)(
-						td[i].keywords,
-						&td[i].input[0],
-						&td[i].input[strlen(td[i].input)]))
-				cout << "*** Passed";
-			else
-				cout << "*** Failed";
-			cout << endl;
-		}
-	}
+    for (vector<test_function_t>::iterator it = test_functions.begin();
+        it != test_functions.end(); ++it)
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            if (td[i].expected == (**it)(
+                        td[i].keywords,
+                        &td[i].input[0],
+                        &td[i].input[strlen(td[i].input)]))
+                cout << "*** Passed";
+            else
+                cout << "*** Failed";
+            cout << endl;
+        }
+    }
 
-#if 1
-	{
-		Timer t("performance test");
+    {
+        Timer t("performance test");
 
-		vector<string> file_kw = list_of("sex")("dick")("c++")("lol");
-		for (int i = 10000; i < 100000; i++) {
-			char buf[10];
-			snprintf(buf, sizeof(buf), "%u", i);
-			file_kw.push_back(buf);
-		}
+        vector<string> file_kw = list_of("sex")("dick")("c++")("lol");
+        for (int i = 10000; i < 100000; i++) {
+            char buf[10];
+            snprintf(buf, sizeof(buf), "%u", i);
+            file_kw.push_back(buf);
+        }
 
-		t.restart();
-		AhoCorasick<char> matt_ac(file_kw.begin(), file_kw.end());
-		cerr << t << ": graph construction (" << file_kw.size() << " keywords)" << endl;
+        t.restart();
+        AhoCorasick<char> matt_ac(file_kw.begin(), file_kw.end());
+        cerr << t << ": graph construction (" << file_kw.size() << " keywords)" << endl;
 
-		Results<vector<string> > results(file_kw, true);
-		ifstream input(argv[1], ifstream::binary);
+        Results<vector<string> > results(file_kw, true);
+        ifstream input(argv[1], ifstream::binary);
 
-		t.restart();
-		while (input.good()) {
-#if 1
-			char buf[512];
-			input.read(buf, 512);
-			matt_ac.search(buf, buf + input.gcount(), results);
-#else
-			char c = fag.get();
-			matt_ac.search(&c, &c + 1, results);
-#endif
-		}
-		t.pause();
-		cerr << endl;
-		assert(input.is_open());
-		input.clear();
-		input.seekg(0, ios::end);
-		int len = input.tellg();
-		cerr << t << ": search " << len << " bytes" << endl;
-	}
-#endif
-	return EXIT_SUCCESS;
+        t.restart();
+        while (input.good()) {
+            char buf[512];
+            input.read(buf, 512);
+            matt_ac.search(buf, buf + input.gcount(), results);
+        }
+        t.pause();
+        cerr << endl;
+        assert(input.is_open());
+        input.clear();
+        input.seekg(0, ios::end);
+        int len = input.tellg();
+        cerr << t << ": search " << len << " bytes" << endl;
+    }
+    return EXIT_SUCCESS;
 }
