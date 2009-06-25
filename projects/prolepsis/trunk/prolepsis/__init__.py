@@ -14,6 +14,7 @@ for theme in eval(config.get("global theme", "priority")):
     ttk.Style().theme_use(theme)
     break
 listbox_font = tkinter.font.Font(**dict(config.items("listbox font")))
+ttk.Style().configure("charlist."+ttk.Treeview().winfo_class(), font=listbox_font)
 main_dialog = dialogs.MainDialog(root, listbox_font)
 
 def main():

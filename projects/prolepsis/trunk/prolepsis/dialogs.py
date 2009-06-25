@@ -6,7 +6,7 @@ from tkinter import ttk
 from .tibdb import tibiacom
 from .classes import \
         AsyncWidgetCommand, ListboxContextMenu, WidgetState, ActiveCharacterList, StanceContextMenu
-from .functions import get_char_guild, update_guild_members, open_char_page
+from .functions import get_char_guild, update_guild_members, open_char_page, open_guild_page
 from .globals import VERSION, STANCES, char_stances, guild_stances, guild_members
 
 class GuildStanceDialog:
@@ -116,6 +116,14 @@ class MainDialog:
         self.update_online_list = AsyncWidgetCommand(root, self.__update_from_online_list)
         self.update_guild_members = AsyncWidgetCommand(root, self.__update_guild_members)
 
+        self.min_level_var = tkinter.IntVar(value=45)
+        self.listbox_data = []
+        self.list_sort_mode = tkinter.StringVar(value='level')
+        self.always_on_top = tkinter.BooleanVar(value=False)
+        self.list_show_guild = tkinter.BooleanVar(value=True)
+        self.list_show_unguilded = tkinter.BooleanVar(value=True)
+        self.world = tkinter.StringVar(value='dolera')
+
         self.statusbar = ttk.Label(
                 self.dialog,
                 text="Error!",
@@ -129,7 +137,6 @@ class MainDialog:
                 self.dialog,
                 text="Minimum level to display",
             )
-        self.min_level_var = tkinter.IntVar(value=45)
         # this is to be replaced with a themed widget, when i find one that can handle resolution
         self.level_scale = tkinter.Scale(
                 self.min_level_frame,
@@ -152,8 +159,7 @@ class MainDialog:
         self.scrollbar = ttk.Scrollbar(self.dialog)
         self.scrollbar.pack(side=tkinter.RIGHT, fill=tkinter.Y)
 
-        self.listbox_data = []
-
+        # this is a treeview that doesn't show the tree
         self.listbox = ttk.Treeview(
                 self.dialog,
                 yscrollcommand=self.scrollbar.set,
@@ -161,10 +167,12 @@ class MainDialog:
                 selectmode=tkinter.NONE,
                 height=25,
                 columns=["name", "level", "vocation", "guild"],
-                show=["headings"]
+                show=["headings"],
                 #width=40,
                 #relief=tkinter.FLAT,
             )
+        self.listbox.config(style="charlist."+self.listbox.winfo_class())
+        print(ttk.Style().lookup(self.listbox.winfo_class(), "font"))
         for h in (
                     ("name", "Name", True, 90),
                     ("level", "Lvl", False, 25),
@@ -177,9 +185,19 @@ class MainDialog:
             self.listbox.tag_configure(st[0], foreground=st[1])
         self.listbox.tag_configure("joined", background="light yellow")
         self.listbox.tag_configure("left", background="light grey")
+        self.listbox.tag_configure("died", foreground="magenta")
+        self.listbox.tag_configure("pzlocked", background="black", foreground="white")
+
+        def charlist_open_guild_page(event):
+            name = self.listbox_data[event.widget.index(event.widget.identify_row(event.y))]
+            guild = get_char_guild(name)
+            if guild: open_guild_page(guild)
+        self.listbox.bind("<Button-2>", charlist_open_guild_page)
+
         self.listbox.bind(
                 "<Double-Button-1>",
                 lambda event: open_char_page(event, self.listbox_data))
+
         self.listbox.bind(
                 "<Button-3>",
                 ListboxContextMenu(
@@ -192,8 +210,6 @@ class MainDialog:
 
         self.menubar = tkinter.Menu(root)
 
-        self.list_sort_mode = tkinter.StringVar(value='level')
-
         self.list_menu = tkinter.Menu(self.menubar, tearoff=False)
 
         self.sortby_menu = tkinter.Menu(self.dialog, tearoff=False)
@@ -205,9 +221,6 @@ class MainDialog:
                     value=s)
 
         self.list_menu.add_cascade(label="Sort by", menu=self.sortby_menu)
-
-        self.list_show_guild = tkinter.BooleanVar(value=True)
-        self.list_show_unguilded = tkinter.BooleanVar(value=True)
 
         self.list_menu.add_checkbutton(
                 label="Show character's guild",
@@ -231,13 +244,17 @@ class MainDialog:
 
         self.menubar.add_cascade(label="Guilds", menu=self.guild_menu)
 
-        self.always_on_top = tkinter.BooleanVar(value=False)
-
         self.window_menu = tkinter.Menu(self.menubar, tearoff=False)
         self.window_menu.add_checkbutton(
                 label="Always on top",
                 variable=self.always_on_top,
                 command=self.always_on_top_command)
+
+        self.world_menu = tkinter.Menu(self.menubar, tearoff=False)
+        self.world_menu.add_radiobutton(
+                label="Dolera", variable=self.world, value='dolera')
+        self.menubar.add_cascade(label="World", menu=self.world_menu)
+        self.world_menu.activate(0)
 
         self.menubar.add_cascade(label="Window", menu=self.window_menu)
 

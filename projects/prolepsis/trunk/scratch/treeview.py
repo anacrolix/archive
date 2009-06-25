@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.1
 
 import tkinter
+import tkinter.font
 from tkinter import ttk
 
 def event(*args):
@@ -9,6 +10,9 @@ def event(*args):
 
 root = tkinter.Tk()
 ttk.Style().configure("Treeview", fg="light yellow")
+font = tkinter.font.Font(size=8)
+ttk.Style().configure("Prolepsis.Treeview", font=font)
+print(ttk.Style().lookup("Prolepsis.Treeview", "font"))
 tv = ttk.Treeview(root)
 tv.pack()
 dc_iid = tv.insert("", tkinter.END, text="Del Chaos", open=True)
@@ -35,6 +39,7 @@ ttk.Style().map("blah.TButton",
     foreground=[('pressed', 'red'), ('active', 'blue')],
     background=[('pressed', '!disabled', 'black'), ('active', 'white')]
     )
+ttk.Style().configure("blah.TButton", font=font)
 print(ttk.Style().lookup("blah.TButton", "foreground"))
 
 root.mainloop()

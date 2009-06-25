@@ -29,8 +29,6 @@ class StanceContextMenu:
                     label="Set as " + STANCES[i][0],
                     command=Functor(self.set_stance, i))
         self.menu.add_command(label="Unset stance", command=Functor(self.set_stance, None))
-        #if sys.platform not in ("win32",):
-            #self.menu.add_command(label="Close")
         self.parent = parent
         self.listbox = listbox
         self.callback = callback
@@ -89,9 +87,6 @@ class ListboxContextMenu:
                 self.menu.add_command(
                         label="Unset guild stance",
                         command=Functor(self.set_guild_stance, None))
-        #if sys.platform not in ("win32",):
-            #self.menu.add_separator()
-            #self.menu.add_command(label="Close")
         self.menu.tk_popup(event.x_root, event.y_root)
     def set_char_stance(self, stance):
         key = self.curdatum
@@ -176,7 +171,8 @@ class ActiveCharacterList:
             self.chars[name].set_online(True, stamp)
         return stamp, changed
     def parse_potential_recent_deaths(self, refresh):
-        queue = queue.Queue()
+        from queue import Queue, Empty
+        queue = Queue()
         for name, info in self.chars.items():
             if (info.is_online() or time.time() - info.last_online() < 1200) and info.vocation != 'N':
                 queue.put(name)
@@ -186,7 +182,7 @@ class ActiveCharacterList:
                 try:
                     name = queue.get(block=False)
                     tasks_left = queue.qsize()
-                except queue.Empty:
+                except Empty:
                     return
                 info = tibiacom.char_info(name)
                 self.chars[name].deaths = info["deaths"]
@@ -231,7 +227,8 @@ class WidgetState:
         assert self.get("state") != tkinter.DISABLED
         self.set(state=tkinter.DISABLED)
     def enable(self):
-        assert self.get("state") == tkinter.DISABLED
+        print("widget state:", self.get("state"))
+        assert self.get("state") != tkinter.NORMAL
         self.set(state=tkinter.NORMAL)
 
 class JobQueue:

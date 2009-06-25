@@ -66,7 +66,7 @@ def __open_shelf(filename):
         except dbm.error:
             print("can't open shelf, deleting it:", filename)
             os.remove(filename)
-            return __open_shelf(filename)
+            return shelve.open(filename, **kwargs)
 
 members_shelf = __open_shelf("members")
 guild_members = members_shelf

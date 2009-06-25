@@ -16,6 +16,12 @@ def get_char_guild(name):
         guild = None
     return guild
 
+def open_guild_page(guild):
+    print("opening guild info in browser:", guild)
+    webbrowser.open(
+            "http://www.tibia.com/community/?"
+            + urllib.parse.urlencode({"subtopic": "guilds", "page": "view", "GuildName": guild}))
+
 def open_char_page(event, data):
     name = data[event.widget.index(event.widget.identify_row(event.y))]
     print("opening character info in browser:", name)
