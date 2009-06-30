@@ -13,7 +13,7 @@ class Horspool:
             j = self.m
             while j > 0 and text[pos + j - 1] == self.p[j - 1]:
                 j -= 1
-            if j == 0: report(pos + 1)
+            if j == 0 and report(pos + 1): return
             pos += self.d.get(text[pos + self.m - 1], self.m)
 
 from unittest import TestCase, main
@@ -27,6 +27,13 @@ class HorspoolTest(TestCase):
         actual = []
         Horspool("ATATA")("AGATACGATATATAC", actual.append)
         self.assertSequenceEqual(actual, [8, 10])
+    def testReturnEarly(self):
+        actual = []
+        def first(pos):
+            actual.append(pos)
+            return True
+        Horspool("ATATA")("AGATACGATATATAC", first)
+        self.assertSequenceEqual(actual, [8])
 
 if __name__ == "__main__":
     main()
