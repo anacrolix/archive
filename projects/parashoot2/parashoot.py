@@ -12,9 +12,7 @@ images = {}
 def load_sounds():
     for k, f in (
                 ("mg6", "Machine_Gun3.wav"),
-                ("boom-whistle", "explosion6.wav"),
-                ("bomb", "bomb.wav"),
-                ("bomb-reverb", "boom.aiff"),
+                ("explosion", "bomb.wav"),
             ):
         sounds[k] = pygame.mixer.Sound(os.path.join("sounds", f))
 
@@ -130,7 +128,7 @@ class Explosion(pygame.sprite.Sprite):
         pygame.draw.polygon(self.image, (255, 0, 0), outer_points)
         pygame.draw.polygon(self.image, (255, 255, 0), inner_points)
         self.image.set_alpha(240)
-        sounds[sounds.keys()[random.randint(0, len(sounds) - 1)]].play()
+        sounds[random.choice(("explosion",))].play()
     def update(self):
         alpha = self.image.get_alpha() - 16
         if alpha <= 0: self.kill()
