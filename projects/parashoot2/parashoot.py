@@ -7,6 +7,64 @@ import random
 import unittest
 
 sounds = {}
+images = {}
+
+def load_sounds():
+    for k, f in (
+                ("mg6", "Machine_Gun3.wav"),
+                ("boom-whistle", "explosion6.wav"),
+                ("bomb", "bomb.wav"),
+                ("bomb-reverb", "boom.aiff"),
+            ):
+        sounds[k] = pygame.mixer.Sound(os.path.join("sounds", f))
+
+def load_images():
+    for k, f, ck in (
+                ("bunker", "Bunker.png", (0, 0, 0)),
+                ("barrels", "barrel.png", None),
+            ):
+        surface = pygame.image.load(os.path.join("images", f)).convert()
+        if not ck is None: surface.set_colorkey(ck)
+        images[k] = surface
+
+class Vector:
+    __slots__ = ('x', 'y')
+    def __init__(self, cartesian=None, polar=None):
+        assert bool(cartesian) ^ bool(polar)
+        if cartesian:
+            self.x, self.y = cartesian
+        elif polar:
+            self.x, self.y = tuple([polar[0] * f(polar[1]) for f in (math.cos, math.sin)])
+    def __rmul__(self, other):
+        return self.__class__((self.x * other, self.y * other))
+    __mul__ = __rmul__
+    def __add__(self, other):
+        return self.__class__((self.x + other.x, self.y + other.y))
+    def __iter__(self):
+        yield self.x
+        yield self.y
+    def __repr__(self):
+        return repr((self.x, self.y))
+
+FRAMERATE = 30
+GRAVITY = (0.0, 200.0)
+DT = 1.0 / FRAMERATE
+
+class Particle:
+    def __init__(self, x, v, a=None):
+        if a is None: a = Vector(GRAVITY)
+        for l in ('x', 'v', 'a'):
+            vec = locals()[l]
+            setattr(self, l, vec if isinstance(vec, Vector) else Vector(vec))
+    def step(self):
+        vdt = DT * self.v
+        hadt2 = 0.5 * self.a * (DT ** 2)
+        self.x += vdt + hadt2
+        self.v += self.a * DT
+    def pixel_pos(self):
+        return tuple([int(round(a, 0)) for a in self.x])
+    def __repr__(self):
+        return "<%s x=%s, v=%s, a=%s>" % (self.__class__.__name__, self.x, self.v, self.a)
 
 #class Screen:
     #def __init__(self, height):
@@ -79,24 +137,26 @@ class Explosion(pygame.sprite.Sprite):
         self.image.set_alpha(alpha)
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, pos, vel):
+    def __init__(self, particle):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((2, 2))
         self.image.fill((150, 150, 150))
         self.rect = self.image.get_rect()
-        self.pos = list(pos)
-        self.vel = list(vel)
+        self.particle = particle
     def update(self):
-        self.pos = tuple([self.pos[i] + self.vel[i] for i in range(2)])
-        print self.pos
-        self.vel[1] += 0.1
-        self.rect.center = (round(self.pos[0], 0), round(self.pos[1], 0))
+        self.particle.step()
+        print self.particle
+        print self.particle.pixel_pos()
+        self.rect.center = self.particle.pixel_pos()
+        # simple cull
+        if self.rect.top >= pygame.display.get_surface().get_size()[1]:
+            self.kill()
 
-class PlayerGun(pygame.sprite.Sprite):
+class Bunker(pygame.sprite.Sprite):
     def __init__(self, framerate):
         pygame.sprite.Sprite.__init__(self)
         self.framerate = framerate
-        self.image = pygame.Surface((60, 60))
+        self.image = images["bunker"]
         self.rect = self.image.get_rect()
         size = pygame.display.get_surface().get_size()
         self.rect.centerx = size[0] / 2
@@ -112,23 +172,13 @@ class PlayerGun(pygame.sprite.Sprite):
         if self.firing and not self.fire_channel.get_busy(): self.firing = False
         if self.firing and pygame.time.get_ticks() >= self.fire_nexttick:
             print "fire shell"
-
             angle = math.atan2(
                     pygame.mouse.get_pos()[1] - self.rect.top,
                     pygame.mouse.get_pos()[0] - self.rect.centerx)
-            self.groups()[0].add(Bullet(self.rect.midtop, (10 * math.cos(angle), 10 * math.sin(angle))))
+            self.groups()[0].add(Bullet(Particle(self.rect.midtop, Vector(polar=(500.0, angle)))))
             self.fire_nexttick += 1000 * self.fire_sound.get_length() / 6
         #if self.firing:
 
-
-def load_sounds():
-    for k, f in (
-                ("mg6", "Machine_Gun3.wav"),
-                ("boom-whistle", "explosion6.wav"),
-                ("bomb", "bomb.wav"),
-                ("bomb-reverb", "boom.aiff"),
-            ):
-        sounds[k] = pygame.mixer.Sound(os.path.join("sounds", f))
 
 def main(debug):
     try:
@@ -136,17 +186,18 @@ def main(debug):
         print "pygame version:", pygame.version.ver
         pygame.display.init()
         pygame.font.init()
-        pygame.mixer.init(44100, -16, 2, 512)
-        load_sounds()
+        pygame.mixer.init()
         pygame.display.set_caption("Parashoot 2")
-        screen = pygame.display.set_mode((640,480))
+        screen = pygame.display.set_mode((1024, 768))
+        load_sounds()
+        load_images()
         background = pygame.Surface(screen.get_size())
         background.fill((0, 0, 200))
         screen.blit(background, (0, 0))
         pygame.display.flip()
 
         clock = pygame.time.Clock()
-        playergun = PlayerGun(20)
+        playergun = Bunker(20)
         sprites = pygame.sprite.Group(playergun)
         if debug: sprites.add(FpsText(clock.get_fps))
         while True:
