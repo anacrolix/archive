@@ -20,6 +20,7 @@ def load_images():
     for k, f, ck in (
                 ("bunker", "Bunker.png", (0, 0, 0)),
                 ("barrels", "barrel.png", None),
+                ("barrel", "barrel-rotatable.png", (255, 255, 255)),
             ):
         surface = pygame.image.load(os.path.join("images", f)).convert()
         if not ck is None: surface.set_colorkey(ck)
@@ -33,11 +34,15 @@ class Vector:
             self.x, self.y = cartesian
         elif polar:
             self.x, self.y = tuple([polar[0] * f(polar[1]) for f in (math.cos, math.sin)])
-    def __rmul__(self, other):
+    def __mul__(self, other):
         return self.__class__((self.x * other, self.y * other))
-    __mul__ = __rmul__
+    __rmul__ = __mul__
     def __add__(self, other):
         return self.__class__((self.x + other.x, self.y + other.y))
+    def __radd__(self, other):
+        if isinstance(other, tuple):
+            assert len(other) == 2
+            return self.__class__((self.x + other[0], (self.y + other[1])))
     def __iter__(self):
         yield self.x
         yield self.y
@@ -142,6 +147,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.particle = particle
     def update(self):
+        print "bullet updated"
         self.particle.step()
         print self.particle
         print self.particle.pixel_pos()
@@ -150,15 +156,16 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.top >= pygame.display.get_surface().get_size()[1]:
             self.kill()
 
-class Bunker(pygame.sprite.Sprite):
-    def __init__(self, framerate):
+def azimuth(origin, target):
+    return math.atan2(
+            target[1] - origin[1],
+            target[0] - origin[0])
+
+class PlayerGun(pygame.sprite.Sprite):
+    def __init__(self, mount):
         pygame.sprite.Sprite.__init__(self)
-        self.framerate = framerate
-        self.image = images["bunker"]
-        self.rect = self.image.get_rect()
-        size = pygame.display.get_surface().get_size()
-        self.rect.centerx = size[0] / 2
-        self.rect.bottom = size[1]
+        self.rawimage = images['barrel']
+        self.mount = mount
         self.firing = False
     def fire(self):
         if self.firing: return
@@ -166,17 +173,43 @@ class Bunker(pygame.sprite.Sprite):
         self.fire_sound = sounds["mg6"]
         self.fire_channel = self.fire_sound.play()
         self.fire_nexttick = pygame.time.get_ticks() #+ 1000 * self.fire_sound.get_length() / 6
-    def update(self):
-        if self.firing and not self.fire_channel.get_busy(): self.firing = False
-        if self.firing and pygame.time.get_ticks() >= self.fire_nexttick:
-            print "fire shell"
-            angle = math.atan2(
-                    pygame.mouse.get_pos()[1] - self.rect.top,
-                    pygame.mouse.get_pos()[0] - self.rect.centerx)
-            self.groups()[0].add(Bullet(Particle(self.rect.midtop, Vector(polar=(500.0, angle)))))
-            self.fire_nexttick += 1000 * self.fire_sound.get_length() / 6
-        #if self.firing:
+    def parent_update(self, target):
+        print "parent_update"
+        #self.rect.center = mount
+        angle = azimuth(self.mount, target)
+        self.image = pygame.transform.rotate(self.rawimage, -180./math.pi * angle)
+        self.rect = self.image.get_rect()
+        self.rect.center = self.mount
+        if self.firing:
+            if not self.fire_channel.get_busy():
+                self.firing = False
+                return
+            if pygame.time.get_ticks() >= self.fire_nexttick:
+                print "fire shell"
+                self.groups()[0].add(Bullet(Particle(
+                        self.mount + Vector(polar=(self.rawimage.get_width() / 2 - 2, angle)),
+                        Vector(polar=(500.0, angle))
+                    )))
+                self.fire_nexttick += 1000 * self.fire_sound.get_length() / 6
 
+class Bunker(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = images["bunker"]
+        self.rect = self.image.get_rect()
+        size = pygame.display.get_surface().get_size()
+        self.rect.centerx = size[0] / 2
+        self.rect.bottom = size[1]
+        self.primary_gun = PlayerGun(self.rect.midtop)
+        #self.groups()[0].add(self.primary_gun)
+    def fire(self):
+        self.primary_gun.fire()
+    def update(self):
+        angle = math.atan2(
+                pygame.mouse.get_pos()[1] - self.rect.top,
+                pygame.mouse.get_pos()[0] - self.rect.centerx)
+        #barrel = images["barrel"].copy()
+        self.primary_gun.parent_update(pygame.mouse.get_pos())
 
 def main(debug):
     try:
@@ -185,6 +218,7 @@ def main(debug):
         pygame.display.init()
         pygame.font.init()
         pygame.mixer.init()
+        pygame.mouse.set_cursor(*pygame.cursors.broken_x)
         pygame.display.set_caption("Parashoot 2")
         screen = pygame.display.set_mode((1024, 768))
         load_sounds()
@@ -195,8 +229,9 @@ def main(debug):
         pygame.display.flip()
 
         clock = pygame.time.Clock()
-        playergun = Bunker(20)
-        sprites = pygame.sprite.Group(playergun)
+        playergun = Bunker()
+        sprites = pygame.sprite.Group(playergun, playergun.primary_gun)
+        #playergun.add_group(sprites)
         if debug: sprites.add(FpsText(clock.get_fps))
         while True:
             print "last frame took:", clock.tick(30), "ms"
@@ -224,7 +259,7 @@ if __name__ == "__main__":
             prog="ParaShoot2",
             description="Python/SDL rewrite of ParaShoot which was in Java.",
         )
-    parser.set_defaults(test=False, debug=False)
+    parser.set_defaults(test=False, debug=True)
     parser.add_option("-t", "--test", action="store_true", dest="test")
     parser.add_option("-d", "--debug", action="store_true", dest="debug")
     options, args = parser.parse_args()
