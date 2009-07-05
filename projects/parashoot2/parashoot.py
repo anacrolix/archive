@@ -21,6 +21,7 @@ def load_images():
                 ("bunker", "Bunker.png", (0, 0, 0)),
                 ("barrels", "barrel.png", None),
                 ("barrel", "barrel-rotatable.png", (255, 255, 255)),
+                ("bg-simple", "background.png", None),
             ):
         surface = pygame.image.load(os.path.join("images", f)).convert()
         if not ck is None: surface.set_colorkey(ck)
@@ -38,7 +39,10 @@ class Vector:
         return self.__class__((self.x * other, self.y * other))
     __rmul__ = __mul__
     def __add__(self, other):
-        return self.__class__((self.x + other.x, self.y + other.y))
+        if isinstance(other, tuple):
+            return self.__class__((self.x + other[0], self.y + other[1]))
+        elif isinstance(other, self.__class__):
+            return self.__class__((self.x + other.x, self.y + other.y))
     def __radd__(self, other):
         if isinstance(other, tuple):
             assert len(other) == 2
@@ -48,6 +52,10 @@ class Vector:
         yield self.y
     def __repr__(self):
         return repr((self.x, self.y))
+    def __getitem__(self, key):
+        return {0: self.x, 1: self.y}[key]
+    def to_tuple(self):
+        return (self.x, self.y)
 
 FRAMERATE = 30
 GRAVITY = (0.0, 200.0)
@@ -179,7 +187,7 @@ class PlayerGun(pygame.sprite.Sprite):
         angle = azimuth(self.mount, target)
         self.image = pygame.transform.rotate(self.rawimage, -180./math.pi * angle)
         self.rect = self.image.get_rect()
-        self.rect.center = self.mount
+        self.rect.center = self.mount.to_tuple()
         if self.firing:
             if not self.fire_channel.get_busy():
                 self.firing = False
@@ -200,7 +208,7 @@ class Bunker(pygame.sprite.Sprite):
         size = pygame.display.get_surface().get_size()
         self.rect.centerx = size[0] / 2
         self.rect.bottom = size[1]
-        self.primary_gun = PlayerGun(self.rect.midtop)
+        self.primary_gun = PlayerGun(Vector(self.rect.midtop) + (0, 8))
         #self.groups()[0].add(self.primary_gun)
     def fire(self):
         self.primary_gun.fire()
@@ -223,14 +231,13 @@ def main(debug):
         screen = pygame.display.set_mode((1024, 768))
         load_sounds()
         load_images()
-        background = pygame.Surface(screen.get_size())
-        background.fill((0, 0, 200))
+        background = images["bg-simple"]
         screen.blit(background, (0, 0))
         pygame.display.flip()
 
         clock = pygame.time.Clock()
         playergun = Bunker()
-        sprites = pygame.sprite.Group(playergun, playergun.primary_gun)
+        sprites = pygame.sprite.OrderedUpdates(playergun, playergun.primary_gun)
         #playergun.add_group(sprites)
         if debug: sprites.add(FpsText(clock.get_fps))
         while True:
