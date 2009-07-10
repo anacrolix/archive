@@ -1,0 +1,19 @@
+#summary Python rewrite of the Java applet I wrote in 2004.
+
+= Libraries =
+
+== Windows ==
+
+  * [http://python.org/ftp/python/2.6.2/python-2.6.2.msi Python]
+  * [http://www.pygame.org/ftp/pygame-1.8.1release.win32-py2.6.msi pygame] 
+
+== Linux ==
+
+  * python-pygame (>=1.8.1?)
+  * python (>=2.5?)
+  
+= Executable =
+  
+  * [http://anacrolix.googlecode.com/files/parashoot2~svn658.tar.bz2 parashoot2~svn658]
+or
+  * [http://anacrolix.googlecode.com/svn/projects/parashoot2/ SVN HEAD]
