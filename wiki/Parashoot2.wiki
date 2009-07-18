@@ -1,4 +1,5 @@
 #summary Python rewrite of the Java applet I wrote in 2004.
+#labels Featured
 
 = Libraries =
 
