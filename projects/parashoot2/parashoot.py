@@ -17,11 +17,13 @@ def load_sounds():
         sounds[k] = pygame.mixer.Sound(os.path.join("sounds", f))
 
 def load_images():
+    WHITE = (255, 255, 255)
     for k, f, ck in (
                 ("bunker", "Bunker.png", (0, 0, 0)),
                 ("barrels", "barrel.png", None),
-                ("barrel", "barrel-rotatable.png", (255, 255, 255)),
+                ("barrel", "barrel-rotatable.png", WHITE),
                 ("bg-simple", "background.png", None),
+                ("helicopter", "helicopter.png", WHITE),
             ):
         surface = pygame.image.load(os.path.join("images", f)).convert()
         if not ck is None: surface.set_colorkey(ck)
@@ -62,7 +64,9 @@ GRAVITY = (0.0, 200.0)
 DT = 1.0 / FRAMERATE
 
 class Particle:
-    def __init__(self, x, v, a=None):
+    def __init__(self, x=None, v=None, a=None):
+        if x is None: x = Vector((0, 0))
+        if v is None: v = Vector((0, 0))
         if a is None: a = Vector(GRAVITY)
         for l in ('x', 'v', 'a'):
             vec = locals()[l]
@@ -219,6 +223,33 @@ class Bunker(pygame.sprite.Sprite):
         #barrel = images["barrel"].copy()
         self.primary_gun.parent_update(pygame.mouse.get_pos())
 
+class Helicopter(pygame.sprite.Sprite):
+    FACING_LEFT = 'left'
+    FACING_RIGHT = 'right'
+    ALL_FACINGS = (FACING_LEFT, FACING_RIGHT)
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        #self.particle = Particle(a=(0, 0))
+    def get_width(self):
+        return self.image.get_width()
+    def get_height(self):
+        return self.image.get_height()
+    def set_facing(self, facing):
+        if facing == self.FACING_RIGHT:
+            self.image = images["helicopter"]
+        elif facing == self.FACING_LEFT:
+            self.image = pygame.transform.flip(images["helicopter"], True, False)
+        else:
+            raise Exception("invalid helicopter facing", facing)
+        self.rect = self.image.get_rect()
+    def update(self):
+        self.particle.step()
+        print self.particle
+        self.rect.center = self.particle.pixel_pos()
+    def set_particle(self, particle):
+        self.particle = particle
+        #self.rect.center = self.particle.pixel_pos()
+
 def main(debug):
     try:
         os.environ['SDL_VIDEO_CENTERED'] = '1'
@@ -240,8 +271,9 @@ def main(debug):
         sprites = pygame.sprite.OrderedUpdates(playergun, playergun.primary_gun)
         #playergun.add_group(sprites)
         if debug: sprites.add(FpsText(clock.get_fps))
+        one = False
         while True:
-            print "last frame took:", clock.tick(30), "ms"
+            print "last frame took:", clock.tick(FRAMERATE), "ms"
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
@@ -250,6 +282,24 @@ def main(debug):
             sprites.update()
             if pygame.mouse.get_pressed()[0]:
                 playergun.fire()
+            #if random.random() < 0.1:
+            if not one:
+                one = True
+                h = Helicopter()
+                facing = random.choice(h.ALL_FACINGS)
+                particle = Particle(a=(0, 0))
+                h.set_facing(facing)
+                if facing == h.FACING_RIGHT:
+                    particle.x.x = -h.get_width()/2
+                    particle.v.x = 100
+                elif facing == h.FACING_LEFT:
+                    particle.x.x = screen.get_width() + h.get_width()/2
+                    particle.v.x = -100
+                else:
+                    raise Exception("unknown facing", facing)
+                particle.x.y = 200
+                h.set_particle(particle)
+                sprites.add(h)
             screen.blit(background, (0, 0))
             sprites.draw(screen)
             pygame.display.flip()
