@@ -7,6 +7,10 @@
 #include <string>
 #include <limits.h>
 
+#if defined(WIN32)
+#define snprintf _snprintf
+#endif
+
 using boost::filesystem::path;
 using namespace std;
 
@@ -118,7 +122,7 @@ public:
         for (Keywords::const_iterator kw_it(keywords_.begin());
             kw_it != keywords_.end(); ++kw_it)
         {
-            for (char const *where = buffer; (where = strcasestr(where, kw_it->c_str())) != NULL; ++where)
+            for (char const *where = buffer; (where = strstr(where, kw_it->c_str())) != NULL; ++where)
             {
                 size_t offset = std::distance(buffer, where) + already;
                 size_t keyword_index = std::distance(keywords_.begin(), kw_it);
