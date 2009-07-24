@@ -36,7 +36,7 @@ void Reuters21578::SetUp()
         }
     }
     ASSERT_EQ(672, keywords_.size());
-    hits_.resize(keywords_.size());
+    hits_.resize(keywords_.size(), 0);
 	//search_start_time_ = process_execution_time();
 }
 
@@ -61,7 +61,7 @@ void Reuters21578::search_wrapper(SearchInstance &search_function)
 #if 0
         std::cout << input_filepath << std::endl;
 #else
-		std::cout << ".";// << std::flush;
+		std::cout << ".";// << std::flush; // required on linux?
 #endif
         ifstream input_filestream(input_filepath.string().c_str());
 		input_filestream.exceptions(ifstream::badbit);
@@ -79,6 +79,7 @@ void Reuters21578::search_wrapper(SearchInstance &search_function)
             bytes_searched += input_filestream.gcount();
         }
     }
+	cout << endl;
     ASSERT_EQ(SGM_TOTAL_BYTES.at(SGM_FILE_COUNT - 1), bytes_searched);
 }
 
@@ -86,6 +87,7 @@ size_t Reuters21578::expected_hit_count()
 {
 	vector<size_t> ehc(22);
 	ehc.at(0) = 16193;
+	ehc.at(2) = 45850;
 	ehc.at(21) = 332056;
 	return ehc.at(SGM_FILE_COUNT - 1);
 }
@@ -96,7 +98,7 @@ size_t Reuters21578::actual_hit_count() const
     for (   Hits::const_iterator hit_it(hits_.begin());
             hit_it != hits_.end(); ++hit_it)
     {
-        total_hits += hit_it->size();
+        total_hits += *hit_it;//->size();
     }
 	return total_hits;
 }

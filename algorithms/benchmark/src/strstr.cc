@@ -15,7 +15,8 @@ public:
                 size_t offset = where - buffer + already;
                 size_t keyword_index = std::distance(keywords_.begin(), kw_it);
                 //std::cout << kw_it->c_str() << ": " << offset << std::endl;
-                ASSERT_TRUE(hits.at(keyword_index).insert(offset).second);
+                //ASSERT_TRUE(hits.at(keyword_index).insert(offset).second);
+				hits[keyword_index] += 1;
             }
         }
     }

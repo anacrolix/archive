@@ -188,6 +188,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\python_strfind.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\reuters.cc"
 				>
 			</File>

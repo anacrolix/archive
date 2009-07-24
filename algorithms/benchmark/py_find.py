@@ -11,8 +11,7 @@ assert len(keywords) == 672
 
 import time
 
-def blah():
-    buffer = open("reuters21578/reut2-000.sgm", "rb").read()
+def strfind(keywords, buffer):
     hits = 0
     for kw in keywords:
         start = -1
@@ -20,8 +19,13 @@ def blah():
             start = buffer.find(kw, start + 1)
             if start == -1: break
             else: hits += 1
-    print hits
+    return hits
 
-start = time.time()
-blah()
-print time.time() - start
+def blah():
+    buffer = open("reuters21578/reut2-000.sgm", "rb").read()
+    print strfind(keywords, buffer)
+
+if __name__ == "__main__":
+    start = time.time()
+    blah()
+    print time.time() - start

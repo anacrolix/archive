@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-typedef std::vector<std::set<size_t> > Hits;
+typedef std::vector<size_t> Hits;
 typedef std::vector<std::string> Keywords;
 
 class SearchInstance

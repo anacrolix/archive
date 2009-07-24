@@ -6,37 +6,40 @@ using namespace std;
 class Horspool
 {
 public:
-    Horspool(string pattern)
+    Horspool(string const &pattern)
     :   m_(pattern.size()),
-        d_(1 << CHAR_BIT, m_),
-        p_(pattern)
+        p_(pattern.c_str())
     {
+		for (size_t j = 0; j < 1 << CHAR_BIT; ++j)
+		{
+			d_[j] = m_;
+		}
         for (size_t j = 0; j < m_ - 1; ++j)
         {
-            d_.at(pattern.at(j)) = m_ - j - 1;
+            d_[pattern.at(j)] = m_ - j - 1;
         }
     }
 
     void operator()(
             char const *const buffer,
-            size_t length, size_t already, Hits::value_type &hits)
+            size_t const length, size_t const already, Hits::value_type &hits)
     {
-        size_t pos = 0;
-        while (pos <= length - m_)
+		char const *const end(buffer + length - m_ - 1);
+		char const *current(buffer);
+		while (current < end)
         {
-            size_t j = m_;
-            while (j > 0 && buffer[pos + j - 1] == p_[j - 1]) --j;
-            if (j == 0)
-                //ASSERT_TRUE(hits.insert(pos + already).second);
-				hits.insert(pos + already);
-            pos += d_[static_cast<char unsigned>(buffer[pos + m_ - 1])];
+            int j = m_ - 1;
+            while (j != -1 && current[j] == p_[j]) --j;
+            if (j == -1) //hits.insert(current - buffer + already);
+				++hits;
+            current += d_[static_cast<char unsigned>(current[m_ - 1])];
         }
     }
 
 protected:
     size_t m_;
-    vector<size_t> d_;
-    string p_;
+    size_t d_[1 << CHAR_BIT];
+    char const *p_;
 };
 
 class MultiHorspool : public SearchInstance
