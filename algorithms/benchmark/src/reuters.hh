@@ -14,18 +14,23 @@ public:
 class Reuters21578 : public testing::Test
 {
 protected:
-    static char const *const KEYWORD_FILES[];
-
+	//Reuters21578();
+	//virtual ~Reuters21578();
     virtual void SetUp();
     virtual void TearDown();
 
     void search_wrapper(SearchInstance &search_function);
+	size_t actual_hit_count() const;
 
     inline Keywords const &keywords() const { return keywords_; }
 
     Hits hits_;
 
 private:
+    static char const *const KEYWORD_FILES[];
+
+	static size_t expected_hit_count();
+
     Keywords keywords_;
-    //std::vector<std::vector<char> > haystacks_;
+	double search_time_;
 };

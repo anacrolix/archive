@@ -8,7 +8,8 @@ std::vector<size_t> SGM_TOTAL_BYTES(22);
 
 int main(int argc, char **argv)
 {
-    testing::GTEST_FLAG(print_time) = true;
+    //testing::GTEST_FLAG(print_time) = true;
+	testing::GTEST_FLAG(catch_exceptions) = true;
     testing::InitGoogleTest(&argc, argv);
     if (argc == 2)
     {
@@ -18,10 +19,9 @@ int main(int argc, char **argv)
     assert(SGM_FILE_COUNT >= 1 && SGM_FILE_COUNT <= 22);
     SGM_TOTAL_BYTES.at(0) = 1324350;
     SGM_TOTAL_BYTES.at(21) = 27636766;
-    return RUN_ALL_TESTS();
+    int retcode = RUN_ALL_TESTS();
+#ifdef WIN32
+	system("pause");
+#endif
+	return retcode;
 }
-
-TEST(Empty, Empty)
-{
-}
-

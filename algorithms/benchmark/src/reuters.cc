@@ -1,8 +1,8 @@
 #include "reuters.hh"
 #include "flags.hh"
+#include "xplatform.h"
 #include <boost/filesystem.hpp>
 #include <fstream>
-
 
 using namespace std;
 using namespace boost::filesystem;
@@ -19,15 +19,15 @@ void Reuters21578::SetUp()
     {
         string keyword_filename(string("all-") + *keyword_filename_fragment + "-strings.lc.txt");
         path keyword_filepath(path("reuters21578") / keyword_filename);
-        std::cout << keyword_filepath << std::endl;
+        //std::cout << keyword_filepath << std::endl;
         // read the keyword file in text mode
         std::ifstream keyword_stream(keyword_filepath.string().c_str());
         // turn on all exceptions
-        keyword_stream.exceptions(ifstream::badbit);
+		keyword_stream.exceptions(ifstream::badbit);
         while (keyword_stream.good())
         {
             string keyword;
-            getline(keyword_stream, keyword);
+			getline(keyword_stream, keyword);
             if (!keyword.empty())
             {
                 //std::cout << keyword << std::endl;
@@ -37,9 +37,60 @@ void Reuters21578::SetUp()
     }
     ASSERT_EQ(672, keywords_.size());
     hits_.resize(keywords_.size());
+	//search_start_time_ = process_execution_time();
 }
 
 void Reuters21578::TearDown()
+{
+	ASSERT_EQ(expected_hit_count(), actual_hit_count());
+    //std::cout << "total hits: " << actual_hit_count() << std::endl;
+	cout << "search time: " << search_time_ << endl;
+}
+
+void Reuters21578::search_wrapper(SearchInstance &search_function)
+{
+    size_t bytes_searched = 0;
+	search_time_ = 0.0;
+    for (size_t i = 0; i < SGM_FILE_COUNT; ++i)
+    {
+		ostringstream input_filename_fragment;
+		input_filename_fragment << std::setw(3) << std::setfill('0') << i;
+        string input_filename(string("reut2-") + input_filename_fragment.str() + ".sgm");
+        path input_filepath = path("reuters21578") / input_filename;
+        vector<char> buffer(0x200000); // 2MiB
+#if 0
+        std::cout << input_filepath << std::endl;
+#else
+		std::cout << ".";// << std::flush;
+#endif
+        ifstream input_filestream(input_filepath.string().c_str());
+		input_filestream.exceptions(ifstream::badbit);
+        while (input_filestream.good())
+        {
+            input_filestream.read(&buffer[0], buffer.size());
+            ASSERT_LT(size_t(input_filestream.gcount()), buffer.size());
+            buffer[input_filestream.gcount()] = '\0';
+            ASSERT_EQ(input_filestream.gcount(), strlen(&buffer[0]));
+			{
+				double search_start_time = process_execution_time();
+				search_function(&buffer[0], input_filestream.gcount(), bytes_searched, hits_);
+				search_time_ += process_execution_time() - search_start_time;
+			}
+            bytes_searched += input_filestream.gcount();
+        }
+    }
+    ASSERT_EQ(SGM_TOTAL_BYTES.at(SGM_FILE_COUNT - 1), bytes_searched);
+}
+
+size_t Reuters21578::expected_hit_count()
+{
+	vector<size_t> ehc(22);
+	ehc.at(0) = 16193;
+	ehc.at(21) = 332056;
+	return ehc.at(SGM_FILE_COUNT - 1);
+}
+
+size_t Reuters21578::actual_hit_count() const
 {
     size_t total_hits = 0;
     for (   Hits::const_iterator hit_it(hits_.begin());
@@ -47,31 +98,21 @@ void Reuters21578::TearDown()
     {
         total_hits += hit_it->size();
     }
-    std::cout << "total hits: " << total_hits << std::endl;
+	return total_hits;
 }
 
-void Reuters21578::search_wrapper(SearchInstance &search_function)
+#if 0
+class Empty : public Reuters21578
 {
-    size_t bytes_searched = 0;
-    for (size_t i = 0; i < SGM_FILE_COUNT; ++i)
-    {
-        char input_filename_fragment[4];
-        ASSERT_EQ(3, snprintf(input_filename_fragment, sizeof(input_filename_fragment), "%03zu", i));
-        string input_filename(string("reut2-") + input_filename_fragment + ".sgm");
-        path input_filepath = path("reuters21578") / input_filename;
-        char buffer[0x200000]; // 2MiB
-        std::cout << input_filepath << std::endl;
-        ifstream input_filestream(input_filepath.string().c_str());
-        input_filestream.exceptions(ifstream::badbit);
-        while (input_filestream.good())
-        {
-            input_filestream.read(buffer, sizeof(buffer));
-            ASSERT_LT(input_filestream.gcount(), sizeof(buffer));
-            buffer[input_filestream.gcount()] = '\0';
-            ASSERT_EQ(input_filestream.gcount(), strlen(buffer));
-            search_function(buffer, input_filestream.gcount(), bytes_searched, hits_);
-            bytes_searched += input_filestream.gcount();
-        }
-    }
-    ASSERT_EQ(SGM_TOTAL_BYTES.at(SGM_FILE_COUNT - 1), bytes_searched);
+private:
+	virtual void TearDown()
+	{
+		actual_hit_count();
+		actual_hit_count();
+	}
+};
+
+TEST_F(Empty, Empty)
+{
 }
+#endif

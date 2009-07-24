@@ -25,10 +25,11 @@ public:
         while (pos <= length - m_)
         {
             size_t j = m_;
-            while (j > 0 && buffer[pos + j - 1] == p_.at(j - 1)) --j;
+            while (j > 0 && buffer[pos + j - 1] == p_[j - 1]) --j;
             if (j == 0)
-                ASSERT_TRUE(hits.insert(pos + already).second);
-            pos += d_.at(static_cast<char unsigned>(buffer[pos + m_ - 1]));
+                //ASSERT_TRUE(hits.insert(pos + already).second);
+				hits.insert(pos + already);
+            pos += d_[static_cast<char unsigned>(buffer[pos + m_ - 1])];
         }
     }
 
@@ -49,7 +50,7 @@ public:
         }
     }
 
-    virtual void operator()(char const *const buffer, size_t const length, size_t const already, Hits &hits)
+    virtual void operator()(char const *buffer, size_t length, size_t already, Hits &hits)
     {
         ASSERT_EQ(hits.size(), horspools_.size());
         for (size_t i = 0; i < horspools_.size(); ++i)

@@ -5,7 +5,7 @@ class StrStr : public SearchInstance
 public:
     StrStr(Keywords const &keywords) : keywords_(keywords) {}
 
-    virtual void operator()(char const *const buffer, size_t length, size_t already, Hits &hits)
+    virtual void operator()(char const *buffer, size_t length, size_t already, Hits &hits)
     {
         for (Keywords::const_iterator kw_it(keywords_.begin());
             kw_it != keywords_.end(); ++kw_it)
