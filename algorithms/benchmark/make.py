@@ -2,11 +2,12 @@
 
 from pybake import *
 import pybake.lang.cxx.gcc as cxx
-import glob
+from glob import glob
 
 gtest = LibraryConfig("gtest-config")
-CXXFLAGS = ["-Wall", "-O3"] + gtest(["--cxxflags"])
-LDFLAGS = gtest(["--libs"]) + ["-lboost_system-mt"]
-cxx.executable("benchmark", glob.glob("src/*.cc"), CXXFLAGS, LDFLAGS)
+python = LibraryConfig("python-config")
+CXXFLAGS = gtest(["--cxxflags"]) + python(["--includes"]) + ["-Wall", "-O2", "-g"]
+LDFLAGS = gtest(["--libs"]) + python(["--libs"]) + ["-lboost_system-mt", "-O2", "-g"]
+cxx.executable("benchmark", glob("src/*.cc") + glob("src/*.cpp"), CXXFLAGS, LDFLAGS)
 
 pybake_main()

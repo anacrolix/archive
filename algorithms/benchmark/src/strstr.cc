@@ -7,17 +7,12 @@ public:
 
     virtual void operator()(char const *buffer, size_t length, size_t already, Hits &hits)
     {
-        for (Keywords::const_iterator kw_it(keywords_.begin());
-            kw_it != keywords_.end(); ++kw_it)
+        for (size_t kw_i = 0; kw_i < keywords_.size(); ++kw_i)
         {
-            for (char const *where = buffer; (where = strstr(where, kw_it->c_str())) != NULL; ++where)
-            {
-                size_t offset = where - buffer + already;
-                size_t keyword_index = std::distance(keywords_.begin(), kw_it);
-                //std::cout << kw_it->c_str() << ": " << offset << std::endl;
-                //ASSERT_TRUE(hits.at(keyword_index).insert(offset).second);
-				hits[keyword_index] += 1;
-            }
+            for (   char const *where = buffer;
+                    (where = strstr(where, keywords_[kw_i].c_str())) != NULL;
+                    ++where)
+                hits[kw_i] += 1;
         }
     }
 

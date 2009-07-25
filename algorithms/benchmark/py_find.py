@@ -21,11 +21,23 @@ def strfind(keywords, buffer):
             else: hits += 1
     return hits
 
-def blah():
-    buffer = open("reuters21578/reut2-000.sgm", "rb").read()
-    print strfind(keywords, buffer)
+def str_count(keywords, buffer):
+    hits = 0
+    for kw in keywords:
+        hits += buffer.count(kw)
+    return hits
+
+def re_count(keywords, buffer):
+    """This does not work as intended, I think it returns one match where there could be several"""
+    import re
+    hits = 0
+    pattern = "|".join([re.escape(kw) for kw in keywords])
+    for match in re.finditer(pattern, buffer):
+        hits += len(match.groups())
+    return hits
 
 if __name__ == "__main__":
+    buffer = open("reuters21578/reut2-000.sgm", "rb").read()
     start = time.time()
-    blah()
+    print re_count(keywords, buffer)
     print time.time() - start

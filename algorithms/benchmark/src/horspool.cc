@@ -10,13 +10,13 @@ public:
     :   m_(pattern.size()),
         p_(pattern.c_str())
     {
-		for (size_t j = 0; j < 1 << CHAR_BIT; ++j)
-		{
-			d_[j] = m_;
-		}
+        for (size_t j = 0; j < 1 << CHAR_BIT; ++j)
+        {
+            d_[j] = m_;
+        }
         for (size_t j = 0; j < m_ - 1; ++j)
         {
-            d_[pattern.at(j)] = m_ - j - 1;
+            d_[static_cast<char unsigned>(pattern.at(j))] = m_ - j - 1;
         }
     }
 
@@ -24,14 +24,14 @@ public:
             char const *const buffer,
             size_t const length, size_t const already, Hits::value_type &hits)
     {
-		char const *const end(buffer + length - m_ - 1);
-		char const *current(buffer);
-		while (current < end)
+        char const *const end(buffer + length - m_ - 1);
+        char const *current(buffer);
+        while (current < end)
         {
             int j = m_ - 1;
             while (j != -1 && current[j] == p_[j]) --j;
             if (j == -1) //hits.insert(current - buffer + already);
-				++hits;
+                ++hits;
             current += d_[static_cast<char unsigned>(current[m_ - 1])];
         }
     }
