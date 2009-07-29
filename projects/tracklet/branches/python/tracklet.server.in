@@ -1,0 +1,25 @@
+<oaf_info>
+<oaf_server iid="@BONOBO_FACTORY_IID@" type="exe" location="@PREFIX@/@APPLET_RELPATH@/@PACKAGE_NAME@">
+
+    <oaf_attribute name="repo_ids" type="stringv">
+        <item value="IDL:Bonobo/GenericFactory:1.0"/>
+        <item value="IDL:Bonobo/Unknown:1.0"/>
+    </oaf_attribute>
+    <oaf_attribute name="name" type="string" value="???"/>
+    <oaf_attribute name="description" type="string" value="???"/>
+</oaf_server>
+
+<oaf_server iid="@BONOBO_APPLET_IID@" type="factory"
+    location="@BONOBO_FACTORY_IID@">
+
+        <oaf_attribute name="repo_ids" type="stringv">
+        <item value="IDL:GNOME/Vertigo/PanelAppletShell:1.0"/>
+        <item value="IDL:Bonobo/Control:1.0"/>
+        <item value="IDL:Bonobo/Unknown:1.0"/>
+    </oaf_attribute>
+    <oaf_attribute name="name" type="string" value="@APPLET_FULLNAME@"/>
+    <oaf_attribute name="description" type="string" value="@APPLET_DESCRIPTION@"/>
+    <oaf_attribute name="panel:category" type="string" value="Multimedia"/>
+    <oaf_attribute name="panel:icon" type="string" value="@PREFIX@/share/icons/gnome/24x24/stock/generic/stock_trash_full.png"/>
+</oaf_server>
+</oaf_info>
