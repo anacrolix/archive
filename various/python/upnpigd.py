@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import collections
+import pdb
 import socket
 import urllib
+from xml.etree.ElementTree import ElementTree
 
 PORT = 1900
 UPNP_MCAST_ADDR = "239.255.255.250"
@@ -19,7 +21,10 @@ DEVICES = (
         "urn:schemas-upnp-org:service:WANPPPConnection:1",
         "upnp:rootdevice")
 
-MSearchReply = collections.namedtuple("MSearchReply", ["response", "headers"])
+MSearchReply = collections.namedtuple("MSearchReply",
+        ["response", "headers"])
+UPnPService = collections.namedtuple("UPnPService",
+        ["serviceType", "serviceId", "controlURL", "eventSubURL", "SCPDURL"])
 
 def __parse_msearch_reply(packet):
     print repr(packet)
@@ -34,8 +39,19 @@ def __parse_msearch_reply(packet):
             headers[keyword.upper()] = value.lstrip(" ")
     return MSearchReply(response=lines[0], headers=headers)
 
-def __parse_root_desc(device):
-    print urllib.urlopen(device[0]).read()
+ROOTSPEC_XMLNS = "urn:schemas-upnp-org:device-1-0"
+
+def __parse_rootspec(location):
+    tree = ElementTree()
+    tree.parse(urllib.urlopen(location))
+    services = []
+    for service_element in tree.findall("//{%s}service" % (ROOTSPEC_XMLNS,)):
+        data = {}
+        for field in UPnPService._fields:
+            data[field] = service_element.find("{%s}%s" % (ROOTSPEC_XMLNS, field)).text
+        else:
+            services.append(UPnPService(**data))
+    return services
 
 def discover():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -58,5 +74,12 @@ def discover():
         if len(devlist): break
     return devlist
 
+def selectigd(devices):
+    for d in devices:
+        services = __parse_rootspec(d[0])
+        for s in services:
+            if s.serviceType == "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1":
+
+
 devices = discover()
-__parse_root_desc(devices.pop())
+selectigd(devices)

@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <URLBase>http://192.168.0.1:49152</URLBase>
+    <device>
+    <deviceType>urn:schemas-upnp-org:device:InternetGatewayDevice:1</deviceType>
+    <friendlyName>Netgear DG834 Router</friendlyName>
+    <manufacturer>Netgear</manufacturer>
+    <manufacturerURL>www.netgear.com</manufacturerURL>
+    <modelDescription>Netgear DG834 Router</modelDescription>
+    <modelName>ADSL Firewall Router</modelName>
+    <modelNumber>DG834</modelNumber>
+    <modelURL>www.netgear.com</modelURL>
+    <serialNumber>123123123</serialNumber>
+    <UDN>uuid:824ff22b-8c7d-41c5-a131-44f534e12555</UDN>
+        <serviceList>
+            <service>
+                <serviceType>urn:schemas-microsoft-com:service:OSInfo:1</serviceType>
+                <serviceId>urn:upnp-org:serviceId:OSInfo</serviceId>
+                <controlURL>/upnp/control/OSInfo</controlURL>
+                <eventSubURL>/upnp/event/OSInfo</eventSubURL>
+                <SCPDURL>/osinfo.xml</SCPDURL>
+            </service>
+        </serviceList>
+        <deviceList>
+            <device>
+                <deviceType>urn:schemas-upnp-org:device:WANDevice:1</deviceType>
+                <friendlyName>WANDevice</friendlyName>
+                <manufacturer>NetGear</manufacturer>
+                <manufacturerURL>http://www.netgear.com/</manufacturerURL>
+                <modelDescription>Residential Gateway</modelDescription>
+                <modelName>Internet Connection Sharing</modelName>
+                <modelNumber>1</modelNumber>
+                <modelURL>http://www.netgear.com/</modelURL>
+                <serialNumber>0000001</serialNumber>
+                <UDN>uuid:1530e563-3dfd-4556-bd78-c3908737a823</UDN>
+                <UPC>DG834</UPC>
+                <serviceList>
+                    <service>
+                        <serviceType>urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1</serviceType>
+                        <serviceId>urn:upnp-org:serviceId:WANCommonInterfaceConfig</serviceId>
+                        <controlURL>/upnp/control/WANCommonInterfaceConfig</controlURL>
+                        <eventSubURL>/upnp/event/WANCommonInterfaceConfig</eventSubURL>
+                        <SCPDURL>/cmnicfg.xml</SCPDURL>
+                    </service>
+                </serviceList>
+                <deviceList>
+                    <device>
+                        <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
+                        <friendlyName>WANConnectionDevice</friendlyName>
+                        <manufacturer>NetGear</manufacturer>
+                        <manufacturerURL>http://www.netgear.com/</manufacturerURL>
+                        <modelDescription>Residential Gateway</modelDescription>
+                        <modelName>Internet Connection Sharing</modelName>
+                        <modelNumber>1</modelNumber>
+                        <modelURL>http://www.netgear.com/</modelURL>
+                        <serialNumber>0000001</serialNumber>
+                        <UDN>uuid:ab5d9077-0710-4373-a4ea-5192c8781666</UDN>
+                        <UPC>DG834</UPC>
+                        <serviceList>
+                            <service>
+                                <serviceType>urn:schemas-upnp-org:service:WANIPConnection:1</serviceType>
+                                <serviceId>urn:upnp-org:serviceId:WANIPConnection</serviceId>
+                                <controlURL>/upnp/control/WANIPConnection</controlURL>
+                                <eventSubURL>/upnp/event/WANIPConnection</eventSubURL>
+                                <SCPDURL>/ipcfg.xml</SCPDURL>
+                            </service>
+                        </serviceList>
+                    </device>
+                </deviceList>
+            </device>
+        </deviceList>
+<presentationURL>http://192.168.0.1/</presentationURL>
+    </device>
+</root>
+
