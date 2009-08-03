@@ -3,6 +3,7 @@
 import collections
 import pdb
 import socket
+import sys
 import urllib2
 from xml.etree.ElementTree import ElementTree
 
@@ -59,8 +60,12 @@ def __parse_rootspec(location):
 
 def discover():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(("", PORT))
+    if sys.platform == 'win32':
+        optname = socket.SO_EXCLUSIVEADDRUSE
+    else:
+        optname = socket.SO_REUSEADDR
+    s.setsockopt(socket.SOL_SOCKET, optname, 1)
+    s.bind((str(), PORT))
     for device in DEVICES:
         packet = M_SEARCH_MSG_FMT % (device,)
         #print repr(packet)
