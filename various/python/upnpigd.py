@@ -44,16 +44,20 @@ def __parse_msearch_reply(packet):
 
 ROOTSPEC_XMLNS = "urn:schemas-upnp-org:device-1-0"
 
-def __parse_rootspec(location):
-    tree = ElementTree()
-    tree.parse(urllib2.urlopen(location))
+def _parse_rootspec(file):
+    """Can take a file object or path. Returns a list of UPnPServices."""
+    tree = ElementTree(file=file)
+    #tree.parse(urllib2.urlopen(location))
     services = []
     url_base = tree.find("{%s}%s" % (ROOTSPEC_XMLNS, "URLBase")).text
     for service_element in tree.findall("//{%s}service" % (ROOTSPEC_XMLNS,)):
         data = {}
         for field in UPnPService._fields:
             value = service_element.find("{%s}%s" % (ROOTSPEC_XMLNS, field)).text
-            if field[-len("URL"):] == "URL": value = url_base + value
+            if field[-len("URL"):] == "URL":
+                # try and prepend the url base if the value supports it
+                try: value = url_base + value
+                except TypeError: pass
             data[field] = value
         else:
             services.append(UPnPService(**data))
@@ -85,7 +89,7 @@ def discover():
 
 def selectigd(devices):
     for d in devices:
-        services = __parse_rootspec(d[0])
+        services = _parse_rootspec(urllib2.urlopen(d[0]))
         for s in services:
             if s.serviceType == "urn:schemas-upnp-org:service:WANIPConnection:1":
                 return WANIPConnection(s)
@@ -155,15 +159,16 @@ class WANIPConnection(object):
     def GetGenericPortMappingEntry(self, index):
         return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
 
-devices = discover()
-igd = selectigd(devices)
-print igd.GetExternalIPAddress()
-for index in itertools.count():
-    try:
-        print igd.GetGenericPortMappingEntry(index)
-    except UPnPError as e:
-        assert e.http_code == 500
-        break
+if __name__ == "__main__":
+    devices = discover()
+    igd = selectigd(devices)
+    print igd.GetExternalIPAddress()
+    for index in itertools.count():
+        try:
+            print igd.GetGenericPortMappingEntry(index)
+        except UPnPError as e:
+            assert e.http_code == 500
+            break
 
 """ SOAP REQUEST DUMPS
 
