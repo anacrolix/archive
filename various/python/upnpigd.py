@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import collections
+import itertools
 import pdb
 import socket
 import sys
@@ -91,8 +92,17 @@ def selectigd(devices):
     else:
         return None
 
-def _simple_upnp_command(url, service, action, args=None):
-    assert args == None
+class UPnPError:
+    def __init__(self, http_headers, body_file, http_code):
+        self.http_headers = http_headers
+        self.body_file = body_file
+        self.http_code = http_code
+    def __str__(self):
+        return "UPnPError: HTTP Response %d" % self.http_code
+
+def _simple_upnp_command(action, action_args, service_type, service_id, control_url):
+    """Returns the file-like URL response"""
+    # generate SOAP envelope with a UPNP service action
     body = \
             ('<?xml version="1.0"?>\r\n' + \
             '<s:Envelope' + \
@@ -100,29 +110,60 @@ def _simple_upnp_command(url, service, action, args=None):
                     ' s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' + \
                 '<s:Body>' + \
                     '<u:%s xmlns:u="%s">' + \
+                        # here is the argument payload
+                        '%%s' + \
                     '</u:%s>' + \
                 '</s:Body>' + \
             '</s:Envelope>' + \
-        '\r\n') % (action, service, action)
-    request = urllib2.Request(url, body)
-    request.add_header("SOAPAction", '"%s#%s"' % (service, action))
+        '\r\n') % (action, service_type, action)
+    # build up UPNP command argument XML
+    upnp_args_xml = str()
+    for element, value in action_args.iteritems():
+        upnp_args_xml += '<%s>%s</%s>' % (element, value, element)
+    # insert the arguments into the SOAP envelope
+    body = body % (upnp_args_xml,)
+    # make the SOAP request
+    request = urllib2.Request(control_url, body)
+    request.add_header("SOAPAction", '"%s#%s"' % (service_type, action))
     request.add_header("Content-Type", "text/xml")
-    f = urllib2.urlopen(request)
-    return f
+    #return urllib2.urlopen(request)
+    params = {}
+    try:
+        f = urllib2.urlopen(request)
+    except urllib2.HTTPError as e:
+        raise UPnPError(e.hdrs, e.fp, e.code)
+    xml_response = ElementTree(file=f)
+    for element in xml_response.find("//{%s}%sResponse" % (service_id, action)).getchildren():
+        params[element.tag] = element.text
+    return params
 
 class WANIPConnection(object):
     def __init__(self, upnp_service):
         self.upnp_service = upnp_service
+    def _simple_upnp_command(self, action, **args):
+        return _simple_upnp_command(
+                action,
+                args,
+                *self.upnp_service[0:3])
     def GetExternalIPAddress(self):
-        reply = _simple_upnp_command(
-                self.upnp_service.controlURL,
-                self.upnp_service.serviceType,
-                "GetExternalIPAddress")
-        return ElementTree(file=reply).find("//NewExternalIPAddress").text
+        reply = self._simple_upnp_command("GetExternalIPAddress")
+        return reply['NewExternalIPAddress']
+        #return ElementTree(file=reply).find("//NewExternalIPAddress").text
+    def GetPortMappingNumberOfEntries(self):
+        reply = self._simple_upnp_command("GetPortMappingNumberOfEntries")
+        print reply.read()
+    def GetGenericPortMappingEntry(self, index):
+        return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
 
 devices = discover()
 igd = selectigd(devices)
 print igd.GetExternalIPAddress()
+for index in itertools.count():
+    try:
+        print igd.GetGenericPortMappingEntry(index)
+    except UPnPError as e:
+        assert e.http_code == 500
+        break
 
 """ SOAP REQUEST DUMPS
 
