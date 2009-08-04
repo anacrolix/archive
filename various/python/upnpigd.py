@@ -23,6 +23,8 @@ DEVICES = (
         "urn:schemas-upnp-org:service:WANPPPConnection:1",
         "upnp:rootdevice"
     )
+IGD_SERVICE_TYPES = DEVICES[1:3]
+#print IGD_SERVICE_TYPES
 
 MSearchReply = collections.namedtuple("MSearchReply",
         ["response", "headers"])
@@ -56,7 +58,7 @@ def _parse_rootspec(file):
             value = service_element.find("{%s}%s" % (ROOTSPEC_XMLNS, field)).text
             if field[-len("URL"):] == "URL":
                 # try and prepend the url base if the value supports it
-                try: value = url_base + value
+                try: value = url_base.rstrip("/") + value
                 except TypeError: pass
             data[field] = value
         else:
@@ -91,10 +93,9 @@ def selectigd(devices):
     for d in devices:
         services = _parse_rootspec(urllib2.urlopen(d[0]))
         for s in services:
-            if s.serviceType == "urn:schemas-upnp-org:service:WANIPConnection:1":
+            if s.serviceType in IGD_SERVICE_TYPES:
+            #if s.serviceType == "urn:schemas-upnp-org:service:WANIPConnection:1":
                 return WANIPConnection(s)
-    else:
-        return None
 
 class UPnPError:
     def __init__(self, http_headers, body_file, http_code):
