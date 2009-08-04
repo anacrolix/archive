@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 import collections
+import io
+import httplib
 import itertools
 import pdb
 import socket
 import sys
 import urllib2
-from xml.etree.ElementTree import ElementTree
+import xml.etree.ElementTree as etree
 
 PORT = 1900
 UPNP_MCAST_ADDR = "239.255.255.250"
@@ -33,6 +35,7 @@ UPnPService = collections.namedtuple("UPnPService",
 
 def __parse_msearch_reply(packet):
     #print repr(packet)
+    log.debug("msearch reply: " + repr(packet))
     lines = packet.split("\r\n")[:-2]
     headers = {}
     for l in lines[1:]:
@@ -46,9 +49,11 @@ def __parse_msearch_reply(packet):
 
 ROOTSPEC_XMLNS = "urn:schemas-upnp-org:device-1-0"
 
-def _parse_rootspec(file):
+def _parse_rootspec(rootspec):
     """Can take a file object or path. Returns a list of UPnPServices."""
-    tree = ElementTree(file=file)
+    rootspec = io.BytesIO(rootspec.read())
+    log.debug("Parsing UPnP root spec: " + repr(rootspec.getvalue()))
+    tree = etree.ElementTree(file=rootspec)
     #tree.parse(urllib2.urlopen(location))
     services = []
     url_base = tree.find("{%s}%s" % (ROOTSPEC_XMLNS, "URLBase")).text
@@ -80,7 +85,7 @@ def discover():
         s.sendto(packet, (UPNP_MCAST_ADDR, PORT))
     devlist = set()
     while True:
-        s.settimeout(2.0) # wait 1s before giving up
+        s.settimeout(1.0) # wait 1s before giving up
         try:
             reply = __parse_msearch_reply(s.recv(1536))
         except socket.timeout:
@@ -97,13 +102,13 @@ def selectigd(devices):
             #if s.serviceType == "urn:schemas-upnp-org:service:WANIPConnection:1":
                 return WANIPConnection(s)
 
-class UPnPError:
-    def __init__(self, http_headers, body_file, http_code):
-        self.http_headers = http_headers
-        self.body_file = body_file
-        self.http_code = http_code
-    def __str__(self):
-        return "UPnPError: HTTP Response %d" % self.http_code
+class UPnPError(Exception):
+    def __init__(self, message, status=None):
+        #assert len(args) >= 1
+        Exception.__init__(self, message)
+        log.error(message)
+    #def __str__(self):
+        #return "UPnPError"
 
 def _simple_upnp_command(action, action_args, service_type, service_id, control_url):
     """Returns the file-like URL response"""
@@ -133,12 +138,24 @@ def _simple_upnp_command(action, action_args, service_type, service_id, control_
     request.add_header("Content-Type", "text/xml")
     #return urllib2.urlopen(request)
     params = {}
+
     try:
-        f = urllib2.urlopen(request)
+        http_response = urllib2.urlopen(request)
     except urllib2.HTTPError as e:
-        raise UPnPError(e.hdrs, e.fp, e.code)
-    xml_response = ElementTree(file=f)
-    for element in xml_response.find("//{%s}%sResponse" % (service_id, action)).getchildren():
+        raise UPnPError("Received %s while opening %s" % (repr(str(e)), request.get_full_url()))
+    f = io.BytesIO(http_response.read())
+    xml_response = etree.ElementTree(file=f)
+    #xml_response.parse(f)
+    #xml_response = etree.fromstring(f)
+    #f.seek(0)
+    for respns in (service_id, service_type):
+    #for respns in (service_type,):
+        # response element
+        respelt = xml_response.find("//{%s}%sResponse" % (respns, action))
+        if respelt: break
+    else:
+        raise UPnPError("Failed to parse SOAP response: " + repr(f.getvalue()))
+    for element in respelt.getchildren():
         params[element.tag] = element.text
     return params
 
@@ -156,19 +173,36 @@ class WANIPConnection(object):
         #return ElementTree(file=reply).find("//NewExternalIPAddress").text
     def GetPortMappingNumberOfEntries(self):
         reply = self._simple_upnp_command("GetPortMappingNumberOfEntries")
-        print reply.read()
+        return reply
     def GetGenericPortMappingEntry(self, index):
         return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
 
+def _configure_logger(logfile_path):
+    import logging
+    global log
+    log = logging.getLogger("upnpidg")
+    log.setLevel(logging.DEBUG)
+    fmtr = logging.Formatter("%(name)s:%(levelname)s:%(message)s")
+    fh = logging.FileHandler(logfile_path, "wb")
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(fmtr)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.CRITICAL)
+    ch.setFormatter(fmtr)
+    log.addHandler(ch)
+    log.addHandler(fh)
+
 if __name__ == "__main__":
+    _configure_logger("log.upnpigd")
+    #logging.error("test blah\0")
     devices = discover()
     igd = selectigd(devices)
     print igd.GetExternalIPAddress()
     for index in itertools.count():
         try:
             print igd.GetGenericPortMappingEntry(index)
-        except UPnPError as e:
-            assert e.http_code == 500
+        except UPnPError:
+            #assert e.http_code == 500
             break
 
 """ SOAP REQUEST DUMPS
