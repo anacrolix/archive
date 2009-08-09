@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
+import atexit
+import code
 import collections
 import io
 import httplib
 import itertools
+import os
 import pdb
 import socket
 import sys
+import time
 import urllib2
+import urlparse
 import xml.etree.ElementTree as etree
 
 PORT = 1900
@@ -35,7 +40,7 @@ UPnPService = collections.namedtuple("UPnPService",
 
 def __parse_msearch_reply(packet):
     #print repr(packet)
-    log.debug("msearch reply: " + repr(packet))
+    log.info("msearch reply: " + repr(packet))
     lines = packet.split("\r\n")[:-2]
     headers = {}
     for l in lines[1:]:
@@ -70,22 +75,22 @@ def _parse_rootspec(rootspec):
             services.append(UPnPService(**data))
     return services
 
-def discover():
+def discover(timeout=2.0):
+    # is the 3rd parameter even necessary?
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     if sys.platform == 'win32':
-        optname = socket.SO_EXCLUSIVEADDRUSE
-    else:
-        optname = socket.SO_REUSEADDR
-    s.setsockopt(socket.SOL_SOCKET, optname, 1)
-    s.bind((str(), PORT))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    s.bind(('', 0)) # replies come to whatever port bound to
     for device in DEVICES:
         packet = M_SEARCH_MSG_FMT % (device,)
         #print repr(packet)
-        s.settimeout(None) # block until data is sent
+        # data must go immediately, we don't want to stall or we might miss replies
+        s.settimeout(0.0)
         s.sendto(packet, (UPNP_MCAST_ADDR, PORT))
     devlist = set()
+    stop_receiving = time.time() + timeout
     while True:
-        s.settimeout(1.0) # wait 1s before giving up
+        s.settimeout(stop_receiving - time.time())
         try:
             reply = __parse_msearch_reply(s.recv(1536))
         except socket.timeout:
@@ -101,12 +106,21 @@ def selectigd(devices):
             if s.serviceType in IGD_SERVICE_TYPES:
             #if s.serviceType == "urn:schemas-upnp-org:service:WANIPConnection:1":
                 return WANIPConnection(s)
+    else:
+        log.debug("No UPnP IGD found")
+
+UPNP_ERROR_NAMESPACE = "urn:schemas-upnp-org:control-1-0"
 
 class UPnPError(Exception):
-    def __init__(self, message, status=None):
+    def __init__(self, message, soap=None, httpec=None):
         #assert len(args) >= 1
         Exception.__init__(self, message)
         log.error(message)
+        if soap != None:
+            xml = etree.ElementTree(file=io.BytesIO(soap))
+            #pdb.set_trace()
+            self.code = int(xml.find("//{%s}errorCode" % (UPNP_ERROR_NAMESPACE,)).text)
+            self.desc = xml.find("//{%s}errorDescription" % (UPNP_ERROR_NAMESPACE,)).text
     #def __str__(self):
         #return "UPnPError"
 
@@ -133,31 +147,55 @@ def _simple_upnp_command(action, action_args, service_type, service_id, control_
     # insert the arguments into the SOAP envelope
     body = body % (upnp_args_xml,)
     # make the SOAP request
+    log.debug("Sending SOAP request: " + repr(body))
     request = urllib2.Request(control_url, body)
     request.add_header("SOAPAction", '"%s#%s"' % (service_type, action))
     request.add_header("Content-Type", "text/xml")
-    #return urllib2.urlopen(request)
     params = {}
-
     try:
         http_response = urllib2.urlopen(request)
     except urllib2.HTTPError as e:
-        raise UPnPError("Received %s while opening %s" % (repr(str(e)), request.get_full_url()))
-    f = io.BytesIO(http_response.read())
-    xml_response = etree.ElementTree(file=f)
-    #xml_response.parse(f)
-    #xml_response = etree.fromstring(f)
-    #f.seek(0)
+        soap = e.fp.read()
+        raise UPnPError(
+                "Received %s while opening %s" % (repr(str(e)), request.get_full_url()),
+                soap=soap,
+                httpec=e.code)
+    else:
+        soap = http_response.read()
+    finally:
+        log.debug("SOAP Response: " + repr(soap))
+    xml_response = etree.ElementTree(file=io.BytesIO(soap))
     for respns in (service_id, service_type):
-    #for respns in (service_type,):
-        # response element
         respelt = xml_response.find("//{%s}%sResponse" % (respns, action))
-        if respelt: break
+        if respelt is not None: break
     else:
         raise UPnPError("Failed to parse SOAP response: " + repr(f.getvalue()))
     for element in respelt.getchildren():
         params[element.tag] = element.text
     return params
+
+"""
+    AddPortMappingArgs = calloc(9, sizeof(struct UPNParg));
+    AddPortMappingArgs[0].elt = "NewRemoteHost";
+    AddPortMappingArgs[0].val = remoteHost;
+    AddPortMappingArgs[1].elt = "NewExternalPort";
+    AddPortMappingArgs[1].val = extPort;
+    AddPortMappingArgs[2].elt = "NewProtocol";
+    AddPortMappingArgs[2].val = proto;
+    AddPortMappingArgs[3].elt = "NewInternalPort";
+    AddPortMappingArgs[3].val = inPort;
+    AddPortMappingArgs[4].elt = "NewInternalClient";
+    AddPortMappingArgs[4].val = inClient;
+    AddPortMappingArgs[5].elt = "NewEnabled";
+    AddPortMappingArgs[5].val = "1";
+    AddPortMappingArgs[6].elt = "NewPortMappingDescription";
+    AddPortMappingArgs[6].val = desc?desc:"libminiupnpc";
+    AddPortMappingArgs[7].elt = "NewLeaseDuration";
+    AddPortMappingArgs[7].val = "0";
+"""
+
+def getifname(remhost):
+    return socket.gethostbyname(socket.getfqdn())
 
 class WANIPConnection(object):
     def __init__(self, upnp_service):
@@ -169,13 +207,29 @@ class WANIPConnection(object):
                 *self.upnp_service[0:3])
     def GetExternalIPAddress(self):
         reply = self._simple_upnp_command("GetExternalIPAddress")
+        assert len(reply) == 1
         return reply['NewExternalIPAddress']
-        #return ElementTree(file=reply).find("//NewExternalIPAddress").text
     def GetPortMappingNumberOfEntries(self):
         reply = self._simple_upnp_command("GetPortMappingNumberOfEntries")
         return reply
     def GetGenericPortMappingEntry(self, index):
-        return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
+        try:
+            return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
+        except UPnPError as e:
+            if e.code == 402: return None
+            else: raise
+    def AddPortMapping(self, proto, intport, extport=None, inthost=None, desc=None, remhost=None):
+        #if inthost == None: inthost
+        return self._simple_upnp_command(
+                "AddPortMapping",
+                NewRemoteHost=remhost or '',
+                NewExternalPort=(extport if extport != None else intport),
+                NewProtocol=proto,
+                NewInternalPort=intport,
+                NewInternalClient=getifname(inthost or urlparse.urlsplit(self.upnp_service.controlURL).hostname),
+                NewEnabled="1",
+                NewPortMappingDescription=(desc or "upnpigd"),
+                NewLeaseDuration="0")
 
 def _configure_logger(logfile_path):
     import logging
@@ -193,77 +247,18 @@ def _configure_logger(logfile_path):
     log.addHandler(fh)
 
 if __name__ == "__main__":
+    atexit.register(lambda: os.system("pause"))
     _configure_logger("log.upnpigd")
     #logging.error("test blah\0")
     devices = discover()
     igd = selectigd(devices)
-    print igd.GetExternalIPAddress()
+    if not igd: sys.exit("No IGD devices were found")
+    print "External IP Address:", igd.GetExternalIPAddress()
+    igd.AddPortMapping("TCP", 1337)
+    print "UPnP port mappings in effect:"
     for index in itertools.count():
-        try:
-            print igd.GetGenericPortMappingEntry(index)
-        except UPnPError:
-            #assert e.http_code == 500
-            break
-
-""" SOAP REQUEST DUMPS
-
-0000   00 0f b5 7c 89 dc 00 1a 4d 5a 05 35 08 00 45 00  ...|....MZ.5..E.
-0010   02 88 f2 3c 40 00 40 06 c4 df c0 a8 00 02 c0 a8  ...<@.@.........
-0020   00 01 e0 ec c0 00 5d c6 8a 0d 7a 87 03 b4 80 18  ......]...z.....
-0030   00 2e a9 fc 00 00 01 01 08 0a 00 0c 78 36 00 78  ............x6.x
-0040   da 73 50 4f 53 54 20 2f 75 70 6e 70 2f 63 6f 6e  .sPOST /upnp/con
-0050   74 72 6f 6c 2f 57 41 4e 49 50 43 6f 6e 6e 65 63  trol/WANIPConnec
-0060   74 69 6f 6e 20 48 54 54 50 2f 31 2e 31 0d 0a 48  tion HTTP/1.1..H
-0070   6f 73 74 3a 20 31 39 32 2e 31 36 38 2e 30 2e 31  ost: 192.168.0.1
-0080   3a 34 39 31 35 32 0d 0a 55 73 65 72 2d 41 67 65  :49152..User-Age
-0090   6e 74 3a 20 44 65 62 69 61 6e 2f 34 2e 30 2c 20  nt: Debian/4.0,
-00a0   55 50 6e 50 2f 31 2e 30 2c 20 4d 69 6e 69 55 50  UPnP/1.0, MiniUP
-00b0   6e 50 63 2f 31 2e 32 0d 0a 43 6f 6e 74 65 6e 74  nPc/1.2..Content
-00c0   2d 4c 65 6e 67 74 68 3a 20 32 38 35 0d 0a 43 6f  -Length: 285..Co
-00d0   6e 74 65 6e 74 2d 54 79 70 65 3a 20 74 65 78 74  ntent-Type: text
-00e0   2f 78 6d 6c 0d 0a 53 4f 41 50 41 63 74 69 6f 6e  /xml..SOAPAction
-00f0   3a 20 22 75 72 6e 3a 73 63 68 65 6d 61 73 2d 75  : "urn:schemas-u
-0100   70 6e 70 2d 6f 72 67 3a 73 65 72 76 69 63 65 3a  pnp-org:service:
-0110   57 41 4e 49 50 43 6f 6e 6e 65 63 74 69 6f 6e 3a  WANIPConnection:
-0120   31 23 47 65 74 45 78 74 65 72 6e 61 6c 49 50 41  1#GetExternalIPA
-0130   64 64 72 65 73 73 22 0d 0a 43 6f 6e 6e 65 63 74  ddress"..Connect
-0140   69 6f 6e 3a 20 43 6c 6f 73 65 0d 0a 43 61 63 68  ion: Close..Cach
-0150   65 2d 43 6f 6e 74 72 6f 6c 3a 20 6e 6f 2d 63 61  e-Control: no-ca
-0160   63 68 65 0d 0a 50 72 61 67 6d 61 3a 20 6e 6f 2d  che..Pragma: no-
-0170   63 61 63 68 65 0d 0a 0d 0a 3c 3f 78 6d 6c 20 76  cache....<?xml v
-0180   65 72 73 69 6f 6e 3d 22 31 2e 30 22 3f 3e 0d 0a  ersion="1.0"?>..
-0190   3c 73 3a 45 6e 76 65 6c 6f 70 65 20 78 6d 6c 6e  <s:Envelope xmln
-01a0   73 3a 73 3d 22 68 74 74 70 3a 2f 2f 73 63 68 65  s:s="http://sche
-01b0   6d 61 73 2e 78 6d 6c 73 6f 61 70 2e 6f 72 67 2f  mas.xmlsoap.org/
-01c0   73 6f 61 70 2f 65 6e 76 65 6c 6f 70 65 2f 22 20  soap/envelope/"
-01d0   73 3a 65 6e 63 6f 64 69 6e 67 53 74 79 6c 65 3d  s:encodingStyle=
-01e0   22 68 74 74 70 3a 2f 2f 73 63 68 65 6d 61 73 2e  "http://schemas.
-01f0   78 6d 6c 73 6f 61 70 2e 6f 72 67 2f 73 6f 61 70  xmlsoap.org/soap
-0200   2f 65 6e 63 6f 64 69 6e 67 2f 22 3e 3c 73 3a 42  /encoding/"><s:B
-0210   6f 64 79 3e 3c 75 3a 47 65 74 45 78 74 65 72 6e  ody><u:GetExtern
-0220   61 6c 49 50 41 64 64 72 65 73 73 20 78 6d 6c 6e  alIPAddress xmln
-0230   73 3a 75 3d 22 75 72 6e 3a 73 63 68 65 6d 61 73  s:u="urn:schemas
-0240   2d 75 70 6e 70 2d 6f 72 67 3a 73 65 72 76 69 63  -upnp-org:servic
-0250   65 3a 57 41 4e 49 50 43 6f 6e 6e 65 63 74 69 6f  e:WANIPConnectio
-0260   6e 3a 31 22 3e 3c 2f 75 3a 47 65 74 45 78 74 65  n:1"></u:GetExte
-0270   72 6e 61 6c 49 50 41 64 64 72 65 73 73 3e 3c 2f  rnalIPAddress></
-0280   73 3a 42 6f 64 79 3e 3c 2f 73 3a 45 6e 76 65 6c  s:Body></s:Envel
-0290   6f 70 65 3e 0d 0a                                ope>..
-
-0000   50 4f 53 54 20 2f 75 70 6e 70 2f 63 6f 6e 74 72  POST /upnp/contr
-0010   6f 6c 2f 57 41 4e 49 50 43 6f 6e 6e 65 63 74 69  ol/WANIPConnecti
-0020   6f 6e 20 48 54 54 50 2f 31 2e 31 0d 0a 41 63 63  on HTTP/1.1..Acc
-0030   65 70 74 2d 45 6e 63 6f 64 69 6e 67 3a 20 69 64  ept-Encoding: id
-0040   65 6e 74 69 74 79 0d 0a 43 6f 6e 74 65 6e 74 2d  entity..Content-
-0050   4c 65 6e 67 74 68 3a 20 32 38 35 0d 0a 53 6f 61  Length: 285..Soa
-0060   70 61 63 74 69 6f 6e 3a 20 22 47 65 74 45 78 74  paction: "GetExt
-0070   65 72 6e 61 6c 49 50 41 64 64 72 65 73 73 22 0d  ernalIPAddress".
-0080   0a 48 6f 73 74 3a 20 31 39 32 2e 31 36 38 2e 30  .Host: 192.168.0
-0090   2e 31 3a 34 39 31 35 32 0d 0a 55 73 65 72 2d 41  .1:49152..User-A
-00a0   67 65 6e 74 3a 20 50 79 74 68 6f 6e 2d 75 72 6c  gent: Python-url
-00b0   6c 69 62 2f 32 2e 36 0d 0a 43 6f 6e 6e 65 63 74  lib/2.6..Connect
-00c0   69 6f 6e 3a 20 63 6c 6f 73 65 0d 0a 43 6f 6e 74  ion: close..Cont
-00d0   65 6e 74 2d 54 79 70 65 3a 20 74 65 78 74 2f 78  ent-Type: text/x
-00e0   6d 6c 0d 0a 0d 0a                                ml....
-
-"""
+        gpme = igd.GetGenericPortMappingEntry(index)
+        if gpme: print "\t" + str(gpme)
+        else: break
+    if index == 0:
+        print "\tNone"
