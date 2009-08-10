@@ -113,16 +113,16 @@ UPNP_ERROR_NAMESPACE = "urn:schemas-upnp-org:control-1-0"
 
 class UPnPError(Exception):
     def __init__(self, message, soap=None, httpec=None):
-        #assert len(args) >= 1
-        Exception.__init__(self, message)
-        log.error(message)
+        self.msg = message
         if soap != None:
             xml = etree.ElementTree(file=io.BytesIO(soap))
-            #pdb.set_trace()
             self.code = int(xml.find("//{%s}errorCode" % (UPNP_ERROR_NAMESPACE,)).text)
             self.desc = xml.find("//{%s}errorDescription" % (UPNP_ERROR_NAMESPACE,)).text
-    #def __str__(self):
-        #return "UPnPError"
+    def __str__(self):
+        rv = self.msg
+        if self.code or self.desc:
+            rv += ". UPnP error code: %u, %s" % (self.code, self.desc)
+        return rv
 
 def _simple_upnp_command(action, action_args, service_type, service_id, control_url):
     """Returns the file-like URL response"""
@@ -195,7 +195,11 @@ def _simple_upnp_command(action, action_args, service_type, service_id, control_
 """
 
 def getifname(remhost):
-    return socket.gethostbyname(socket.getfqdn())
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect((remhost, 0))
+    rv = s.getsockname()[0]
+    s.close()
+    return rv
 
 class WANIPConnection(object):
     def __init__(self, upnp_service):
@@ -247,7 +251,8 @@ def _configure_logger(logfile_path):
     log.addHandler(fh)
 
 if __name__ == "__main__":
-    atexit.register(lambda: os.system("pause"))
+    if sys.platform is 'win32':
+        atexit.register(lambda: os.system("pause"))
     _configure_logger("log.upnpigd")
     #logging.error("test blah\0")
     devices = discover()
