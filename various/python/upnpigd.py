@@ -220,7 +220,7 @@ class WANIPConnection(object):
         try:
             return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
         except UPnPError as e:
-            if e.code == 402: return None
+            if e.code in (402, 713): return None
             else: raise
     def AddPortMapping(self, proto, intport, extport=None, inthost=None, desc=None, remhost=None):
         #if inthost == None: inthost
