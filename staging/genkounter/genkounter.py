@@ -1,24 +1,27 @@
-#!/usr/local/env python
+#!/usr/bin/env python
 
 import gtk
 import random
 
 class EncounterWindow:
+
     def update_models(self):
         self.condstore.clear()
         for a in self.conditions:
             self.condstore.append((a,))
         self.statstore.clear()
-        for a, b in self.statii.iteritems():
+        for a in self.order:
+            b = self.statii[a]
             c = self.statstore.append(None, (a, str(b[0]), None))
             for d in b[1]:
                 self.statstore.append(c, (None, None, d))
+
     def drag_to_status(self, widget, drag_context, x, y, selection_data, info, timestamp):
         if selection_data.target == "condition":
             path, droppos = widget.get_dest_row_at_pos(x, y)
-            assert droppos in (
-                    gtk.TREE_VIEW_DROP_INTO_OR_BEFORE,
-                    gtk.TREE_VIEW_DROP_INTO_OR_AFTER)
+            #assert droppos in (
+            #        gtk.TREE_VIEW_DROP_INTO_OR_BEFORE,
+            #        gtk.TREE_VIEW_DROP_INTO_OR_AFTER)
             row = widget.get_model()[path]
             while row.parent:
                 row = row.parent
@@ -31,6 +34,7 @@ class EncounterWindow:
             widget.expand_row(path, False)
         else:
             assert False
+
     def drag_from_conditions(self, widget, drag_context, selection_data, info, timestamp):
         #print selection_data.get_targets()
         if selection_data.target == "condition":
@@ -42,18 +46,28 @@ class EncounterWindow:
         else:
             assert False
 
+    def next_turn(self, button):
+        self.order.append(self.order[0])
+        del self.order[0]
+        self.update_models()
+
     def setup_gui(self):
         window = gtk.Window()
         statstore = gtk.TreeStore(str, str, str)
         statview = gtk.TreeView(statstore)
         condstore = gtk.ListStore(str)
         condview = gtk.TreeView(condstore)
+        nextturn = gtk.Button("NEXT!!!")
 
-        a = gtk.HBox()
+        a = gtk.Table(rows=2, columns=2)
+        a.set_col_spacing(0, 5)
         window.add(a)
-        a.set_spacing(5)
-        a.pack_start(statview)
-        a.pack_start(condview, expand=False)
+        #b.set_spacing(5)
+        a.attach(statview, 0, 1, 0, 1)
+        a.attach(condview, 1, 2, 0, 1, xoptions=0)
+        b = gtk.HButtonBox()
+        b.add(nextturn)
+        a.attach(b, 0, 1, 1, 2, yoptions=0)
 
         window.set_title("Encounter")
         window.show_all()
@@ -67,19 +81,25 @@ class EncounterWindow:
         condview.drag_source_set(gtk.gdk.BUTTON1_MASK, [("condition", 0, 0)], gtk.gdk.ACTION_COPY)
         condview.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         condview.connect("drag-data-get", self.drag_from_conditions)
+        nextturn.connect("clicked", self.next_turn)
 
         self.statstore = statstore
         self.condstore = condstore
+
     def __init__(self, combatants):
         self.setup_gui()
         self.statii = {}
+        self.order = []
         self.conditions = set(["Immobilized", "Stunned", "Poisoned", "Marked"])
         for a, b in combatants.iteritems():
-            self.statii[a] = (random.randint(1, 20) + b, set([random.choice(list(self.conditions))]))
+            self.statii[a] = (random.randint(1, 20) + b, set())
+        self.order = map(lambda j: j[0], sorted(self.statii.iteritems(), key=lambda i: i[1][0], reverse=True))
+        print self.order
         print self.statii
         self.update_models()
 
 class AddCombatantDialog:
+
     def __init__(self, parent):
         dialog = gtk.Dialog("Add Combatant", parent,
                 buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
@@ -99,16 +119,20 @@ class AddCombatantDialog:
         self.dialog = dialog
         self.name_entry = name
         self.init_entry = init
+
     def run(self):
         response = self.dialog.run()
         self.dialog.hide()
         return response
+
     def get_name(self):
         return self.name_entry.get_text()
+
     def get_initiative(self):
         return self.init_entry.get_value_as_int()
 
 class MainWindow:
+
     def add_combatant(self, button):
         a = AddCombatantDialog(self.window)
         if a.run() == gtk.RESPONSE_OK:
@@ -139,11 +163,11 @@ class MainWindow:
         hbbox1 = gtk.HButtonBox()
 
         window.add(vbox1)
-        vbox1.add(hbox1)
+        vbox1.pack_start(hbox1)
         hbox1.pack_start(initview)
         hbox1.pack_start(vbbox1, expand=False)
         vbbox1.add(addcmbt)
-        vbox1.add(hbbox1)
+        vbox1.pack_start(hbbox1, expand=False)
         hbbox1.add(startenc)
 
         window.connect('destroy', lambda w: gtk.main_quit())
