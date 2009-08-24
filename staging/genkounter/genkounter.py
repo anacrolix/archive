@@ -12,7 +12,7 @@ class EncounterWindow:
         self.statstore.clear()
         for a in self.order:
             b = self.statii[a]
-            c = self.statstore.append(None, (a, str(b[0]), None))
+            c = self.statstore.append(None, (a, b[0], None))
             for d in b[1]:
                 self.statstore.append(c, (None, None, d))
 
@@ -53,7 +53,7 @@ class EncounterWindow:
 
     def setup_gui(self):
         window = gtk.Window()
-        statstore = gtk.TreeStore(str, str, str)
+        statstore = gtk.TreeStore(str, int, str)
         statview = gtk.TreeView(statstore)
         condstore = gtk.ListStore(str)
         condview = gtk.TreeView(condstore)
@@ -148,12 +148,12 @@ class MainWindow:
         a.clear()
         b = self.combatants
         for c, d in b.iteritems():
-            a.append((c, "%+d" % (d,)))
+            a.append((c, d))
         print a.get_sort_column_id()
 
     def setup_gui(self):
         window = gtk.Window()
-        cmbtmodl = gtk.ListStore(str, str)
+        cmbtmodl = gtk.ListStore(str, int)
         initview = gtk.TreeView(cmbtmodl)
         addcmbt = gtk.Button("Add Combatant", gtk.STOCK_ADD)
         startenc = gtk.Button("Start New Encounter")
@@ -176,7 +176,12 @@ class MainWindow:
         cmbtmodl.set_sort_column_id(1, gtk.SORT_DESCENDING)
         addcmbt.connect('clicked', self.add_combatant)
         initview.append_column(gtk.TreeViewColumn("Name", gtk.CellRendererText(), text=0))
-        initview.append_column(gtk.TreeViewColumn("Initiative", gtk.CellRendererText(), text=1))
+        def initcell_cdf(column, cell, model, iter):
+            cell.set_property("text", "%+d" % (model.get(iter, 1)[0],))
+        initcell = gtk.CellRendererText()
+        initcol = gtk.TreeViewColumn("Initiative", initcell)
+        initcol.set_cell_data_func(initcell, initcell_cdf)
+        initview.append_column(initcol)
         for a, b in enumerate((True, False)):
             initview.get_column(a).set_expand(b)
         startenc.connect("clicked", self.new_encounter)
