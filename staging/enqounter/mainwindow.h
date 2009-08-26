@@ -18,6 +18,10 @@ public:
 
 public slots:
     void addCombatant();
+    void removeCombatant();
+    void incrementInitiative();
+    void decrementInitiative();
+    void restartEncounter();
 
 private:
     Ui::MainWindow *ui;

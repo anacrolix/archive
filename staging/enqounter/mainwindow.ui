@@ -125,7 +125,7 @@
      <x>0</x>
      <y>0</y>
      <width>600</width>
-     <height>22</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>
@@ -165,8 +165,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>incInit</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>incrementInitiative()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>519</x>
+     <y>206</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>299</x>
+     <y>199</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>addCombatant()</slot>
+  <slot>incrementInitiative()</slot>
  </slots>
 </ui>
