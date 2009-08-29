@@ -1,37 +1,47 @@
 #!/usr/bin/env python
 
 import gtk
+import pdb
 import random
 
+def button_set_stock_image(button, stock_id):
+    image = gtk.Image()
+    image.set_from_stock(stock_id, gtk.ICON_SIZE_BUTTON)
+    button.set_image(image)
+
 class EncounterWindow:
-
-    def update_models(self):
-        self.condstore.clear()
-        for a in self.conditions:
-            self.condstore.append((a,))
-        self.statstore.clear()
-        for a in self.order:
-            b = self.statii[a]
-            c = self.statstore.append(None, (a, b[0], None))
-            for d in b[1]:
-                self.statstore.append(c, (None, None, d))
-
     def drag_to_status(self, widget, drag_context, x, y, selection_data, info, timestamp):
         if selection_data.target == "condition":
             path, droppos = widget.get_dest_row_at_pos(x, y)
-            #assert droppos in (
-            #        gtk.TREE_VIEW_DROP_INTO_OR_BEFORE,
-            #        gtk.TREE_VIEW_DROP_INTO_OR_AFTER)
-            row = widget.get_model()[path]
-            while row.parent:
-                row = row.parent
-            name = row[0]
-            self.statii[name][1].update(eval(selection_data.data))
-            print self.statii
-            path = row.path
-            self.update_models()
-            del row
-            widget.expand_row(path, False)
+            print droppos
+            model = widget.get_model()
+            droprow = model[path]
+            cmbtrow = droprow.parent or droprow
+            assert not cmbtrow.parent
+            if droprow.parent:
+                if droppos in (
+                        gtk.TREE_VIEW_DROP_INTO_OR_BEFORE,
+                        gtk.TREE_VIEW_DROP_BEFORE):
+                    insert_func = lambda data: model.insert_before(cmbtrow.iter, droprow.iter, data)
+                elif droppos in (
+                        gtk.TREE_VIEW_DROP_INTO_OR_AFTER,
+                        gtk.TREE_VIEW_DROP_AFTER):
+                    insert_func = lambda data: model.insert_after(cmbtrow.iter, droprow.iter, data)
+                else: assert False
+            else:
+                if droppos in (
+                        gtk.TREE_VIEW_DROP_INTO_OR_BEFORE,
+                        gtk.TREE_VIEW_DROP_INTO_OR_AFTER):
+                    insert_func = lambda data: model.append(cmbtrow.iter, data)
+                else: return
+            for a in eval(selection_data.data):
+                for b in cmbtrow.iterchildren():
+                    if model.get_value(b.iter, 1) == a:
+                        break
+                else:
+                    insert_func((None, a))
+            else:
+                widget.expand_to_path(cmbtrow.path)
         else:
             assert False
 
@@ -47,13 +57,11 @@ class EncounterWindow:
             assert False
 
     def next_turn(self, button):
-        self.order.append(self.order[0])
-        del self.order[0]
-        self.update_models()
+        self.statstore.move_before(self.statstore.get_iter_first(), None)
 
     def setup_gui(self):
         window = gtk.Window()
-        statstore = gtk.TreeStore(str, int, str)
+        statstore = gtk.TreeStore(object, str)
         statview = gtk.TreeView(statstore)
         condstore = gtk.ListStore(str)
         condview = gtk.TreeView(condstore)
@@ -71,35 +79,39 @@ class EncounterWindow:
 
         window.set_title("Encounter")
         window.show_all()
-        statview.append_column(gtk.TreeViewColumn("Combatant", gtk.CellRendererText(), text=0))
-        statview.append_column(gtk.TreeViewColumn("Initiative", gtk.CellRendererText(), text=1))
-        statview.append_column(gtk.TreeViewColumn("Conditions", gtk.CellRendererText(), text=2))
-        statview.drag_dest_set(gtk.DEST_DEFAULT_ALL, [("condition", 0, 0)], gtk.gdk.ACTION_COPY)
-        #statview.drag_dest_set(gtk.DEST_DEFAULT_ALL, [], gtk.gdk.ACTION_COPY)
+        cellr = gtk.CellRendererText()
+        tvcol = gtk.TreeViewColumn("Init", cellr)
+        def initcell_cdf(column, cell, model, iter):
+            a = model.get_value(iter, 0)
+            cell.set_property("text", str(a) if isinstance(a, int) else "")
+        tvcol.set_cell_data_func(cellr, initcell_cdf)
+        statview.append_column(tvcol)
+        tvcol = gtk.TreeViewColumn("Combatant", gtk.CellRendererText(), text=1)
+        statview.append_column(tvcol)
+        statview.set_expander_column(tvcol)
+        statview.enable_model_drag_dest([("condition", 0, 0)], gtk.gdk.ACTION_COPY)
         statview.connect("drag-data-received", self.drag_to_status)
         condview.append_column(gtk.TreeViewColumn("Condition", gtk.CellRendererText(), text=0))
-        condview.drag_source_set(gtk.gdk.BUTTON1_MASK, [("condition", 0, 0)], gtk.gdk.ACTION_COPY)
-        condview.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+        condview.enable_model_drag_source(gtk.gdk.BUTTON1_MASK, [("condition", 0, 0)], gtk.gdk.ACTION_COPY)
+        #condview.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         condview.connect("drag-data-get", self.drag_from_conditions)
         nextturn.connect("clicked", self.next_turn)
+        button_set_stock_image(nextturn, gtk.STOCK_JUMP_TO)
 
         self.statstore = statstore
         self.condstore = condstore
 
     def __init__(self, combatants):
         self.setup_gui()
-        self.statii = {}
-        self.order = []
-        self.conditions = set(["Immobilized", "Stunned", "Poisoned", "Marked"])
-        for a, b in combatants.iteritems():
-            self.statii[a] = (random.randint(1, 20) + b, set())
-        self.order = map(lambda j: j[0], sorted(self.statii.iteritems(), key=lambda i: i[1][0], reverse=True))
-        print self.order
-        print self.statii
-        self.update_models()
+        for a in ["Immobilized", "Stunned", "Poisoned", "Marked"]:
+            self.condstore.append((a,))
+        ssitems = []
+        for a, b in combatants:
+            ssitems.append((random.randint(1, 20) + b, a))
+        for a in sorted(ssitems, reverse=True):
+            self.statstore.append(None, a)
 
 class AddCombatantDialog:
-
     def __init__(self, parent):
         dialog = gtk.Dialog("Add Combatant", parent,
                 buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
@@ -132,7 +144,6 @@ class AddCombatantDialog:
         return self.init_entry.get_value_as_int()
 
 class MainWindow:
-
     def add_combatant(self, button):
         a = AddCombatantDialog(self.window)
         if a.run() == gtk.RESPONSE_OK:
@@ -141,22 +152,22 @@ class MainWindow:
             self.update_model()
 
     def new_encounter(self, button):
-        EncounterWindow(self.combatants)
+        EncounterWindow([self.cmbtmodl.get(tmri.iter, 0, 1) for tmri in self.cmbtmodl])
 
-    def update_model(self):
-        a = self.combatant_model
-        a.clear()
-        b = self.combatants
-        for c, d in b.iteritems():
-            a.append((c, d))
-        print a.get_sort_column_id()
+    def change_initiative(self, button, change):
+        model, paths = self.initview.get_selection().get_selected_rows()
+        for p in paths:
+            iter = model[p].iter
+            model.set_value(iter, 1, model.get_value(iter, 1) + change)
 
     def setup_gui(self):
         window = gtk.Window()
         cmbtmodl = gtk.ListStore(str, int)
         initview = gtk.TreeView(cmbtmodl)
-        addcmbt = gtk.Button("Add Combatant", gtk.STOCK_ADD)
+        addcmbt = gtk.Button(stock=gtk.STOCK_ADD)
         startenc = gtk.Button("Start New Encounter")
+        incinit = gtk.Button("+1 Init")
+        decinit = gtk.Button("-1 Init")
         vbox1 = gtk.VBox()
         hbox1 = gtk.HBox()
         vbbox1 = gtk.VButtonBox()
@@ -166,33 +177,44 @@ class MainWindow:
         vbox1.pack_start(hbox1)
         hbox1.pack_start(initview)
         hbox1.pack_start(vbbox1, expand=False)
+        vbbox1.set_layout(gtk.BUTTONBOX_START)
         vbbox1.add(addcmbt)
+        vbbox1.add(incinit)
+        vbbox1.set_child_secondary(incinit, True)
+        vbbox1.add(decinit)
+        vbbox1.set_child_secondary(decinit, True)
         vbox1.pack_start(hbbox1, expand=False)
         hbbox1.add(startenc)
 
         window.connect('destroy', lambda w: gtk.main_quit())
-        window.set_title("Genkounter")
+        window.set_title("Initiator")
         window.show_all()
         cmbtmodl.set_sort_column_id(1, gtk.SORT_DESCENDING)
-        addcmbt.connect('clicked', self.add_combatant)
         initview.append_column(gtk.TreeViewColumn("Name", gtk.CellRendererText(), text=0))
         def initcell_cdf(column, cell, model, iter):
             cell.set_property("text", "%+d" % (model.get(iter, 1)[0],))
         initcell = gtk.CellRendererText()
-        initcol = gtk.TreeViewColumn("Initiative", initcell)
+        initcol = gtk.TreeViewColumn("Init", initcell)
         initcol.set_cell_data_func(initcell, initcell_cdf)
         initview.append_column(initcol)
         for a, b in enumerate((True, False)):
             initview.get_column(a).set_expand(b)
+        initview.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+        addcmbt.connect('clicked', self.add_combatant)
+        incinit.connect('clicked', self.change_initiative, 1)
+        button_set_stock_image(incinit, gtk.STOCK_GO_UP)
+        decinit.connect('clicked', self.change_initiative, -1)
+        button_set_stock_image(decinit, gtk.STOCK_GO_DOWN)
         startenc.connect("clicked", self.new_encounter)
 
         self.window = window
-        self.combatant_model = cmbtmodl
+        self.cmbtmodl = cmbtmodl
+        self.initview = initview
 
     def __init__(self):
         self.setup_gui()
-        self.combatants = {"Marek": 3}
-        self.update_model()
+        for a in [("Marek", 3), ("Mael", 3), ("Partin", 8), ("Vessler", 4), ("Vimak", 6)]:
+            self.cmbtmodl.append(a)
 
 if __name__ == "__main__":
     MainWindow()
