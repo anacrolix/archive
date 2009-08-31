@@ -1,7 +1,8 @@
-#include "reuters.hh"
-#include "flags.hh"
+#include "reuters.h"
+#include "flags.h"
 #include "xplatform.h"
 #include <boost/filesystem.hpp>
+#include <boost/numeric/conversion/cast.hpp>
 #include <fstream>
 
 using namespace std;
@@ -67,7 +68,7 @@ void Reuters21578::search_wrapper(SearchInstance &search_function)
         input_filestream.exceptions(ifstream::badbit);
         while (input_filestream.good())
         {
-            input_filestream.read(&buffer[0], buffer.size());
+			input_filestream.read(&buffer[0], boost::numeric_cast<std::streamsize>(buffer.size()));
             ASSERT_LT(size_t(input_filestream.gcount()), buffer.size());
             buffer[input_filestream.gcount()] = '\0';
             ASSERT_EQ(input_filestream.gcount(), strlen(&buffer[0]));

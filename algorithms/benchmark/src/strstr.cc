@@ -1,4 +1,4 @@
-#include "reuters.hh"
+#include "reuters.h"
 
 class StrStr : public SearchInstance
 {

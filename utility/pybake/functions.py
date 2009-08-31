@@ -62,7 +62,7 @@ def update(outputs, depends, buildstep, targets=None):
             # no relationship is defined, the file should exist
             # (eg the file is created by moi)
             if not os.path.exists(dep):
-                raise Exception("No rule to generate file", dep)
+                raise Exception("No rule to generate file %s needed for %s" % (repr(dep), outputs))
             else:
                 #print current + "Provided:", target + dep
                 pass

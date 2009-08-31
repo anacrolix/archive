@@ -1,5 +1,6 @@
-#include "reuters.hh"
+#include "reuters.h"
 #include <gtest/gtest.h>
+#include <boost/system/system_error.hpp>
 #if defined(_DEBUG)
 //#define Py_DEBUG
 #undef _DEBUG
@@ -8,16 +9,17 @@
 #if defined(Py_DEBUG)
 #define _DEBUG
 #endif
+#include <Windows.h>
 
 using namespace std;
 
-class PythonError : public exception
+class WindowsError : public boost::system::system_error
 {
 public:
-    virtual char const *what() const throw()
-    {
-        return "boobies";
-    }
+	WindowsError()
+	:	boost::system::system_error(::GetLastError(), boost::system::system_category)
+	{
+	}
 };
 
 PyObject *get_module_function(char const *modname, char const *funcname)
@@ -48,7 +50,7 @@ public:
         if (!function_)
         {
             PyErr_Print();
-            throw PythonError();
+            throw WindowsError();
         }
         keywords_ = PyTuple_New(keywords.size());
         for (size_t i = 0; i < keywords.size(); ++i)
@@ -58,7 +60,7 @@ public:
                     keywords_, i, PyString_FromStringAndSize(
                             keywords.at(i).c_str(), keywords[i].size())))
             {
-                throw PythonError();
+                throw WindowsError();
             }
         }
     }
@@ -72,7 +74,8 @@ public:
 
     virtual void operator()(char const *buffer, size_t length, size_t already, Hits &hits)
     {
-        PyObject *py_hit_count = PyObject_CallFunction(function_, "(Os#)", keywords_, buffer, length);
+        PyObject *py_hit_count = PyObject_CallFunction(
+                function_, (char *)"(Os#)", keywords_, buffer, length);
         ASSERT_TRUE(PyInt_CheckExact(py_hit_count));
         long hit_count = PyInt_AsLong(py_hit_count);
         Py_DECREF(py_hit_count);

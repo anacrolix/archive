@@ -1,5 +1,5 @@
-#include "reuters.hh"
-#include <limits.h>
+#include "reuters.h"
+#include <climits>
 
 using namespace std;
 
@@ -10,7 +10,7 @@ public:
     :   m_(pattern.size()),
         p_(pattern.c_str())
     {
-        for (size_t j = 0; j < 1 << CHAR_BIT; ++j)
+        for (size_t j = 0; j < (1 << CHAR_BIT); ++j)
         {
             d_[j] = m_;
         }
@@ -25,13 +25,23 @@ public:
             size_t const length, size_t const already, Hits::value_type &hits)
     {
         char const *const end(buffer + length - m_ - 1);
-        char const *current(buffer);
+        register char const *current(buffer);
         while (current < end)
         {
-            int j = m_ - 1;
-            while (j != -1 && current[j] == p_[j]) --j;
-            if (j == -1) //hits.insert(current - buffer + already);
-                ++hits;
+            register int j = m_ - 1;
+            while (true)
+            {
+                if (j < 0)
+                {
+                    ++hits;
+                }
+                else if (current[j] == p_[j])
+                {
+                    --j;
+                    continue;
+                }
+                break;
+            }
             current += d_[static_cast<char unsigned>(current[m_ - 1])];
         }
     }

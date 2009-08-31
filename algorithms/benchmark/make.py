@@ -6,8 +6,9 @@ from glob import glob
 
 gtest = LibraryConfig("gtest-config")
 python = LibraryConfig("python-config")
-CXXFLAGS = gtest(["--cxxflags"]) + python(["--includes"]) + ["-Wall", "-O2", "-g"]
-LDFLAGS = gtest(["--libs"]) + python(["--libs"]) + ["-lboost_system-mt", "-O2", "-g"]
+FLAGS = ["-O2", "-g"]
+CXXFLAGS = gtest(["--cxxflags"]) + python(["--includes"]) + ["-Wall"] + FLAGS
+LDFLAGS = gtest(["--libs"]) + python(["--libs"]) + ["-lboost_system-mt"] + FLAGS
 cxx.executable("benchmark", glob("src/*.cc") + glob("src/*.cpp"), CXXFLAGS, LDFLAGS)
 
 pybake_main()
