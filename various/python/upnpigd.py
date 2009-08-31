@@ -15,11 +15,11 @@ import urllib2
 import urlparse
 import xml.etree.ElementTree as etree
 
-PORT = 1900
+SSDP_PORT = 1900
 UPNP_MCAST_ADDR = "239.255.255.250"
 M_SEARCH_MSG_FMT = "\r\n".join((
         "M-SEARCH * HTTP/1.1",
-        "HOST: %s:%d" % (UPNP_MCAST_ADDR, PORT),
+        "HOST: %s:%d" % (UPNP_MCAST_ADDR, SSDP_PORT),
         "ST: %s",
         "MAN: \"ssdp:discover\"",
         "MX: 3",
@@ -28,10 +28,9 @@ DEVICES = (
         "urn:schemas-upnp-org:device:InternetGatewayDevice:1",
         "urn:schemas-upnp-org:service:WANIPConnection:1",
         "urn:schemas-upnp-org:service:WANPPPConnection:1",
-        "upnp:rootdevice"
+        "upnp:rootdevice",
     )
-IGD_SERVICE_TYPES = DEVICES[1:3]
-#print IGD_SERVICE_TYPES
+#IGD_SERVICE_TYPES = DEVICES[1:3]
 
 MSearchReply = collections.namedtuple("MSearchReply",
         ["response", "headers"])
@@ -86,7 +85,7 @@ def discover(timeout=2.0):
         #print repr(packet)
         # data must go immediately, we don't want to stall or we might miss replies
         s.settimeout(0.0)
-        s.sendto(packet, (UPNP_MCAST_ADDR, PORT))
+        s.sendto(packet, (UPNP_MCAST_ADDR, SSDP_PORT))
     devlist = set()
     stop_receiving = time.time() + timeout
     while True:
@@ -99,19 +98,21 @@ def discover(timeout=2.0):
             devlist.add(tuple([reply.headers[x.upper()] for x in ('location', 'st')]))
     return devlist
 
-def selectigd(devices):
-    for d in devices:
+def selectigd(devices=None):
+    for d in devices or discover():
         services = _parse_rootspec(urllib2.urlopen(d[0]))
         for s in services:
-            if s.serviceType in IGD_SERVICE_TYPES:
-            #if s.serviceType == "urn:schemas-upnp-org:service:WANIPConnection:1":
-                return WANIPConnection(s)
+            p = UPnPServiceProxy(s)
+            if isinstance(p, WANConnection):
+                return p
     else:
         log.debug("No UPnP IGD found")
 
 UPNP_ERROR_NAMESPACE = "urn:schemas-upnp-org:control-1-0"
 
 class UPnPError(Exception):
+    INVALID_ARGS = 402
+    ARRAY_INDEX_INVALID = 713
     def __init__(self, message, soap=None, httpec=None):
         self.msg = message
         if soap != None:
@@ -147,11 +148,13 @@ def _simple_upnp_command(action, action_args, service_type, service_id, control_
     # insert the arguments into the SOAP envelope
     body = body % (upnp_args_xml,)
     # make the SOAP request
-    log.debug("Sending SOAP request: " + repr(body))
     request = urllib2.Request(control_url, body)
     request.add_header("SOAPAction", '"%s#%s"' % (service_type, action))
     request.add_header("Content-Type", "text/xml")
     params = {}
+    #pdb.set_trace()
+    log.debug("Connecting to: " + repr(control_url))
+    log.debug("Sending SOAP request: " + repr(body))
     try:
         http_response = urllib2.urlopen(request)
     except urllib2.HTTPError as e:
@@ -163,7 +166,8 @@ def _simple_upnp_command(action, action_args, service_type, service_id, control_
     else:
         soap = http_response.read()
     finally:
-        log.debug("SOAP Response: " + repr(soap))
+        try: log.debug("SOAP Response: " + repr(soap))
+        except UnboundLocalError: pass
     xml_response = etree.ElementTree(file=io.BytesIO(soap))
     for respns in (service_id, service_type):
         respelt = xml_response.find("//{%s}%sResponse" % (respns, action))
@@ -174,41 +178,53 @@ def _simple_upnp_command(action, action_args, service_type, service_id, control_
         params[element.tag] = element.text
     return params
 
-"""
-    AddPortMappingArgs = calloc(9, sizeof(struct UPNParg));
-    AddPortMappingArgs[0].elt = "NewRemoteHost";
-    AddPortMappingArgs[0].val = remoteHost;
-    AddPortMappingArgs[1].elt = "NewExternalPort";
-    AddPortMappingArgs[1].val = extPort;
-    AddPortMappingArgs[2].elt = "NewProtocol";
-    AddPortMappingArgs[2].val = proto;
-    AddPortMappingArgs[3].elt = "NewInternalPort";
-    AddPortMappingArgs[3].val = inPort;
-    AddPortMappingArgs[4].elt = "NewInternalClient";
-    AddPortMappingArgs[4].val = inClient;
-    AddPortMappingArgs[5].elt = "NewEnabled";
-    AddPortMappingArgs[5].val = "1";
-    AddPortMappingArgs[6].elt = "NewPortMappingDescription";
-    AddPortMappingArgs[6].val = desc?desc:"libminiupnpc";
-    AddPortMappingArgs[7].elt = "NewLeaseDuration";
-    AddPortMappingArgs[7].val = "0";
-"""
-
 def getifname(remhost):
+    """Get the name of the interface used to connect to remhost.
+    >>> getifname('localhost')
+    'localhost'
+    """
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect((remhost, 0))
     rv = s.getsockname()[0]
     s.close()
     return rv
 
-class WANIPConnection(object):
+_UPNP_SERVICE_PROXY_CLASSES = {}
+
+class UPnPServiceProxy(object):
+    class MonkeyPatch(type):
+        def __new__(self, name, bases, dict_):
+            class_ = type.__new__(self, name, bases, dict_)
+            try:
+                st = dict_['SERVICE_TYPE']
+            except KeyError:
+                pass
+            else:
+                assert not st in _UPNP_SERVICE_PROXY_CLASSES
+                _UPNP_SERVICE_PROXY_CLASSES[st] = class_
+            return class_
+    __metaclass__ = MonkeyPatch
+    def __new__(class_, upnp_service):
+        if class_ == UPnPServiceProxy:
+            try:
+                child = _UPNP_SERVICE_PROXY_CLASSES[upnp_service.serviceType]
+            except KeyError:
+                pass
+            else:
+                return child.__new__(child, upnp_service)
+        else:
+            return super(UPnPServiceProxy, class_).__new__(class_)
     def __init__(self, upnp_service):
         self.upnp_service = upnp_service
+        assert self.upnp_service.serviceType == self.SERVICE_TYPE
     def _simple_upnp_command(self, action, **args):
         return _simple_upnp_command(
                 action,
                 args,
                 *self.upnp_service[0:3])
+
+class WANConnection(UPnPServiceProxy):
+    """Shared functionality for WANIPConnection and WANPPPConnection."""
     def GetExternalIPAddress(self):
         reply = self._simple_upnp_command("GetExternalIPAddress")
         assert len(reply) == 1
@@ -220,23 +236,41 @@ class WANIPConnection(object):
         try:
             return self._simple_upnp_command("GetGenericPortMappingEntry", NewPortMappingIndex=index)
         except UPnPError as e:
-            if e.code in (402, 713): return None
+            if e.code in (e.INVALID_ARGS, e.ARRAY_INDEX_INVALID): return None
             else: raise
-    def AddPortMapping(self, proto, intport, extport=None, inthost=None, desc=None, remhost=None):
-        #if inthost == None: inthost
+    def AddPortMapping(self, proto, extport, intport=0, inthost=None, desc=None, remhost=None):
         return self._simple_upnp_command(
                 "AddPortMapping",
                 NewRemoteHost=remhost or '',
-                NewExternalPort=(extport if extport != None else intport),
+                NewExternalPort=extport,
                 NewProtocol=proto,
-                NewInternalPort=intport,
+                NewInternalPort=(intport or extport),
                 NewInternalClient=getifname(inthost or urlparse.urlsplit(self.upnp_service.controlURL).hostname),
                 NewEnabled="1",
                 NewPortMappingDescription=(desc or "upnpigd"),
                 NewLeaseDuration="0")
+    def DeletePortMapping(self, proto, extport, remhost=""):
+        return self._simple_upnp_command(
+                "DeletePortMapping",
+                NewRemoteHost=remhost,
+                NewExternalPort=extport,
+                NewProtocol=proto)
+    def GetSpecificPortMappingEntry(self, proto, extport, remhost=""):
+        return self._simple_upnp_command(
+                "GetSpecificPortMappingEntry",
+                NewRemoteHost=remhost,
+                NewExternalPort=extport,
+                NewProtocol=proto)
 
-def _configure_logger(logfile_path):
+class WANIPConnection(WANConnection):
+    SERVICE_TYPE = "urn:schemas-upnp-org:service:WANIPConnection:1"
+
+class WANPPPConnection(WANConnection):
+    SERVICE_TYPE = "urn:schemas-upnp-org:service:WANPPPConnection:1"
+
+def _configure_logger(logfile_path, console_level=None):
     import logging
+    if console_level is None: console_level = logging.CRITICAL
     global log
     log = logging.getLogger("upnpidg")
     log.setLevel(logging.DEBUG)
@@ -245,21 +279,24 @@ def _configure_logger(logfile_path):
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmtr)
     ch = logging.StreamHandler()
-    ch.setLevel(logging.CRITICAL)
+    ch.setLevel(console_level)
     ch.setFormatter(fmtr)
     log.addHandler(ch)
     log.addHandler(fh)
 
+_configure_logger("log.upnpigd")
+
 if __name__ == "__main__":
     if sys.platform is 'win32':
         atexit.register(lambda: os.system("pause"))
-    _configure_logger("log.upnpigd")
     #logging.error("test blah\0")
     devices = discover()
     igd = selectigd(devices)
     if not igd: sys.exit("No IGD devices were found")
     print "External IP Address:", igd.GetExternalIPAddress()
-    igd.AddPortMapping("TCP", 1337)
+    print igd.AddPortMapping("UDP", 1337)
+    print igd.GetSpecificPortMappingEntry("UDP", 1337)
+    print igd.DeletePortMapping("UDP", 1337)
     print "UPnP port mappings in effect:"
     for index in itertools.count():
         gpme = igd.GetGenericPortMappingEntry(index)
