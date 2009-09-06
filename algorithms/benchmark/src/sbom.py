@@ -38,7 +38,7 @@ def transverse_order(parent):
 
 # is there a better way to do this?
 # i've tried to avoid recursive visited sets
-def for_all_nodes(toplevel):
+def unique_nodes(toplevel):
     def visit_node(parent):
         if parent not in visited:
             yield parent
@@ -55,52 +55,53 @@ def for_all_nodes(toplevel):
 #
 
 def build_oracle_multiple(patterns):
-    #print patterns
+    for p in patterns[1:]:
+        assert len(p) == len(patterns[0])
     trie = build_trie(patterns)
-    trie.append(None)
+    for node in unique_nodes(trie):
+        assert len(node) == 2
+        node[1] = None # we drop output for down
     for parent, symbol, current in transverse_order(trie):
-        #assert len(current) == 2
-        if len(current) == 2: current.append(None)
-        down = parent[2]
+        down = parent[1]
         while down != None and not down[0].has_key(symbol):
             down[0][symbol] = current
-            down = down[2]
+            down = down[1]
         if down != None:
-            #if down[0].has_key(symbol):
-            current[2] = down[0][symbol]
-            #else:
-            #current.append(None)
+            current[1] = down[0][symbol]
         else:
-            current[2] = trie
+            current[1] = trie
+    for node in unique_nodes(trie):
+        assert len(node) == 2
+        node[:] = node[0:1]
     return trie
 
 # each node is [
         #{symbols: nodes},
-        #set(outputs), (not needed? only contains 1 output for all cases i can predict)
-        #supply node, (not used after oracle generation?)
         #patterns with the prefix of this node if it's terminal
     #]
 
 class SBOM(object):
     def __init__(self, patterns):
         self.lmin = min(map(len, patterns))
-        #print lmin
+        # there must be a better way to reverse a string!?
         self.oracle = build_oracle_multiple([p[self.lmin-1::-1] for p in patterns])
-        #pdb.set_trace()
-        #print sum(1 for i in for_all_nodes(self.oracle))
-        #print len(for_all_nodes(self.oracle))
-        #pdb.set_trace()
-        #print self.oracle
-        for n in for_all_nodes(self.oracle):
-            assert len(n) == 3
+        for n in unique_nodes(self.oracle):
+            assert len(n) == 1
             n.append(set())
         for p in patterns:
             q = self.oracle
+            # walk the prefix path
             for s in p[self.lmin-1::-1]:
                 q = q[0][s]
-            assert len(q) == 4
-            q[3].add(p)
-        self.shifts = []
+            # this is max depth in an SBOM tree
+            assert len(q[0]) == 0
+            assert len(q) == 2
+            q[1].add(p)
+        #self.shifts = []
+        #print "lmin:", self.lmin, "len(nodes):", self.node_count(), "len(patterns)", len(patterns)
+
+    def node_count(self):
+        return sum(1 for i in unique_nodes(self.oracle))
 
     @staticmethod
     def print_hit(position, pattern):
@@ -108,37 +109,18 @@ class SBOM(object):
 
     def __call__(self, text, hit_cb=None):
         if hit_cb == None: hit_cb = self.print_hit
-        #pdb.set_trace()
         pos = 0
         while pos <= len(text) - self.lmin:
-            #print pos,
-            #if pos == 17: pdb.set_trace()
             current = self.oracle
-            j = self.lmin
-            while j >= 1 and current != None:
-                #print text[pos + j - 1],
-                if current[0].has_key(text[pos + j -1]):
-                    current = current[0][text[pos + j -1]]
-                else:
-                    current = None
+            j = self.lmin - 1
+            while j >= 0 and current != None:
+                current = current[0].get(text[pos + j], None)
                 j -= 1
-            if current != None and j == 0:
-                #pdb.set_trace()
-                assert len(current[1]) == 1
-                if text[pos:pos+self.lmin] == list(current[1])[0][::-1]:
-                    for p in current[3]:
-                        assert text[pos:pos+self.lmin] == p[:self.lmin]
-                        if text[pos+self.lmin:pos+len(p)] == p[self.lmin:]:
-                            #print
-                            hit_cb(pos, p)
-                    #print current[3]
-                    #j = 0
-                else:
-                    # this proves that trie-F is not actually required anymore
-                    assert False
-            pos += j + 1
-            self.shifts.append(j + 1)
-            #print
+            if j == -1 and current != None:
+                for p in current[1]:
+                    if text[pos+self.lmin:pos+len(p)] == p[self.lmin:]:
+                        hit_cb(pos, p)
+            pos += j + 2
 
 #
 # UNIT TESTS
