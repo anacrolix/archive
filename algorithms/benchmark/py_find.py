@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-keywords = []
-for a in ("exchanges", "orgs", "people", "places", "topics"):
-    for kw in open("reuters21578/all-" + a + "-strings.lc.txt"):
-        #kw = kw.rstrip()
-        if len(kw): keywords.append(kw[:-1])
-
-#print keywords
-assert len(keywords) == 672
+def get_keywords():
+    r = set()
+    for a in ("exchanges", "orgs", "people", "places", "topics"):
+        for kw in open("reuters21578/all-" + a + "-strings.lc.txt"):
+            kw = kw.rstrip()
+            if len(kw):
+                r.add(kw)
+    assert len(r) == 672
+    return r
 
 import time
 
@@ -32,12 +33,26 @@ def re_count(keywords, buffer):
     import re
     hits = 0
     pattern = "|".join([re.escape(kw) for kw in keywords])
-    for match in re.finditer(pattern, buffer):
-        hits += len(match.groups())
+    print pattern
+    regexobj = re.compile(pattern)
+    start = 0
+    while True:
+        match = regexobj.search(buffer, start)
+        if not match: break
+        #hits += len(match.groups())
+        print match.group(0) + ":",
+        for k in keywords:
+            #where = match.group(0).find(k)
+            where = k.find(match.group(0))
+            if where == 0:
+                print k,
+                hits += 1
+        print
+        start = match.start() + 1
     return hits
 
 if __name__ == "__main__":
     buffer = open("reuters21578/reut2-000.sgm", "rb").read()
     start = time.time()
-    print re_count(keywords, buffer)
+    print re_count(get_keywords(), buffer)
     print time.time() - start

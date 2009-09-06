@@ -45,7 +45,7 @@ void Reuters21578::TearDown()
 {
     ASSERT_EQ(expected_hit_count(), actual_hit_count());
     //std::cout << "total hits: " << actual_hit_count() << std::endl;
-    cout << "search time: " << search_time_ << endl;
+    cout << "search time: " << fixed << setprecision(2) << search_time_ << endl;
 }
 
 void Reuters21578::search_wrapper(SearchInstance &search_function)
@@ -68,7 +68,7 @@ void Reuters21578::search_wrapper(SearchInstance &search_function)
         input_filestream.exceptions(ifstream::badbit);
         while (input_filestream.good())
         {
-			input_filestream.read(&buffer[0], boost::numeric_cast<std::streamsize>(buffer.size()));
+            input_filestream.read(&buffer[0], boost::numeric_cast<std::streamsize>(buffer.size()));
             ASSERT_LT(size_t(input_filestream.gcount()), buffer.size());
             buffer[input_filestream.gcount()] = '\0';
             ASSERT_EQ(input_filestream.gcount(), strlen(&buffer[0]));

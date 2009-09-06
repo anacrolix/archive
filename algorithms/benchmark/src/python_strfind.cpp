@@ -9,18 +9,22 @@
 #if defined(Py_DEBUG)
 #define _DEBUG
 #endif
-#include <Windows.h>
+#ifdef WIN32
+    #include <Windows.h>
+#endif
 
 using namespace std;
 
-class WindowsError : public boost::system::system_error
-{
-public:
-	WindowsError()
-	:	boost::system::system_error(::GetLastError(), boost::system::system_category)
-	{
-	}
-};
+#ifdef WIN32
+    class WindowsError : public boost::system::system_error
+    {
+    public:
+        WindowsError()
+        :   boost::system::system_error(::GetLastError(), boost::system::system_category)
+        {
+        }
+    };
+#endif
 
 PyObject *get_module_function(char const *modname, char const *funcname)
 {
@@ -50,7 +54,7 @@ public:
         if (!function_)
         {
             PyErr_Print();
-            throw WindowsError();
+            throw runtime_error("python function not found");
         }
         keywords_ = PyTuple_New(keywords.size());
         for (size_t i = 0; i < keywords.size(); ++i)
@@ -60,7 +64,7 @@ public:
                     keywords_, i, PyString_FromStringAndSize(
                             keywords.at(i).c_str(), keywords[i].size())))
             {
-                throw WindowsError();
+                throw exception();
             }
         }
     }

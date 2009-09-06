@@ -1,5 +1,6 @@
 #include "reuters.h"
 #include <boost/shared_array.hpp>
+#include <climits>
 
 using boost::shared_array;
 using namespace std;
@@ -7,42 +8,42 @@ using namespace std;
 class Bitap
 {
 public:
-	typedef long BitArray;
+    typedef long BitArray;
 
     Bitap(char const *pattern)
     :   p5nlen_(strlen(pattern))
     {
-		if (p5nlen_ >= sizeof(BitArray) * CHAR_BIT) throw exception();
-		if (p5nlen_ <= 0 || pattern[0] == '\0') throw exception();
+        if (p5nlen_ >= sizeof(BitArray) * CHAR_BIT) throw exception();
+        if (p5nlen_ <= 0 || pattern[0] == '\0') throw exception();
 
-		/* Initialize the pattern bitmasks */
-		for (int i = 0; i <= UCHAR_MAX; ++i)
-			p5nmask_[i] = ~0;
-		for (int i = 0; i < p5nlen_; ++i)
-			p5nmask_[pattern[i]] &= ~(1UL << i);
+        /* Initialize the pattern bitmasks */
+        for (int i = 0; i <= UCHAR_MAX; ++i)
+            p5nmask_[i] = ~0;
+        for (size_t i = 0; i < p5nlen_; ++i)
+            p5nmask_[pattern[i]] &= ~(1UL << i);
     }
 
     inline char const *operator()(char const *text, size_t length)
     {
-		register BitArray r(~1);
+        register BitArray r(~1);
 
-		char const *const end(text + length);
-		for ( ; text != end; ++text)
-		{
-			/* Update the bit array */
-			r |= p5nmask_[*text];
-			r <<= 1;
+        char const *const end(text + length);
+        for ( ; text != end; ++text)
+        {
+            /* Update the bit array */
+            r |= p5nmask_[*text];
+            r <<= 1;
 
-			if (0 == (r & (1UL << p5nlen_)))
-				return text;
-		}
+            if (0 == (r & (1UL << p5nlen_)))
+                return text;
+        }
 
-		return NULL;
+        return NULL;
     }
 
 protected:
     size_t p5nlen_;
-	BitArray p5nmask_[UCHAR_MAX + 1];
+    BitArray p5nmask_[UCHAR_MAX + 1];
     shared_array<char> pattern_;
 };
 
