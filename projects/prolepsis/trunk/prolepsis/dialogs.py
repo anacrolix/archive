@@ -1,6 +1,7 @@
 import threading
 import time
 import tkinter
+import webbrowser
 from tkinter import ttk
 
 from .tibdb import tibiacom
