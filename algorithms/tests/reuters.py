@@ -34,3 +34,5 @@ def get_keywords():
 
 def get_data_files():
     return [open(os.path.join(REUTERS_FOLDER, "reut2-%03d.sgm" % (a,))) for a in xrange(22)]
+
+get_reuters()
