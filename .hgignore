@@ -1,1 +1,9 @@
-algorithms/tests/reuters21578
+glob:*.o
+glob:*.so
+glob:*.obj
+glob:*.pyd
+glob:*.pyc
+glob:*.lib
+relre:^algorithms/tests/reuters21578
+glob:*.exp
+glob:*.manifest
