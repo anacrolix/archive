@@ -1,5 +1,3 @@
-#import psyco
-
 class Horspool:
     def __init__(self, pattern):
         self.m = len(pattern)
@@ -7,7 +5,6 @@ class Horspool:
         for j in range(1, self.m):
             self.d[ord(pattern[j - 1])] = self.m - j
         self.p = pattern
-    #@psyco.proxy
     def __call__(self, text, report):
         pos = 0
         end = len(text) - self.m
@@ -17,3 +14,10 @@ class Horspool:
                 j -= 1
             if j == -1: report(pos)
             pos += self.d[ord(text[pos + self.m - 1])]
+
+class CHorspool:
+	import chorspool
+	def __init__(self, pattern):
+		self.__horspool = self.chorspool.Horspool_new(pattern)
+	def __call__(self, text, report):
+		self.chorspool.Horspool_call(self.__horspool, text, report)

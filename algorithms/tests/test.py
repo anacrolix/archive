@@ -34,7 +34,7 @@ import horspool
 import strfind
 SEARCH_ALGORITHMS = {
         "AhoCorasick": (ahosick.AhoCorasick, MultiPatternSearcher),
-        "Horspool": (horspool.Horspool, SinglePatternSearcher),
+        "Horspool": (horspool.CHorspool, SinglePatternSearcher),
         "SBOM": (sbom.SBOM, MultiPatternSearcher),
         "str.find": (strfind.StrFind, SinglePatternSearcher),
     }

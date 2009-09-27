@@ -1,83 +1,50 @@
-#include "reuters.h"
-#include <climits>
+#include "horspool.h"
+#include <iostream>
 
 using namespace std;
 
-class Horspool
+Horspool::Horspool(string const &pattern)
+:   m_(pattern.size()),
+    p_(pattern)
 {
-public:
-    Horspool(string const &pattern)
-    :   m_(pattern.size()),
-        p_(pattern.c_str())
+	//cout << pattern << endl;
+    for (size_t j = 0; j < (1 << CHAR_BIT); ++j)
     {
-        for (size_t j = 0; j < (1 << CHAR_BIT); ++j)
-        {
-            d_[j] = m_;
-        }
-        for (size_t j = 0; j < m_ - 1; ++j)
-        {
-            d_[static_cast<char unsigned>(pattern.at(j))] = m_ - j - 1;
-        }
+        d_[j] = m_;
     }
-
-    void operator()(
-            char const *const buffer,
-            size_t const length, size_t const already, Hits::value_type &hits)
+    for (size_t j = 0; j < m_ - 1; ++j)
     {
-        char const *const end(buffer + length - m_ - 1);
-        register char const *current(buffer);
-        while (current < end)
+        d_[static_cast<char unsigned>(pattern.at(j))] = m_ - j - 1;
+    }
+}
+
+void Horspool::operator()(
+        char const *const buffer,
+        size_t const length, boost::function<void (size_t)> hits)
+{
+	//cout << buffer << endl;
+	//cout << length << endl;
+    char const *const end(buffer + length - m_ + 1);
+    register char const *current(buffer);
+    while (current < end)
+    {
+        register int j = m_ - 1;
+        while (true)
         {
-            register int j = m_ - 1;
-            while (true)
+			//cout << current[j];
+            if (j < 0)
             {
-                if (j < 0)
-                {
-                    ++hits;
-                }
-                else if (current[j] == p_[j])
-                {
-                    --j;
-                    continue;
-                }
-                break;
+                hits(current - buffer);
             }
-            current += d_[static_cast<char unsigned>(current[m_ - 1])];
+            else if (current[j] == p_[j])
+            {
+				//cout << " " << p_[j];
+                --j;
+                continue;
+            }
+            break;
         }
+        //cout << " " << d_[static_cast<char unsigned>(current[m_ - 1])] << endl;
+        current += d_[static_cast<char unsigned>(current[m_ - 1])];
     }
-
-protected:
-    size_t m_;
-    size_t d_[1 << CHAR_BIT];
-    char const *p_;
-};
-
-class MultiHorspool : public SearchInstance
-{
-public:
-    MultiHorspool(Keywords const &keywords)
-    {
-        for (Keywords::const_iterator kw_it(keywords.begin()); kw_it != keywords.end(); ++kw_it)
-        {
-            horspools_.push_back(Horspool(*kw_it));
-        }
-    }
-
-    virtual void operator()(char const *buffer, size_t length, size_t already, Hits &hits)
-    {
-        ASSERT_EQ(hits.size(), horspools_.size());
-        for (size_t i = 0; i < horspools_.size(); ++i)
-        {
-            horspools_[i](buffer, length, already, hits[i]);
-        }
-    }
-
-protected:
-    vector<Horspool> horspools_;
-};
-
-TEST_F(Reuters21578, Horspool)
-{
-    MultiHorspool a(keywords());
-    search_wrapper(a);
 }
