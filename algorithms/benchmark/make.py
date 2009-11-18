@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.append('../../utility')
 from pybake import *
 import pybake.lang.cxx.gcc as cxx
 from glob import glob

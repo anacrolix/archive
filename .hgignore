@@ -7,3 +7,4 @@ glob:*.lib
 relre:^algorithms/tests/reuters21578
 glob:*.exp
 glob:*.manifest
+relre:^algorithms/benchmark/reuters21578/

@@ -22,9 +22,12 @@ void Reuters21578::SetUp()
         path keyword_filepath(path("reuters21578") / keyword_filename);
         //std::cout << keyword_filepath << std::endl;
         // read the keyword file in text mode
-        std::ifstream keyword_stream(keyword_filepath.string().c_str());
+        ifstream keyword_stream(keyword_filepath.string().c_str());
         // turn on all exceptions
-        keyword_stream.exceptions(ifstream::badbit);
+        // for some silly reason, turning on failbit on linux throws for no reason here
+        keyword_stream.exceptions(ifstream::badbit /* | ifstream::failbit */);
+        // so instead we check for fail here
+        ASSERT_FALSE(keyword_stream.fail());
         while (keyword_stream.good())
         {
             string keyword;

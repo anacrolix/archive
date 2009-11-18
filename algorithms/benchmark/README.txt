@@ -5,7 +5,7 @@ windows:
  * debug configuration will compile against release build, this can be changed
 
 linux:
- * you will need something like: python-dev, boost~filesystem & headers, g++
+ * you will need something like: python-dev, libboost-filesystem-dev, libboost-dev, g++
 
 RUNNING
 
