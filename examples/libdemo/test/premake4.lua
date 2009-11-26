@@ -1,0 +1,8 @@
+project "usematt"
+    kind "ConsoleApp"
+    files "usematt.c"
+    includedirs "../src"
+    configuration "Static or Shared"
+        links "libmatt"
+    configuration "Dynamic"
+        defines "DYNAMIC"
