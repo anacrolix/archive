@@ -8,3 +8,11 @@ relre:^algorithms/tests/reuters21578
 glob:*.exp
 glob:*.manifest
 relre:^algorithms/benchmark/reuters21578/
+syntax: glob
+*.dll
+*.idb
+*.ilk
+*.pdb
+*.exe
+*.res
+*.user

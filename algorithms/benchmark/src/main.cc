@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 {
     //testing::GTEST_FLAG(print_time) = true;
 	testing::GTEST_FLAG(catch_exceptions) = true;
-    testing::InitGoogleTest(&argc, argv);
+    testing::InitGoogleTest(&argc,  argv);
     if (argc == 2)
     {
 		std::stringstream ss(argv[1]);
@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 	SGM_TOTAL_BYTES.at(2) = 3796285;
     SGM_TOTAL_BYTES.at(21) = 27636766;
     int retcode = RUN_ALL_TESTS();
-#ifdef WIN32
+#if defined(_WIN32)
 	system("pause");
 #endif
 	return retcode;

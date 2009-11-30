@@ -1,6 +1,3 @@
-#include "reuters.h"
-#include <gtest/gtest.h>
-#include <boost/system/system_error.hpp>
 #if defined(_DEBUG)
 //#define Py_DEBUG
 #undef _DEBUG
@@ -9,6 +6,9 @@
 #if defined(Py_DEBUG)
 #define _DEBUG
 #endif
+#include "reuters.h"
+#include <gtest/gtest.h>
+#include <boost/system/system_error.hpp>
 #ifdef WIN32
     #include <Windows.h>
 #endif
