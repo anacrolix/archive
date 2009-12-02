@@ -8,6 +8,7 @@ relre:^algorithms/tests/reuters21578
 glob:*.exp
 glob:*.manifest
 relre:^algorithms/benchmark/reuters21578/
+
 syntax: glob
 *.dll
 *.idb
@@ -16,3 +17,11 @@ syntax: glob
 *.exe
 *.res
 *.user
+*.ncb
+*.suo
+*.d
+*.dep
+
+syntax: regexp
+Debug/
+Release/
