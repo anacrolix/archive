@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(SolutionDir)../gtest/include"
+				AdditionalIncludeDirectories="&quot;../../../../gtest-trunk/include&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -121,7 +121,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
 				EnableFiberSafeOptimizations="true"
-				AdditionalIncludeDirectories="$(SolutionDir)../gtest/include"
+				AdditionalIncludeDirectories="&quot;../../../../gtest-trunk/include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				BufferSecurityCheck="false"
@@ -202,7 +202,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\reuters.cc"
+				RelativePath="..\src\reuters.cpp"
 				>
 			</File>
 			<File
