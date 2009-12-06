@@ -1,0 +1,13 @@
+set_configurations("debug", "release")
+
+benchmark = CxxProject("benchmark")
+benchmark.sources = regex_glob("src", "\.c[^.]*$")
+if os.name == "nt":
+    benchmark.includedirs = ["../../../gtest-trunk/include", r"C:\Boost\include\boost-1_40", r"C:\Python26\include"]
+    benchmark.links = ["../../../gtest-trunk/msvc/benchmark/release/gtest.lib"]
+    benchmark.libdirs = [r"C:\Boost\lib", r"C:\Python26\libs"]
+else:
+    benchmark.buildoptions = library_config("python-config --includes")
+    benchmark.linkoptions = library_config("gtest-config --libs") + library_config("python-config --libs") + ["-lboost_system-mt"]
+if is_configuration("debug"):
+    benchmark.debug = True

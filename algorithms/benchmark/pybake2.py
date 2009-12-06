@@ -1,6 +1,39 @@
 #!/usr/bin/env python
 
-import errno, os, threading, subprocess, sys
+import errno, os, pdb, threading, subprocess, sys
+
+class FatalThread(threading.Thread):
+    def __init__(self, *args, **kwargs):
+	threading.Thread.__init__(self, *args, **kwargs)
+	self.unhandled = False
+    def run(self):
+	try:
+	    threading.Thread.run(self)
+	except:
+	    self.unhandled = True
+	    raise
+
+class ThreadPool(object):
+    def __init__(self):
+	object.__init__(self)
+	self.__threads = []
+    def add_thread(self, *args, **kwargs):
+	self.__threads.append(FatalThread(*args, **kwargs))
+	self.__threads[-1].start()
+    def join_all(self):
+	for t in self.__threads:
+	    if t.unhandled:
+		sys.exit("wees & poos")
+
+#class FatalThread(threading.Thread):
+    #def run(self):
+	#try:
+	    #super(self.__class__, self).run()
+	#except:
+	    #sys.excepthook(*sys.exc_info())
+	    #sys.exit()
+
+#threading.Thread = FatalThread
 
 __jobSemaphore = threading.BoundedSemaphore(4)
 __targets = {}
@@ -52,7 +85,7 @@ def is_outdated(target, deps):
             return True
         else:
             raise
-    for d in deps:
+    for d in deps | set([sys.argv[0]]):
         if os.stat(d).st_mtime > targetMtime:
             return True
     else:
@@ -73,13 +106,15 @@ def update(target):
     outputs, inputs, commands = __targets[target]
     if not __guard.claim_update(outputs):
 	return
-    ts = []
+    tp = ThreadPool()
     for i in inputs:
         if i in __targets:
-	    ts.append(threading.Thread(target=update, name=i, args=[i]))
-	    ts[-1].start()
-    for t in ts:
-        t.join()
+	    tp.add_thread(target=update, name=i, args=[i])
+	    #ts.append(threading.Thread(target=update, name=i, args=[i]))
+	    #ts[-1].start()
+    #for t in ts:
+    #    t.join()
+    tp.join_all()
     __guard.wait_updated(set(inputs).intersection(__targets.keys()))
     if not is_outdated(target, inputs):
 	__guard.updated(set([target]))
@@ -92,13 +127,10 @@ def update(target):
     __guard.updated(outputs)
 
 def update_all():
-    ts = []
-    #print __targets.keys()
+    tp = ThreadPool()
     for t in __targets:
-	ts.append(threading.Thread(target=update, args=[t]))
-	ts[-1].start()
-    for t in ts:
-        t.join()
+	tp.add_thread(target=update, args=[t])
+    tp.join_all()
 
 def library_config(cmdstr):
     import subprocess
@@ -124,19 +156,8 @@ def parse_make_rule(rule):
     targs, deps = retval.split(":", 1)
     # split allowing for whitespace escapes
     targs, deps = [ filter(None, re.split(r"(?<!\\)\s", x)) for x in [targs, deps] ]
+    #pdb.set_trace()
     return targs, deps
-
-def parse_source_dep_file(source, depfile):
-    import errno
-    try:
-        targs, deps = parse_make_rule(open(depfile).read())
-    except IOError as e:
-        if e.errno in [errno.ENOENT]:
-            return []
-        else:
-            raise
-    #assert targs == source
-    return deps
 
 def clean():
     import os
@@ -165,12 +186,16 @@ class ProjectType(type):
 
 class Project(object):
     __metaclass__ = ProjectType
-    _fields_ = set()
-    def __init__(self):
-	for name in self._fields_:
-	    assert not hasattr(self, name)
-	    print name
-	    setattr(self, name, None)
+    _fields_ = set([
+	"name",])
+    def __init__(self, name):
+	super(Project, self).__init__()
+	#for name in self._fields_:
+	    #assert not hasattr(self, name)
+	    #print name
+	    #setattr(self, name, None)
+	self.name = name
+	add_project(self)
     def __setattr__(self, key, value):
 	if not key in self._fields_:
 	    raise AttributeError("Can't set %s" % key)
@@ -181,6 +206,7 @@ class Project(object):
 
 class CProject(Project):
     __fields__ = [
+	"debug",
         "sources",
         "compiler",
         "includedirs",
@@ -192,8 +218,10 @@ class CProject(Project):
         "targetext",
         "linkoptions",
 	"links",
-	"libdirs"]
+	"libdirs",]
     def __init__(self, targetname):
+	super(CProject, self).__init__(targetname)
+	self.debug = False
 	self.objects = []
 	self.targetdir = "build"
 	self.targetprefix = ""
@@ -214,6 +242,7 @@ class CProject(Project):
 	    objs.append(object)
 	targets, rule = self.targets(objs)
 	add_rule(*rule)
+	return targets
 
 class CxxProject(CProject):
     def __new__(cls, *args):
@@ -251,7 +280,7 @@ class GenerateMsvcSourceDeps(Command):
 	open(self.outpath, "w").write(repr(hdrdeps))
 	assert child.wait() == 0
 
-def parse_msvc_source_dep_file(depFilePath):
+def parse_source_dep_file(depFilePath):
     try:
 	return list(eval(open(depFilePath).read()))
     except IOError as e:
@@ -269,82 +298,87 @@ class MsvcProject(CxxProject):
 	o = source + ".d"
 	return [o], [source], [GenerateMsvcSourceDeps(["cl", source, "/showIncludes", "/c", "/nologo"] + ["/I" + id for id in self.includedirs], o)]
     def object(self, source):
-	inputs = parse_msvc_source_dep_file(source + ".d") + [source]
+	inputs = parse_source_dep_file(source + ".d") + [source]
 	object = source + ".o"
-	return object, ([object], inputs, [ShellCommand(["cl", "/Fo" + object, source, "/c", "/nologo", "/EHsc", "/MD"] + ["/I" + id for id in self.includedirs])])
+	args = ["cl", "/Fo" + object, source, "/c", "/nologo", "/EHsc", "/MD"] + ["/I" + id for id in self.includedirs]
+	if self.debug:
+	    raise PybakeError("Debug not supported for MSVC")
+	return object, ([object], inputs, [ShellCommand(args)])
     def targets(self, objects):
 	target = os.path.join(self.targetdir, self.targetprefix + self.targetname + self.targetext)
 	#print objects
 	return target, ([target], objects, [ShellCommand(["link", "/OUT:" + target] + objects + ["/LIBPATH:" + lp for lp in self.libdirs] + self.links + ["/NOLOGO"])])
 
+class GenerateMakeSourceDeps(Command):
+    def __init__(self, cmdargs, outpath, target):
+	self.cmdargs = cmdargs
+	self.outpath = outpath
+	self.target = target
+    def __call__(self):
+	with _printLock:
+	    print subprocess.list2cmdline(self.cmdargs)
+	child = subprocess.Popen(self.cmdargs, stdout=subprocess.PIPE)
+	targ, deps = parse_make_rule(child.communicate()[0])
+	assert targ == [self.target]
+	open(self.outpath, "w").write(repr(set(deps)))
+	assert child.wait() == 0
+
 class GxxProject(CxxProject):
     def __init__(self, targetname):
 	super(GxxProject, self).__init__(targetname)
-	self.compiler = "g++"
+	#self.compiler = "g++"
+	self.targetext = ""
     def source_dep(self, source):
 	o = source + ".d"
-	return [o], [source], [ShellCommand(["cpp", "-MM", "-MF", o, source])]
+	return [o], [source], [GenerateMakeSourceDeps(["cpp", "-MM", "-MT", "gayness", source], o, "gayness")]
     def object(self, source):
-	inputs = parse_source_dep_file(source, source + ".d") or [source]
+	inputs = parse_source_dep_file(source + ".d") or [source]
 	object = source + ".o"
-	return object, ([object], inputs, [ShellCommand(["g++", "-o", object, source, "-c", "-pipe"] + self.buildoptions)])
+	args = ["g++", "-c", "-pipe"]
+	args += ["-o", object, source]
+	args += self.buildoptions
+	if self.debug:
+	    args += ["-g"]
+	return object, ([object], inputs + [source + ".d"], [ShellCommand(args)])
     def targets(self, objects):
 	target = os.path.join(self.targetdir, self.targetprefix + self.targetname + self.targetext)
-	return target, ([target], objects, [ShellCommand(["g++", "-o", target] + objects + ["-pipe"] + self.linkoptions)])
+	return [target], ([target], objects, [ShellCommand(["g++", "-o", target] + objects + ["-pipe"] + self.linkoptions)])
 
-def pybake_main():
-    if len(sys.argv) == 2 and sys.argv[1] == "clean":
-	clean()
-    elif len(sys.argv) > 1:
-	for a in sys.argv[1:]:
-	    update(__phonies[a])
-    else:
-	update_all()
+__projects = set()
 
 def add_project(project):
-    project.generate_rules()
+    assert not project in __projects
+    __projects.add(project)
 
-from glob import glob
-#import sys
+def set_configurations(*confs):
+    global __configurations
+    __configurations = tuple(confs)
 
-benchmark = CxxProject("benchmark")
-benchmark.sources = regex_glob("src", "\.c[^.]*$")
-if os.name == "nt":
-    benchmark.includedirs = ["../../../gtest-trunk/include", r"C:\Boost\include\boost-1_40", r"C:\Python26\include"]
-    benchmark.links = ["../../../gtest-trunk/msvc/benchmark/release/gtest.lib"]
-    benchmark.libdirs = [r"C:\Boost\lib", r"C:\Python26\libs"]
+def is_configuration(conf):
+    assert conf in __configurations
+    return CONFIGURATION == conf
+
+from optparse import OptionParser
+parser = OptionParser()
+parser.set_defaults(file="bake")
+parser.add_option("--config")
+parser.add_option("--file")
+opts, args = parser.parse_args()
+
+CONFIGURATION = opts.config
+execfile(opts.file, globals(), {})
+
+print CONFIGURATION
+for p in __projects:
+    assert not p.name in __phonies
+    __phonies[p.name] = p.generate_rules()
+
+if len(args) == 0:
+    update_all()
 else:
-    benchmark.buildoptions = library_config("python-config --includes")
-    benchmark.linkoptions = library_config("gtest-config --libs") + library_config("python-config --libs") + ["-lboost_system-mt"]
-
-add_project(benchmark)
-
-pybake_main()
-
-#objs = []
-##regex_glob("src", "\.c[^.]*$"):
-#sources = glob("src/*.c") + glob("src/*.cc") + glob("src/*.cpp")
-#for s in sources:
-    #print s
-    #def msvc_source_depgen(args, output):
-        #def inner():
-            #child = subprocess.Popen(args, stdout=subprocess.PIPE)
-            #DEP_PREFIX = "Note: including file:"
-            #retval = []
-            #with open(output, "wb") as dfp:
-                #for line in child.stdout:
-                    #if line.startswith(DEP_PREFIX):
-                        #dfp.write(line[len(DEP_PREFIX):].lstrip())
-            #assert child.wait() == 0
-        #return inner
-    #o = s + ".d"
-    #if os.name != "nt":
-        #c = ["cpp", "-MM", "-MF", o, s]
-    #else:
-        #c = msvc_source_depgen(["cl", "/showIncludes", "/c", "/nologo", s, "/I" + "../../../gtest-trunk/include", "/I" + r"C:\Boost\include\boost-1_40", "/I" + r"C:\Python26\include"], o)
-    #add_rule([o], [s], [c])
-    #o = s + ".o"
-    ##c = ["g++", "-o", o, s, "-c"] + library_config("python-config --includes")
-    ##add_rule([o], parse_source_dep_file(s, s + ".d") or [s], [c])
-    #objs.append(o)
-##add_rule(["benchmark"], objs, [["g++", "-o", "benchmark"] + objs + library_config("gtest-config --libs") + library_config("python-config --libs") + ["-lboost_system-mt"]])
+    if "clean" in args:
+	args.remove("clean")
+	clean()
+    for a in args:
+	for t in __phonies[a]:
+	    update(t)
