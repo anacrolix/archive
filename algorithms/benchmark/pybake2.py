@@ -35,64 +35,6 @@ def make_file_path(filepath):
 	if e.errno not in [errno.EEXIST]:
 	    raise
 
-__jobSemaphore = threading.BoundedSemaphore(1)
-__targets = {}
-__phonies = {}
-_printLock = threading.Lock()
-
-
-
-try:
-    import curses
-except ImportError:
-    import ctypes
-    from ctypes import wintypes
-    class COORD(ctypes.Structure):
-	_fields_ = [
-		("X", wintypes.SHORT),
-		("Y", wintypes.SHORT),]
-    class CONSOLE_SCREEN_BUFFER_INFO(ctypes.Structure):
-	_fields_ = [
-		("dwSize", COORD),
-		("dwCursorPosition", COORD),
-		("wAttributes", wintypes.WORD),
-		("srWindow", wintypes.SMALL_RECT),
-		("dwMaximumWindowSize", COORD),]
-    def pb_print(*text, **kwargs):
-	sep = kwargs.get("sep", " ")
-	color = kwargs.get("color", None)
-	with _printLock:
-	    if color != None:
-		outHandle = ctypes.windll.kernel32.GetStdHandle(wintypes.DWORD(-11))
-		assert not outHandle == ctypes.wintypes.DWORD(-1)
-		a = CONSOLE_SCREEN_BUFFER_INFO()
-		assert ctypes.windll.kernel32.GetConsoleScreenBufferInfo(outHandle, ctypes.pointer(a))
-		oldAttributes = a.wAttributes
-		FOREGROUND_BLUE      = 0x0001
-		FOREGROUND_GREEN     = 0x0002
-		FOREGROUND_RED       = 0x0004
-		FOREGROUND_INTENSITY = 0x0008
-		BACKGROUND_BLUE      = 0x0010
-		BACKGROUND_GREEN     = 0x0020
-		BACKGROUND_RED       = 0x0040
-		BACKGROUND_INTENSITY = 0x0080
-		BACKGROUND_MASK      = 0xf0
-		codes = {
-			"blue": FOREGROUND_BLUE,
-			"cyan": FOREGROUND_BLUE | FOREGROUND_GREEN,
-			"green": FOREGROUND_GREEN,
-			"red": FOREGROUND_RED,
-			"yellow": FOREGROUND_GREEN | FOREGROUND_RED,}
-		code = codes[color]
-		code |= FOREGROUND_INTENSITY
-		code |= oldAttributes & BACKGROUND_MASK
-		ctypes.windll.kernel32.SetConsoleTextAttribute(outHandle, wintypes.WORD(code))
-	    try:
-		print sep.join(text).rstrip()
-	    finally:
-		if color != None:
-		    ctypes.windll.kernel32.SetConsoleTextAttribute(outHandle, oldAttributes)
-
 class UpdateGuard(object):
     def __init__(self):
 	self.__lock = threading.Lock()
@@ -117,7 +59,6 @@ class UpdateGuard(object):
 	with self.__condition:
 	    while not deps <= self.__updated:
 		self.__condition.wait()
-__guard = UpdateGuard()
 
 class PybakeError(Exception):
     pass
@@ -159,8 +100,14 @@ class ShellCommand(Command):
     def __init__(self, args):
         self.args = args
     def __call__(self):
-	pb_print(subprocess.list2cmdline(self.args), color="blue")
-        child = subprocess.Popen(self.args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	pb_print(subprocess.list2cmdline(self.args), color="cyan")
+	try:
+	    child = subprocess.Popen(self.args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	except OSError as e:
+	    if e.errno != errno.ENOENT:
+		raise
+	    pb_print("A necessary file was not found", color="red")
+	    raise PybakeStop()
 	outdata, errdata = child.communicate()
 	if errdata: pb_print(errdata, color="red")
 	if outdata: pb_print(outdata, color="yellow")
@@ -181,6 +128,7 @@ def update(target):
     with __jobSemaphore:
 	for o in outputs:
 	    make_file_path(o)
+	pb_print(", ".join(outputs), color=TARGET)
         for c in commands:
             c()
     for o in outputs:
@@ -311,19 +259,22 @@ class CxxProject(CProject):
 	    return GxxProject.__new__(GxxProject, *args)
 
 class GenerateMsvcSourceDeps(Command):
-    def __init__(self, cmdargs, outpath):
+    def __init__(self, cmdargs, outpath, srcpath):
 	self.cmdargs = cmdargs
 	self.outpath = outpath
+	self.srcpath = srcpath
     def __call__(self):
-	pb_print(subprocess.list2cmdline(self.cmdargs), color="blue")
+	pb_print(subprocess.list2cmdline(self.cmdargs), color=CMDLINE)
 	child = subprocess.Popen(self.cmdargs, stdout=subprocess.PIPE)
 	DEP_PREFIX = "Note: including file:"
 	hdrdeps = set([])
 	for line in child.stdout:
 	    if line.startswith(DEP_PREFIX):
 		hdrdeps.add(line[len(DEP_PREFIX):].strip())
-	open(self.outpath, "w").write(repr(hdrdeps))
+	    elif line.rstrip() != path.basename(self.srcpath):
+		pb_print(line, color=WARNING)
 	assert child.wait() == 0
+	open(self.outpath, "w").write(repr(hdrdeps))
 
 def parse_source_dep_file(depFilePath):
     try:
@@ -347,8 +298,9 @@ class MsvcProject(CxxProject):
 	hdeprule = (
 		[hdeppath],
 		[srcpath], [GenerateMsvcSourceDeps(
-			["cl", srcpath, "/showIncludes", "/c", "/nologo"] + ["/I" + id for id in self.includedirs],
-			hdeppath)])
+			["cl", srcpath, "/showIncludes", "/c", "/nologo", "/EHsc"] + ["/I" + id for id in self.includedirs],
+			hdeppath,
+			srcpath)])
 	args = ["cl", "/Fo" + objpath, srcpath, "/c", "/nologo", "/EHsc", "/MD"] + ["/I" + id for id in self.includedirs]
 	if self.debug:
 	    args.append("/Zi")
@@ -360,18 +312,18 @@ class MsvcProject(CxxProject):
 	#print objects
 	return target, ([target], objects, [ShellCommand(["link", "/OUT:" + target] + objects + ["/LIBPATH:" + lp for lp in self.libdirs] + self.links + ["/NOLOGO"])])
 
-class GenerateMakeSourceDeps(Command):
-    def __init__(self, cmdargs, outpath, target):
-	self.cmdargs = cmdargs
-	self.outpath = outpath
-	self.target = target
-    def __call__(self):
-	pb_print(subprocess.list2cmdline(self.cmdargs), color="blue")
-	child = subprocess.Popen(self.cmdargs, stdout=subprocess.PIPE)
-	targ, deps = parse_make_rule(child.communicate()[0])
-	assert targ == [self.target]
-	open(self.outpath, "w").write(repr(set(deps)))
-	assert child.wait() == 0
+#class GenerateMakeSourceDeps(Command):
+    #def __init__(self, cmdargs, outpath, target):
+	#self.cmdargs = cmdargs
+	#self.outpath = outpath
+	#self.target = target
+    #def __call__(self):
+	#pb_print(subprocess.list2cmdline(self.cmdargs), color=CMDLINE)
+	#child = subprocess.Popen(self.cmdargs, stdout=subprocess.PIPE)
+	#targ, deps = parse_make_rule(child.communicate()[0])
+	#assert targ == [self.target]
+	#open(self.outpath, "w").write(repr(set(deps)))
+	#assert child.wait() == 0
 
 class GxxProject(CxxProject):
     def __init__(self, targetname):
@@ -394,8 +346,6 @@ class GxxProject(CxxProject):
 	target = os.path.join(self.targetdir, self.targetprefix + self.targetname + self.targetext)
 	return [target], ([target], objects, [ShellCommand(["g++", "-o", target] + objects + ["-pipe"] + self.linkoptions)])
 
-__projects = set()
-
 def add_project(project):
     assert not project in __projects
     __projects.add(project)
@@ -413,6 +363,67 @@ def is_config(conf):
     assert conf in __configs
     return CONFIG == conf
 
+__targets = {}
+__phonies = {}
+__projects = set()
+__guard = UpdateGuard()
+
+try:
+    import curses
+except ImportError:
+    import ctypes
+    from ctypes import wintypes
+    class COORD(ctypes.Structure):
+	_fields_ = [
+		("X", wintypes.SHORT),
+		("Y", wintypes.SHORT),]
+    class CONSOLE_SCREEN_BUFFER_INFO(ctypes.Structure):
+	_fields_ = [
+		("dwSize", COORD),
+		("dwCursorPosition", COORD),
+		("wAttributes", wintypes.WORD),
+		("srWindow", wintypes.SMALL_RECT),
+		("dwMaximumWindowSize", COORD),]
+    def pb_print(*text, **kwargs):
+	sep = kwargs.get("sep", " ")
+	color = kwargs.get("color", None)
+	with _printLock:
+	    if color != None:
+		outHandle = ctypes.windll.kernel32.GetStdHandle(wintypes.DWORD(-11))
+		assert not outHandle == ctypes.wintypes.DWORD(-1)
+		a = CONSOLE_SCREEN_BUFFER_INFO()
+		assert ctypes.windll.kernel32.GetConsoleScreenBufferInfo(outHandle, ctypes.pointer(a))
+		oldAttributes = a.wAttributes
+		FOREGROUND_BLUE      = 0x0001
+		FOREGROUND_GREEN     = 0x0002
+		FOREGROUND_RED       = 0x0004
+		FOREGROUND_INTENSITY = 0x0008
+		BACKGROUND_BLUE      = 0x0010
+		BACKGROUND_GREEN     = 0x0020
+		BACKGROUND_RED       = 0x0040
+		BACKGROUND_INTENSITY = 0x0080
+		BACKGROUND_MASK      = 0xf0
+		codes = {
+			"blue": FOREGROUND_BLUE,
+			"cyan": FOREGROUND_BLUE | FOREGROUND_GREEN,
+			"green": FOREGROUND_GREEN,
+			"magenta": FOREGROUND_RED | FOREGROUND_BLUE,
+			"red": FOREGROUND_RED,
+			"yellow": FOREGROUND_GREEN | FOREGROUND_RED,}
+		code = codes[color]
+		code |= FOREGROUND_INTENSITY
+		code |= oldAttributes & BACKGROUND_MASK
+		ctypes.windll.kernel32.SetConsoleTextAttribute(outHandle, wintypes.WORD(code))
+	    try:
+		print sep.join(text).rstrip()
+	    finally:
+		if color != None:
+		    ctypes.windll.kernel32.SetConsoleTextAttribute(outHandle, oldAttributes)
+
+CMDLINE = "cyan"
+WARNING = "yellow"
+TARGET = "magenta"
+
 from optparse import OptionParser
 parser = OptionParser()
 parser.set_defaults(file="bake")
@@ -423,10 +434,18 @@ opts, args = parser.parse_args()
 CONFIG = opts.config
 execfile(opts.file, globals(), {})
 
-print CONFIG
 for p in __projects:
     assert not p.name in __phonies
     __phonies[p.name] = p.generate_rules()
+
+def excepthook(*args):
+    with _printLock:
+	oldExcepthook(*args)
+oldExcepthook = sys.excepthook
+sys.excepthook = excepthook
+
+__jobSemaphore = threading.BoundedSemaphore(4)
+_printLock = threading.Lock()
 
 if len(args) == 0:
     update_all()
@@ -437,3 +456,4 @@ else:
     for a in args:
 	for t in __phonies[a]:
 	    update(t)
+p
