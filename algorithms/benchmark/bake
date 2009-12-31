@@ -1,3 +1,7 @@
+#!python
+
+import os
+
 set_configs("debug", "release")
 
 benchmark = CxxProject("benchmark")
