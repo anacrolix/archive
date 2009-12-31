@@ -23,9 +23,7 @@ if opts.debug:
     oldExceptHook = sys.excepthook
     sys.excepthook = pm_exchook
 
-import core
-import project
-import util
+from _pybake2 import core, project, util
 
 recipe = core.Recipe(opts.file)
 
