@@ -5,94 +5,85 @@ import sys
 from heapq import heapify, heappop, heappush
 from collections import namedtuple
 from bitarray import bitarray
+from StringIO import StringIO
 
-class SymbolFrequencies(object):
-    def __init__(self):
-        self.weights = {}
-    def weigh(self, sample):
-        for a in set(sample):
-            if a not in self.weights:
-                self.weights[a] = 0
-            self.weights[a] += sample.count(a)
-        return self
+class SymbolWeights(object):
+    def __init__(self, symbol_bits=8):
+        self.frequencies = {}
+        self.symbol_bits = symbol_bits
+    def __invariant(self):
+        for a in self.frequencies.keys():
+            assert a.length() == self.symbol_bits
+    def add_symbols(self, more_symbols):
+        #pdb.set_trace()
+        assert not len(more_symbols) % self.symbol_bits
+        for index in xrange(0, len(more_symbols), self.symbol_bits):
+            symbol = more_symbols[index:index+self.symbol_bits]
+            if not self.frequencies.has_key(symbol):
+                self.frequencies[symbol] = 0
+            self.frequencies[symbol] += 1
+        self.__invariant()
+    def __iter__(self):
+        return self.frequencies.iteritems()
     def __str__(self):
-        r = ""
-        for a in sorted((b for b in self.weights.iteritems()), key=lambda c: c[1], reverse=True):
-            r += repr(a) + "\n"
-        return r
+        s = StringIO()
+        print >>s, self.symbol_bits
+        for a in self.frequencies.iteritems():
+            print >>s, a
+        return s.getvalue()
 
-class Leaf(object):
-    def __init__(self, symbol):
-        self.symbol = symbol
+def encode(weights, input):
+    #weights = {}
+    #for c in set(text):
+        #weights[c] = text.count(c)
+    forest = [ [w, (s, bitarray())] for s, w in weights ]
+    heapify(forest)
+    #print forest
+    while len(forest) > 1:
+        left = heappop(forest)
+        for i in left[1:]: i[1].insert(0, False)
+        right = heappop(forest)
+        for i in right[1:]: i[1].insert(0, True)
+        parent = [left[0] + right[0]] + left[1:] + right[1:]
+        heappush(forest, parent)
+    huffman = dict(heappop(forest)[1:])
+    print huffman
+    output = bitarray(endian="little")
+    text = bitarray()
+    text.fromfile(input)
+    for index in xrange(0, len(text),
+    output.encode(huffman, text)
+    #print output, len(output)
+    return huffman, output
 
-class Branch(object):
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
-def build_encoder(tree):
-    #pdb.set_trace()
-    def visit(node, path):
-        if isinstance(node, Leaf):
-            symbol = node.symbol
-            assert symbol not in encoder
-            encoder[symbol] = path
-        elif isinstance(node, Branch):
-            visit(node.left, path + "0")
-            visit(node.right, path + "1")
-        else:
-            raise TypeError
-    encoder = {}
-    visit(tree, bitarray())
-    return encoder
-
-class HuffmanTree(object):
-    def __init__(self, symbol_weights):
-        forest = [ (weight, Leaf(symbol)) for symbol, weight in symbol_weights.iteritems() ]
-        #print forest
-        heapify(forest)
-        while len(forest) > 1:
-            left = heappop(forest)
-            right = heappop(forest)
-            #for i in left[1:]: i[1].insert(0, '0')
-            #for i in right[1:]: i[1].insert(0, '1')
-            parent = (left[0] + right[0], Branch(left[1], right[1]))
-            #parent = [ left[0] + right[0] ] + left[1:] + right[1:]
-            heappush(forest, parent)
-        assert len(forest) == 1
-        self.decoder = heappop(forest)[1]
-        #print self.decoder
-        self.encoder = build_encoder(self.decoder)
-    def encode(self, text):
-        encoded_text = bitarray()
-        encoded_text.encode(self.encoder, text)
-        print encoded_text.length()
-        return encoded_text.tostring()
-    def decode(self, text):
+def encode_file(input_file, output_file):
+    weights = SymbolWeights()
+    while True:
+        buffer = input_file.read(512)
+        if not buffer: break
         a = bitarray()
-        a.fromstring(text)
-        print a
-        return a.decode(self.encoder)
+        a.fromstring(buffer)
+        weights.add_symbols(a)
+    print weights
+    input_file.seek(0)
+    code, huffed = encode(weights, input_file)
+    output_file.write(repr(code) + "\n")
+    output_file.write(str(huffed.buffer_info()[3]))
+    huffed.tofile(output_file)
+    original_size = len(unhuffed)
+    huffed_size = output_file.tell()
+    print "compression:", 100.0 * huffed_size / original_size
+    output_file.flush()
 
-def show_huffman_codes(text):
-    a = SymbolFrequencies()
-    a.weigh(text)
-    print a
-    b = HuffmanTree(a.weights)
-    print b.encoder
-    for c in b.encoder.iteritems():
-        print "%s\t%s" % (c[0], c[1])
-    encoded_text = b.encode(text)
-    print repr(encoded_text), len(encoded_text)
-    print "original length:", 8 * len(text)
-    decoded_text = "".join(b.decode(encoded_text))
-    print decoded_text
-    assert decoded_text == text
+def decode_file(input_file, output_file):
+    huffman_code = eval(input_file.readline())
+    unused = int(input_file.read(1))
+    encoded_text = bitarray(endian="little")
+    encoded_text.fromfile(input_file)
+    if unused: del encoded_text[-unused:]
+    output_file.write("".join(encoded_text.decode(huffman_code)))
 
 if __name__ == "__main__":
-    #show_huffman_codes("matt")
-    #show_huffman_codes("This is a realllllllly long sentence!")
-    #show_huffman_codes(open(sys.argv[0]).read())
-    #show_huffman_codes(open("treeops.pyc").read())
-    show_huffman_codes("this is an example for huffman encoding")
-
+    target = sys.argv[1]
+    encode_file(open(target, "rb"), open(target + ".huff", "wb"))
+    decode_file(open(target + ".huff", "rb"), open(target + ".unhuffed", "wb"))

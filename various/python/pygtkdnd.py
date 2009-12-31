@@ -8,7 +8,6 @@ import gtk
 import hashlib
 import math
 import os, os.path
-import pdb
 import socket
 import struct
 import tempfile
@@ -29,12 +28,13 @@ class FileSend:
         self.outgoing.setblocking(True)
         self.outgoing.connect(('localhost', 1337))
         self.compressor = zlib.compressobj()
-        #gobject.io_add_watch(
-                #self.outgoing.fileno(),
-                #gobject.IO_OUT | gobject.IO_ERR | gobject.IO_HUP,
-                #self.outgoing_cb,
-                #priority=gobject.PRIORITY_DEFAULT_IDLE)
-        gobject.timeout_add(10, self.outgoing_cb)
+        gobject.io_add_watch(
+                self.outgoing.fileno(),
+                gobject.IO_OUT | gobject.IO_ERR | gobject.IO_HUP,
+                self.outgoing_cb,
+                priority=gobject.PRIORITY_DEFAULT_IDLE
+            )
+        #gobject.timeout_add(10, self.outgoing_cb)
         self.progbar = progbar
         header = repr({
                 "length": self.length,
@@ -49,7 +49,8 @@ class FileSend:
         print "del transfer"
         self.outgoing.close()
         self.infile.close()
-    def outgoing_cb(self):
+    def outgoing_cb(self, a, condition):
+        assert condition == 4
         #if condition == gobject.IO_OUT:
         while not self.pending:
             a = self.infile.read(0x1000)
@@ -60,18 +61,23 @@ class FileSend:
                 self.pending.append(self.compressor.flush())
                 break
         if self.pending:
-            #try:
-            self.outgoing.settimeout(0.0)
-            b = self.outgoing.send(self.pending.copy())
-            #except socket.error as e:
+            try:
+                print self.outgoing.gettimeout()
+                self.outgoing.settimeout(0.001)
+                print self.outgoing.gettimeout()
+                print len(self.pending.copy())
+                b = self.outgoing.send(self.pending.copy())
+            except socket.error as e:
+                print e
+                print len(self.pending.copy())
                 #if e.errno in (errno.WSAECONNRESET,):
                     #self.progbar.set_text(self.infile.url + " [CONNECTION RESET]")
                     #del self
                     #return False
                 #if not e.errno in (errno.WSAEWOULDBLOCK,):
                     #raise
-            #else:
-            self.pending.drop(b)
+            else:
+                self.pending.drop(b)
         if self.infile.fp:
             f = self.infile.fp.tell() / self.length
             #if self.progbar.get_fraction() // 0.01 != f // 0.01:
@@ -91,7 +97,7 @@ class FileReceive(object):
         self.dcmprss = zlib.decompressobj()
         gobject.io_add_watch(
                 conn,
-                ~gobject.IO_OUT,
+                gobject.IO_IN,
                 self.event_cb,
                 priority=gobject.PRIORITY_DEFAULT_IDLE)
         self.state = 0
@@ -122,7 +128,7 @@ class FileReceive(object):
         print "del FileReceive"
     def event_cb(self, source, condition):
         # check only 1 condition is set
-        #print condition
+        print condition
         if condition & gobject.IO_IN:
             a = source.recv(0x1000)
             assert a

@@ -146,3 +146,23 @@ def install(components, mode=None, target_not_dir=False, make_dirs=False, dir_fi
     if dir_first: args.append("-t")
     args.extend(components)
     classes.SystemTask(args)()
+
+def which(program):
+    import os
+    for path in os.environ["PATH"].split(os.pathsep):
+        exePath = os.path.join(path, program)
+        if os.path.exists(exePath) and os.access(exePath, os.X_OK):
+            return exePath
+    else:
+        return None
+
+def build_tool(lang):
+    if lang in ["c", "cxx", "c++"]:
+        defaultCompilerOrder = {
+                "nt": ["msvc", "gcc"],
+                "posix": ["gcc"],
+            }[os.name]
+        for compilerName in defaultCompilerOrder:
+            compiler = __import__(".lang." + compilerName)
+            if compiler.is_present():
+                return compiler
