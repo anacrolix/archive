@@ -7,7 +7,7 @@ import pdb
 import sys
 
 parser = optparse.OptionParser()
-parser.set_defaults(file="bake", config="default", debug=False)
+parser.set_defaults(file="bake", config=None, debug=False)
 parser.add_option("--config")
 parser.add_option("--file", "-f")
 parser.add_option("--debug", "-d", action="store_true", dest="debug")
@@ -25,7 +25,7 @@ if opts.debug:
 
 from _pybake2 import core, project, util
 
-recipe = core.Recipe(opts.file)
+recipe = core.Recipe(opts.file, opts.config)
 
 def expose(symbol, name=None):
     if name == None: name = symbol.__name__
@@ -45,8 +45,8 @@ for a in ["set_configs"]:
 
 def project_wrapper(projectClass):
     def create_project(name):
-        a = projectClass(name, opts.config)
-        recipe.add_project(a)
+        a = projectClass(name, recipe)
+        #recipe.add_project(a)
         return a
     return create_project
 
@@ -55,7 +55,6 @@ recipeGlobals["CxxProject"] = project_wrapper(project.CxxProject)
 expose_symbol("regex_glob", util)
 expose_symbol("library_config", util)
 
-#recipeGlobals["CONFIG"] = opts.config
 execfile(opts.file, recipeGlobals)
 
 recipe.generate_projects()

@@ -110,9 +110,17 @@ def pb_print(*text, **kwargs):
 class Recipe(object):
     def set_configs(self, *configs):
 	self._configs = configs
+	if self.curconf == None:
+	    default = self._configs[0]
+	    pb_print("Defaulting to config %s" % default)
+	    self.curconf = default
+	elif not self.curconf in self._configs:
+	    raise PybakeStop("%s is not in the declared configs %s" % (repr(self.curconf), self._configs))
+    def get_config(self):
+	return self.curconf
     def add_project(self, project):
 	self._projects.add(project)
-    def __init__(self, bakefpath):
+    def __init__(self, bakefpath, curconf):
 	# projects are ditched to generate phonies and rules
 	self._projects = set([])
 	self._phonies = {}
@@ -120,17 +128,7 @@ class Recipe(object):
 	self._guard = UpdateGuard()
 	self._jobchoke = threading.BoundedSemaphore(4)
 	self._bakefpath = bakefpath
-#def add_rule(outputs, inputs, commands):
-    #rule = (set(outputs), set(inputs), commands)
-    #for index, seq in enumerate([outputs, inputs, commands]):
-	#assert len(rule[index]) == len(seq), str(seq) + str(rule[index]) + str(index)
-    #for o in outputs:
-        #assert not o in __targets
-        #__targets[o] = (set(outputs), set(inputs), commands)
-
-#def add_rules(rules):
-    #for r in rules:
-	#add_rule(*r)
+	self.curconf = curconf
     def add_rules(self, *rules):
 	for r in rules:
 	    assert len(r) == 3

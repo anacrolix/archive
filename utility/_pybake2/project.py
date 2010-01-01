@@ -41,21 +41,19 @@ class Project(object):
     __metaclass__ = ProjectType
     _fields_ = set([
 	"name",])
-    def __init__(self, name, config):
+    def __init__(self, name, recipe):
 	super(Project, self).__init__()
 	#for name in self._fields_:
 	    #assert not hasattr(self, name)
 	    #print name
 	    #setattr(self, name, None)
 	self.name = name
-	#add_project(self)
+	recipe.add_project(self)
     def __setattr__(self, key, value):
 	if not key in self._fields_:
 	    raise AttributeError("Can't set %s" % key)
 	else:
 	    super(Project, self).__setattr__(key, value)
-	#def build(self):
-	#print "build"
 
 class CProject(Project):
     __fields__ = [
@@ -74,9 +72,9 @@ class CProject(Project):
 	    "targetname",
 	    "targetext",
 	]
-    def __init__(self, targetname, config):
-	super(CProject, self).__init__(targetname, config)
-	self.builddir = path.join(".pybake2", sys.platform, config)
+    def __init__(self, targetname, recipe):
+	super(CProject, self).__init__(targetname, recipe)
+	self.builddir = path.join(".pybake2", sys.platform, recipe.get_config())
 	self.debug = False
 	self.includedirs = []
 	self.libdirs = []
@@ -136,8 +134,8 @@ def parse_source_dep_file(depFilePath):
     return []
 
 class MsvcProject(CxxProject):
-    def __init__(self, targetname, config):
-	super(self.__class__, self).__init__(targetname, config)
+    def __init__(self, targetname, recipe):
+	super(self.__class__, self).__init__(targetname, recipe)
 	self.targetext = ".exe"
     def source_dep(self, srcpath, hdeppath):
 	return [hdeppath], [srcpath],
@@ -178,8 +176,8 @@ class GenerateGccSourceDeps(Command):
 	open(self.outpath, "w").write(repr(set(deps)))
 
 class GxxProject(CxxProject):
-    def __init__(self, targetname, config):
-	super(GxxProject, self).__init__(targetname, config)
+    def __init__(self, targetname, recipe):
+	super(GxxProject, self).__init__(targetname, recipe)
 	#self.compiler = "g++"
 	self.targetext = ""
     def compile(self, srcpath):
