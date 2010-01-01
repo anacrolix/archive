@@ -6,38 +6,45 @@ class TerminalColor(object):
     pass
 
 def curses_color():
-    import curses
-    class TermInfo():
-	# this. is. ANSIIIII!!!
-	_ANSI_COLORS = """BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE""".split()
-	_STRING_CAPS = """NORMAL=sgr0""".split()
-	def __init__(self, stream=sys.stdout):
-	    # isatty might be needed here?
-	    curses.setupterm(None, stream.fileno())
-	    for prefix, capname in [("FG_", "setaf"), ("BG_", "setab")]:
-		for index, color in zip(range(len(self._ANSI_COLORS)), self._ANSI_COLORS):
-		    setattr(self, prefix + color, curses.tparm(curses.tigetstr(capname), index))
-	    for strcap in self._STRING_CAPS:
-		attr, capname = strcap.split("=")
-		setattr(self, attr, curses.tigetstr(capname))
-	    self.stream = stream
-	#def __del__(self):
-	#    self.reset()
-	def reset(self):
-	    self.immediate(self.NORMAL)
-	def immediate(self, tistr):
-	    self.stream.write(tistr)
-	    self.stream.flush()
-	def save_color(self):
-	    return None
-	def set_color(self, color):
-	    self.immediate(getattr(self, "FG_" + color.upper()))
-	def reset_color(self):
-	    #self.immediate(self.__color)
-	    self.reset()
-    return TermInfo
+    try:
+	import curses
+    except ImportError:
+	pass
+    else:
+	class TermInfo():
+	    # this. is. ANSIIIII!!!
+	    _ANSI_COLORS = """BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE""".split()
+	    _STRING_CAPS = """NORMAL=sgr0""".split()
+	    def __init__(self, stream=sys.stdout):
+		# isatty might be needed here?
+		curses.setupterm(None, stream.fileno())
+		for prefix, capname in [("FG_", "setaf"), ("BG_", "setab")]:
+		    for index, color in zip(range(len(self._ANSI_COLORS)), self._ANSI_COLORS):
+			setattr(self, prefix + color, curses.tparm(curses.tigetstr(capname), index))
+		for strcap in self._STRING_CAPS:
+		    attr, capname = strcap.split("=")
+		    setattr(self, attr, curses.tigetstr(capname))
+		self.stream = stream
+	    #def __del__(self):
+	    #    self.reset()
+	    def reset(self):
+		self.immediate(self.NORMAL)
+	    def immediate(self, tistr):
+		self.stream.write(tistr)
+		self.stream.flush()
+	    def save_color(self):
+		return None
+	    def set_color(self, color):
+		self.immediate(getattr(self, "FG_" + color.upper()))
+	    def reset_color(self):
+		#self.immediate(self.__color)
+		self.reset()
+	return TermInfo
 
 def windows_color():
+    import ctypes
+    from ctypes import wintypes
+
     class COORD(ctypes.Structure):
 	_fields_ = [
 		("X", wintypes.SHORT),
@@ -104,18 +111,12 @@ def set_color(color):
 	a.reset_color()
 
 def select_color():
-    try:
-	import curses
-    except ImportError:
-	import ctypes
-	try:
-	    from ctypes import wintypes
-	finally:
-	    pass
-	return windows_color()
+    for a in [curses_color, windows_color]:
+	b = a()
+	if b != None:
+	    return b
     else:
-	return curses_color()
-    assert False
+	assert False
 
 __default = select_color()
 
