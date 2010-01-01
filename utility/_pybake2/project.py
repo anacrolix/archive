@@ -123,7 +123,7 @@ class GenerateMsvcSourceDeps(Command):
 	for line in child.stdout:
 	    if line.startswith(DEP_PREFIX):
 		hdrdeps.add(line[len(DEP_PREFIX):].strip())
-	    elif line.rstrip() != path.basename(self.srcpath):
+	    elif line.rstrip() != path.basename(self.srcpath) and len(line.strip()):
 		pb_print(line, color=WARNING)
 	assert child.wait() == 0
 	open(self.outpath, "w").write(repr(hdrdeps))
@@ -137,6 +137,11 @@ def parse_source_dep_file(depFilePath):
     #except SyntaxError:
 	#pass
     return []
+
+class MsvcCompileCommand(ShellCommand):
+    def process_streams(self, outdata, errdata):
+	if errdata: pb_print(errdata, color="red")
+	if outdata: pb_print(outdata.rstrip(), color="yellow")
 
 class MsvcProject(CxxProject):
     def __init__(self, targetname, recipe):
@@ -160,7 +165,7 @@ class MsvcProject(CxxProject):
 	if self.optimize:
 	    args.append("/O2")
 	inputs = parse_source_dep_file(hdeppath) + [srcpath]
-	objrule = [objpath], inputs, [ShellCommand(args)]
+	objrule = [objpath], inputs, [MsvcCompileCommand(args)]
 	return objpath, [hdeprule, objrule]
     def targets(self, objects):
 	target = os.path.join(self.targetdir, self.targetprefix + self.targetname + self.targetext)
@@ -204,7 +209,7 @@ class GxxProject(CxxProject):
 	# the source dep INCLUDES the source file itself for GCC
 	inputs = parse_source_dep_file(hdeppath) or [srcpath]
 	assert srcpath in inputs
-	objrule = [objpath], inputs, [ShellCommand(args)]
+	objrule = [objpath], inputs + [hdeppath], [ShellCommand(args)]
 	return objpath, [hdeprule, objrule]
     def targets(self, objects):
 	target = os.path.join(self.targetdir, self.targetprefix + self.targetname + self.targetext)
