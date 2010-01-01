@@ -145,15 +145,23 @@ class Recipe(object):
 	    self._phonies[p.name] = topTargets
 	    self.add_rules(*rules)
 	del self._projects
+    def build(self, projectName):
+	self.update(self._phonies[projectName])
+    def update_seq(self, targets):
+	tp = ThreadPool()
+	for t in targets:
+	    tp.add_thread(target=self.update, name=t, args=[t])
+	tp.join_all()
     def update(self, target):
 	outputs, inputs, commands = self._rules[target]
 	if not self._guard.claim_update(outputs):
 	    return
-	tp = ThreadPool()
-	for i in inputs:
-	    if i in self._rules:
-		tp.add_thread(target=self.update, name=i, args=[i])
-	tp.join_all()
+	#tp = ThreadPool()
+	#for i in inputs:
+	    #if i in self._rules:
+		#tp.add_thread(target=self.update, name=i, args=[i])
+	#tp.join_all()
+	self.update_seq([i for i in inputs if i in self._rules])
 	self._guard.wait_updated(set(inputs).intersection(self._rules.keys()))
 	if not is_outdated(target, inputs | set([self._bakefpath])):
 	    self._guard.updated(set([target]))
@@ -168,10 +176,7 @@ class Recipe(object):
 	    assert not is_outdated(o, inputs)
 	self._guard.updated(outputs)
     def update_all(self):
-	tp = ThreadPool()
-	for t in self._rules:
-	    tp.add_thread(target=self.update, args=[t])
-	tp.join_all()
+	self.update_seq(self._rules.keys())
     def clean(self):
 	rmCount = 0
 	for t in self._rules:

@@ -65,15 +65,12 @@ def excepthook(*args):
 oldExcepthook = sys.excepthook
 sys.excepthook = excepthook
 
-#__jobSemaphore = threading.BoundedSemaphore(4)
-#_printLock = threading.Lock()
-
-if len(args) == 0:
+if "clean" in args:
+    args.remove("clean")
+    recipe.clean()
+if len(args) == 0 or "all" in args:
+    try: args.remove("all")
+    except ValueError: pass
     recipe.update_all()
-else:
-    if "clean" in args:
-	args.remove("clean")
-	recipe.clean()
-    for a in args:
-	for t in __phonies[a]:
-	    update(t)
+for a in args:
+    recipe.build(a)
