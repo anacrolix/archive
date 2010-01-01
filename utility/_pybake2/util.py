@@ -1,4 +1,3 @@
-
 def regex_glob(basepath, regex):
     import os, re
     from os import path

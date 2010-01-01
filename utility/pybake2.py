@@ -60,7 +60,7 @@ execfile(opts.file, recipeGlobals)
 recipe.generate_projects()
 
 def excepthook(*args):
-    with _printLock:
+    with core._printLock:
         oldExcepthook(*args)
 oldExcepthook = sys.excepthook
 sys.excepthook = excepthook
