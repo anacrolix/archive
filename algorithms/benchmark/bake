@@ -15,3 +15,5 @@ else:
     benchmark.linkoptions = library_config("gtest-config --libs") + library_config("python-config --libs") + ["-lboost_system-mt"]
 if is_config("debug"):
     benchmark.debug = True
+if is_config("release"):
+    benchmark.optimize = True

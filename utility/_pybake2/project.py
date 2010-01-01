@@ -70,6 +70,7 @@ class CProject(Project):
 	    "libdirs",
 	    "includedirs",
 	    "objects",
+	    "optimize",
 	    "targetdir",
 	    "targetprefix",
 	    "targetname",
@@ -83,6 +84,7 @@ class CProject(Project):
 	self.libdirs = []
 	self.links = []
 	self.objects = []
+	self.optimize = False
 	self.targetdir = ""
 	self.targetprefix = ""
 	self.targetname = targetname
@@ -155,6 +157,8 @@ class MsvcProject(CxxProject):
 	args = ["cl", "/Fo" + objpath, srcpath, "/c", "/nologo", "/EHsc", "/MD"] + ["/I" + id for id in self.includedirs]
 	if self.debug:
 	    args.append("/Zi")
+	if self.optimize:
+	    args.append("/O2")
 	inputs = parse_source_dep_file(hdeppath) + [srcpath]
 	objrule = [objpath], inputs, [ShellCommand(args)]
 	return objpath, [hdeprule, objrule]
@@ -195,6 +199,8 @@ class GxxProject(CxxProject):
 	args += self.buildoptions
 	if self.debug:
 	    args += ["-g"]
+	if self.optimize:
+	    args += ["-O2"]
 	# the source dep INCLUDES the source file itself for GCC
 	inputs = parse_source_dep_file(hdeppath) or [srcpath]
 	assert srcpath in inputs
