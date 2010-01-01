@@ -1,31 +1,40 @@
 import errno, os, pdb, threading, subprocess, sys
+import Queue as queue
+import traceback
 from os import path
 from constant import *
 
 class FatalThread(threading.Thread):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, excQueue, *args, **kwargs):
 	threading.Thread.__init__(self, *args, **kwargs)
-	assert not hasattr(self, "unhandled")
-	self.unhandled = False
+	self.excQueue = excQueue
     def run(self):
 	try:
 	    threading.Thread.run(self)
 	except:
-	    self.unhandled = True
-	    raise
+	    with _printLock:
+		sys.stderr.write(
+			"Exception in thread %s:\n%s\n" %
+			(self.name, traceback.format_exc()))
+	    self.excQueue.put(None)
 
 class ThreadPool(object):
     def __init__(self):
 	object.__init__(self)
 	self.__threads = []
+	self.__excQueue = queue.Queue()
     def add_thread(self, *args, **kwargs):
-	self.__threads.append(FatalThread(*args, **kwargs))
+	self.__threads.append(FatalThread(self.__excQueue, *args, **kwargs))
+	if self.__excQueue.qsize() > 0:
+	    self.handle_exc()
 	self.__threads[-1].start()
     def join_all(self):
 	for t in self.__threads:
 	    t.join()
-	    if t.unhandled:
-		sys.exit("wees & poos")
+	    if self.__excQueue.qsize() > 0:
+		self.handle_exc()
+    def handle_exc(self):
+	sys.exit()
     def __enter__(self):
 	pass
     def __exit__(self, *exc_info):
@@ -83,8 +92,6 @@ def is_outdated(target, deps):
             return True
     else:
         return False
-
-
 
 _printLock = threading.Lock()
 
