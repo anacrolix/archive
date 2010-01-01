@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 from os import path
-from core import pb_print
+from core import pb_print, PybakeStop
 from constant import *
 import util
 
@@ -14,15 +14,18 @@ class ShellCommand(Command):
     def __init__(self, args):
         self.args = args
     def __call__(self):
-	pb_print(subprocess.list2cmdline(self.args), color="cyan")
+	cmdline = subprocess.list2cmdline(self.args)
+	pb_print(cmdline, color="cyan")
 	try:
 	    child = subprocess.Popen(self.args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	except OSError as e:
 	    if e.errno != errno.ENOENT:
 		raise
-	    pb_print("A necessary file was not found", color="red")
-	    raise PybakeStop()
-	outdata, errdata = child.communicate()
+	    raise PybakeStop("A necessary file was not found")
+	self.process_streams(*child.communicate())
+	if child.returncode != 0:
+	    raise PybakeStop("Command returned %d: %s" % (child.returncode, repr(cmdline)))
+    def process_streams(self, outdata, errdata):
 	if errdata: pb_print(errdata, color="red")
 	if outdata: pb_print(outdata, color="yellow")
 
