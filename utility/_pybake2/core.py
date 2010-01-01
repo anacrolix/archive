@@ -98,10 +98,14 @@ _printLock = threading.Lock()
 def pb_print(*text, **kwargs):
     sep = kwargs.get("sep", " ")
     color = kwargs.get("color", None)
+    text = sep.join(text)#.rstrip()
     with _printLock:
-	import termclr
-	with termclr.set_color(color):
-	    print sep.join(text).rstrip()
+	if color == None:
+	    print text
+	else:
+	    import termclr
+	    with termclr.set_color(color):
+		print text
 
 class Recipe(object):
     def set_configs(self, *configs):
