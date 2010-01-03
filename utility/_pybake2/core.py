@@ -1,40 +1,44 @@
-import errno, os, pdb, threading, subprocess, sys
+import errno, os, pdb
 import Queue as queue
+import threading
 import traceback
+import subprocess, sys
 from os import path
 from constant import *
 
 class FatalThread(threading.Thread):
-    def __init__(self, excQueue, *args, **kwargs):
+    def __init__(self, errflag, *args, **kwargs):
 	threading.Thread.__init__(self, *args, **kwargs)
-	self.excQueue = excQueue
+	self.errflag = errflag
     def run(self):
 	try:
 	    threading.Thread.run(self)
+	except PybakeStop as e:
+	    #if not self.errflag:
+	    self.errflag.set()
+	    pb_print(str(e), color=ERROR)
 	except:
+	    self.errflag.set()
 	    with _printLock:
 		sys.stderr.write(
 			"Exception in thread %s:\n%s\n" %
 			(self.name, traceback.format_exc()))
-	    self.excQueue.put(None)
 
+# might be necessary to let threads finish gracefully and then exit?
 class ThreadPool(object):
-    def __init__(self):
+    def __init__(self, errflag):
 	object.__init__(self)
 	self.__threads = []
-	self.__excQueue = queue.Queue()
+	self.errflag = errflag
     def add_thread(self, *args, **kwargs):
-	self.__threads.append(FatalThread(self.__excQueue, *args, **kwargs))
-	if self.__excQueue.qsize() > 0:
-	    self.handle_exc()
-	self.__threads[-1].start()
+	if not self.errflag:
+	    #print "starting thread", kwargs["name"]
+	    self.__threads.append(FatalThread(self.errflag, *args, **kwargs))
+	    self.__threads[-1].start()
     def join_all(self):
 	for t in self.__threads:
+	    #print "joining thread", t.name
 	    t.join()
-	    if self.__excQueue.qsize() > 0:
-		self.handle_exc()
-    def handle_exc(self):
-	sys.exit()
     def __enter__(self):
 	pass
     def __exit__(self, *exc_info):
@@ -53,9 +57,12 @@ class UpdateGuard(object):
 	self.__updating = set()
 	self.__updated = set()
 	self.__condition = threading.Condition(self.__lock)
+	self.__passall = False
     def claim_update(self, outputs):
 	with self.__lock:
-	    if set(outputs) <= self.__updating | self.__updated:
+	    if set(outputs) <= self.__updating:
+		return False
+	    elif outputs <= self.__updated:
 		return False
 	    else:
 		assert self.__updating.isdisjoint(outputs)
@@ -63,13 +70,18 @@ class UpdateGuard(object):
 		return True
     def updated(self, outputs):
 	with self.__lock:
-	    assert outputs <= self.__updating
+	    if not outputs <= self.__updating:
+		pdb.set_trace()
 	    self.__updating -= outputs
 	    self.__updated |= outputs
 	    self.__condition.notify_all()
+    def notify_error(self):
+	with self.__lock:
+	    self.__passall = True
+	    self.__condition.notify_all()
     def wait_updated(self, deps):
 	with self.__condition:
-	    while not deps <= self.__updated:
+	    while not deps <= self.__updated and self.__passall == False:
 		self.__condition.wait()
 
 class PybakeError(Exception):
@@ -107,6 +119,18 @@ def pb_print(*text, **kwargs):
 	    with termclr.set_color(color):
 		print text
 
+class ErrorFlag(object):
+    def __init__(self, *notifiees):
+	self.__event = threading.Event()
+	self.notifiees = notifiees
+    def __nonzero__(self):
+	return self.__event.is_set()
+    def set(self):
+	print "Error flag set"
+	self.__event.set()
+	for n in self.notifiees:
+	    n.notify_error()
+
 class Recipe(object):
     def set_configs(self, *configs):
 	self._configs = configs
@@ -129,6 +153,7 @@ class Recipe(object):
 	self._jobchoke = threading.BoundedSemaphore(4)
 	self._bakefpath = bakefpath
 	self.curconf = curconf
+	self.errflag = ErrorFlag(self._guard)
     def add_rules(self, *rules):
 	for r in rules:
 	    assert len(r) == 3
@@ -148,30 +173,47 @@ class Recipe(object):
     def build(self, projectName):
 	self.update(self._phonies[projectName])
     def update_seq(self, targets):
-	tp = ThreadPool()
-	for t in targets:
-	    tp.add_thread(target=self.update, name=t, args=[t])
-	tp.join_all()
+	tp = ThreadPool(self.errflag)
+	with tp:
+	    for t in targets:
+		if self.errflag:
+		    return
+		tp.add_thread(target=self.update, name=t, args=[t])
     def update(self, target):
 	outputs, inputs, commands = self._rules[target]
+	#with _printLock:
+	#    print outputs
+	if self.errflag:
+	    return
 	if not self._guard.claim_update(outputs):
 	    return
-	#tp = ThreadPool()
-	#for i in inputs:
-	    #if i in self._rules:
-		#tp.add_thread(target=self.update, name=i, args=[i])
-	#tp.join_all()
 	self.update_seq([i for i in inputs if i in self._rules])
-	self._guard.wait_updated(set(inputs).intersection(self._rules.keys()))
-	if not is_outdated(target, inputs | set([self._bakefpath])):
-	    self._guard.updated(set([target]))
+	if self.errflag:
 	    return
+	self._guard.wait_updated(set(inputs).intersection(self._rules.keys()))
+	if self.errflag:
+	    return
+	for o in outputs:
+	    if is_outdated(o, inputs):
+		break
+	else:
+	    self._guard.updated(outputs)
+	    return
+	#if not is_outdated(target, inputs):# | set([self._bakefpath])):
+	    #self._guard.updated(set([target]))
+	#    return
 	with self._jobchoke:
+	    if self.errflag:
+		return
 	    for o in outputs:
 		make_file_path(o)
 	    pb_print(", ".join(outputs), color=TARGET)
+	    if self.errflag:
+		return
 	    for c in commands:
 		c()
+	    if self.errflag:
+		return
 	for o in outputs:
 	    assert not is_outdated(o, inputs)
 	self._guard.updated(outputs)
