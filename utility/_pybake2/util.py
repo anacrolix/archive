@@ -1,12 +1,28 @@
+import os
+from os import path
+import pdb
+import re
+
 def regex_glob(basepath, regex):
-    import os, re
-    from os import path
     reobj = re.compile(regex)
     for root, dirs, files in os.walk(basepath):
         for f in files:
             p = path.join(root, f)
             if reobj.search(p):
                 yield p
+
+def find_sources(basedir, extensions, ignoreDirs=None):
+    if ignoreDirs == None:
+	ignoreDirs = []
+    ignoreDirs += [".svn", ".hg"]
+    for root, dirs, files in os.walk(basedir):
+	for f in files:
+	    for e in extensions:
+		if f.endswith(e):
+		    yield path.join(root, f)
+	for d in dirs[:]:
+	    if d in ignoreDirs:
+		dirs.remove(d)
 
 def library_config(cmdstr):
     import subprocess

@@ -38,7 +38,7 @@ def expose_symbol(symbol, source):
 @expose
 def is_config(config):
     assert config in recipe._configs
-    return config == opts.config
+    return config == recipe.get_config()
 
 for a in ["set_configs"]:
     expose_symbol(a, recipe)
@@ -53,10 +53,13 @@ def project_wrapper(projectClass):
 recipeGlobals["CxxProject"] = project_wrapper(project.CxxProject)
 
 expose_symbol("regex_glob", util)
+expose_symbol("find_sources", util)
 expose_symbol("library_config", util)
 
+print "Parsing", opts.file
 execfile(opts.file, recipeGlobals)
 
+print "Generating projects"
 recipe.generate_projects()
 
 def excepthook(*args):
@@ -66,11 +69,9 @@ oldExcepthook = sys.excepthook
 sys.excepthook = excepthook
 
 if "clean" in args:
-    args.remove("clean")
     recipe.clean()
 if len(args) == 0 or "all" in args:
-    try: args.remove("all")
-    except ValueError: pass
     recipe.update_all()
 for a in args:
-    recipe.build(a)
+    if a not in ["clean", "all"]:
+	recipe.build(a)
