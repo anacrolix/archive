@@ -15,7 +15,7 @@ class ShellCommand(Command):
         self.args = args
     def __call__(self):
 	cmdline = subprocess.list2cmdline(self.args)
-	pb_print(cmdline, color="cyan")
+	pb_print(cmdline, color=CMDLINE)
 	try:
 	    child = subprocess.Popen(self.args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	except OSError as e:
