@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+import optparse
+import pdb
+import re
+import signal
+import string
+import sys
+import time
+
+parser = optparse.OptionParser()
+parser.add_option("-i", "--interval", help="time between updates in seconds", type='float')
+options, args = parser.parse_args()
+
+devices = args or None
+interval = options.interval
+refresh = False
+counts = []
+
+def set_refresh_flag(*args):
+	#print "alarm signaled", args, time.time()
+	global refresh
+	refresh = True
+
+def enable_alarm():
+	signal.signal(signal.SIGALRM, set_refresh_flag)
+	# no alarm should currently be set
+	assert (0, 0) == signal.setitimer(signal.ITIMER_REAL, interval, interval)
+
+def update_counts():
+	lines = open("/proc/net/dev").readlines()
+	item = time.time(), {}
+	for l in lines[2:]:
+		device, data = l.split(":")
+		device = device.strip()
+		cols = data.split()
+		assert len(cols) == 16
+		received = cols[0]
+		transmitted = cols[8]
+		assert device not in item
+		item[1][device] = map(int, [received, transmitted])
+	counts.append(item)
+
+def human_readable_data_quantity(quantity, multiple=1024):
+	if quantity == 0:
+		quantity = +0
+	SUFFIXES = ["B"] + [i + {1000: "B", 1024: "iB"}[multiple] for i in "KMGTPEZY"]
+	for suffix in SUFFIXES:
+		if quantity < multiple or suffix == SUFFIXES[-1]:
+			if suffix == SUFFIXES[0]:
+				return "%d%s" % (quantity, suffix)
+			else:
+				return "%.1f%s" % (quantity, suffix)
+		else:
+			quantity /= multiple
+
+def print_device_rates():
+	#print counts
+	try:
+		cur, last = counts[-2:]
+	except ValueError:
+		return
+	delta = cur[0] - last[0]
+	for dev in cur[1]:
+		if devices == None:
+			if dev in ["lo"]:
+				continue
+		else:
+			if dev not in devices:
+				continue
+		recvrate, sendrate = [(cur[1][dev][i] - last[1][dev][i]) / delta for i in xrange(2)]
+		print dev + ":", "recv=" + human_readable_data_quantity(recvrate) + "/s", "send=" + human_readable_data_quantity(sendrate) + "/s"
+		
+	#print len(counts)
+
+def update():
+	update_counts()
+	print_device_rates()
+
+update()
+enable_alarm()
+while True:
+	signal.pause()
+	if refresh:
+		update()
+		refresh = False
