@@ -1,49 +1,79 @@
 #!/usr/bin/env python
 
+PROGNAME = "Nethogs2"
+VERSION = "0.1-dev"
+
+import collections
+import curses
+import itertools
+import logging
 import optparse
+import os
 import pdb
+import pprint
 import re
 import signal
+import socket
 import string
+import struct
 import sys
 import time
+import unittest
 
-parser = optparse.OptionParser()
-parser.add_option("-i", "--interval", help="time between updates in seconds", type='float')
-options, args = parser.parse_args()
+class DeviceCapture(object):
+    import pcap
+    def __init__(self, name, promisc=False):
+        self.name = name
+        self.handle = self.pcap.pcapObject()
+        print "Opening device %s" % repr(name)
+        self.handle.open_live(name, 150, promisc, 100)
+    def dispatch(self, count, callback):
+        def callback_wrapper(pktlen, data, ts):
+            callback(pktlen, data, ts, self)
+        print "read %d packets" % self.handle.dispatch(count, callback_wrapper)
+    @property
+    def datalink(self):
+        """Returns the datalink type as a string"""
+        return {
+                self.pcap.DLT_EN10MB: 'ethernet',
+            }[self.handle.datalink()]
+    def stats(self):
+        """Returns a tuple containing the number of packets transited on the network, and the number of packets dropped by the driver"""
+        return self.handle.stats()[0:2]
 
-devices = args or None
-interval = options.interval
-refresh = False
-counts = []
+def get_packet_endpoints(data, datalink):
+    def tcp(data):
+        return [struct.unpack("!H", data[i:i+2])[0] for i in (0, 2)]
+    udp = tcp
+    def ipv4(data):
+        assert (ord(data[0]) >> 4) == 4
+        hdrl = 4 * (ord(data[0]) & 0xf)
+        assert hdrl >= 20
+        ports = {
+                6: tcp,
+                17: udp,
+            }[ord(data[9])](data[hdrl:])
+        inaddrs = data[12:16], data[16:20]
+        return ["%s:%d" % (socket.inet_ntoa(i), p) for i, p in zip(inaddrs, ports)]
+    def arp(data):
+        assert ord(data[4]) == 6 # MAC
+        assert ord(data[5]) == 4 # IPv4
+        return [socket.inet_ntoa(i) for i in (data[14:18], data[24:28])]
+    #def ipv6(data):
+    #    pass
+    def ethernet():
+        return {
+                0x0800: ipv4,
+                0x0806: arp,
+                #0x86dd: ipv6,
+            }[int(struct.unpack("!H", data[12:14])[0])](data[14:])
+    endps = locals()[datalink]()
+    #assert len(endps) == 2
+    return tuple(endps)
 
-def set_refresh_flag(*args):
-	#print "alarm signaled", args, time.time()
-	global refresh
-	refresh = True
-
-def enable_alarm():
-	signal.signal(signal.SIGALRM, set_refresh_flag)
-	# no alarm should currently be set
-	assert (0, 0) == signal.setitimer(signal.ITIMER_REAL, interval, interval)
-
-def update_counts():
-	lines = open("/proc/net/dev").readlines()
-	item = time.time(), {}
-	for l in lines[2:]:
-		device, data = l.split(":")
-		device = device.strip()
-		cols = data.split()
-		assert len(cols) == 16
-		received = cols[0]
-		transmitted = cols[8]
-		assert device not in item
-		item[1][device] = map(int, [received, transmitted])
-	counts.append(item)
-
-def human_readable_data_quantity(quantity, multiple=1024):
-	if quantity == 0:
-		quantity = +0
+def human_readable_data_quantity(quantity, multiple=1024.0):
+	#if quantity == 0:
+	#	quantity = +0
 	SUFFIXES = ["B"] + [i + {1000: "B", 1024: "iB"}[multiple] for i in "KMGTPEZY"]
 	for suffix in SUFFIXES:
 		if quantity < multiple or suffix == SUFFIXES[-1]:
@@ -70,17 +100,153 @@ def print_device_rates():
 				continue
 		recvrate, sendrate = [(cur[1][dev][i] - last[1][dev][i]) / delta for i in xrange(2)]
 		print dev + ":", "recv=" + human_readable_data_quantity(recvrate) + "/s", "send=" + human_readable_data_quantity(sendrate) + "/s"
-		
+
 	#print len(counts)
 
-def update():
-	update_counts()
-	print_device_rates()
+ProcessInfo = collections.namedtuple("ProcessInfo", ["pid", "cmdline"])
 
-update()
-enable_alarm()
-while True:
-	signal.pause()
-	if refresh:
-		update()
-		refresh = False
+class ConsoleUI(object):
+    def __init__(self, stdscr):
+        pass
+
+def group(iterable, n=2):
+    return itertools.izip(*((iter(iterable),) * n))
+
+def htonhexstr(hexstr):
+    return reversed(["".join(s) for s in group(hexstr)])
+
+def generate_conn2proc():
+    inode2proc = {}
+    for d in os.listdir("/proc"):
+        if not re.match(r"\d+$", d):
+            # not a process entry
+            continue
+        p = "/proc/%s/fd" % d
+        try:
+            dirlist = os.listdir(p)
+        except OSError as e:
+            logging.info(e)
+        for l in dirlist:
+            try:
+                link = os.readlink(os.path.join(p, l))
+            except:
+                logging.info(sys.exc_info()[1])
+                continue
+            matchobj = re.match(r"socket:\[(\d+)\]$", link)
+            if not matchobj:
+                # not a socket
+                continue
+            inode = int(matchobj.group(1))
+            procinfo = ProcessInfo(pid=int(d), cmdline=open("/proc/%s/cmdline" % d).read())
+            if inode in inode2proc:
+                logging.info("Inode %d present in multiple processes: %s and %s" % (inode, inode2proc[inode], procinfo))
+            else:
+                inode2proc[inode] = procinfo
+    #pprint.pprint(inode2proc)
+    conn2proc = {}
+    def parse_connections_from_proc_socket_table(filename, family):
+        def make_endpoint((addr, port)):
+            packstr = "".join([chr(int(o, 16)) for o in htonhexstr(addr)])
+            addrstr = socket.inet_ntop(family, packstr)
+            port = int(port, 16)
+            return "%s:%d" % (addrstr, port)
+        # 1 connection per line, the first contains the headers
+        for l in open(filename).readlines()[1:]:
+            cols = re.split("[%s:]+" % string.whitespace, l.strip())
+            conn = (make_endpoint(cols[1:3]), make_endpoint(cols[3:5]))
+            inode = int(cols[13])
+            yield conn, inode
+    for filename, family in (("/proc/net/tcp", socket.AF_INET),):
+        for conn, inode in parse_connections_from_proc_socket_table(filename, family):
+            assert not conn in conn2proc
+            if inode not in inode2proc:
+                if inode == 0:
+                    logging.warning("Connection has inode 0: %s" % (conn,))
+                    continue # move on to next connection
+            conn2proc[conn] = inode2proc[inode]
+    #pprint.pprint(conn2proc)
+    return conn2proc
+
+def _get_process_traffic(conn2proc, devcaps):
+    # {(local, remote): process}
+    conn2proc.update(generate_conn2proc())
+    # {process: (sent, received)}
+    counts = {}
+    def packet_callback(pktlen, data, ts, devcap):
+        # (source, destination)
+        endpoints = get_packet_endpoints(data, devcap.datalink)
+        if endpoints in conn2proc:
+            outgoing = True
+            process = conn2proc[endpoints]
+        else:
+            if endpoints[::-1] in conn2proc:
+                outgoing = False
+                process = conn2proc[endpoints[::-1]]
+            else:
+                logging.warning("Connection not found: %s" % (endpoints,))
+                return
+        counts.setdefault(process, [0, 0])[0 if outgoing else 1] += pktlen
+    for dc in devcaps:
+        dc.dispatch(-1, packet_callback)
+        assert dc.stats()[1] == 0
+    logging.debug(pprint.pformat(counts))
+    return counts
+
+def _redraw_screen(win, trafinfo):
+    win.clear()
+    win.addstr(0, 0, "%s v%s" % (PROGNAME, VERSION))
+    COLS = ("pid", 5), ("user", 8), ("program", 28), ("dev", 10), ("sent", 8), ("received", 8)
+    LINEFMT = " ".join(["{{{0}:{1}.{1}}}".format(colhdr, width) for colhdr, width in COLS]) + "\n"
+    win.addstr(2, 0, LINEFMT.format(**dict([(a[0], a[0].upper()) for a in COLS])), curses.A_REVERSE)
+    def keyfunc(x):
+        return sum(x[1])
+    for proc, traf in sorted(trafinfo.iteritems(), key=keyfunc, reverse=True):
+        line = LINEFMT.format(pid=str(proc.pid), program=proc.cmdline.replace("\x00", " "), sent=human_readable_data_quantity(traf[0]), received=human_readable_data_quantity(traf[1]), user="stub", dev="stub")
+        logging.debug(repr(line))
+        win.addstr(str(line))
+        #win.addstr(str((proc, traf)) + "\n")
+    win.refresh()
+
+def transform(unaries, iterable):
+    return map(lambda a, b: a(b) if a is not None else b, unaries, iterable)
+
+class Nethogs2(object):
+    def __init__(self, interval, devnames):
+        self.devcaps = []
+        for dn in devnames:
+            dc = DeviceCapture(dn)
+            self.devcaps.append(dc)
+        self.conn2proc = {}
+        self.refresh = False
+        self.trafinfo = []
+        signal.signal(signal.SIGALRM, self.alarm_callback)
+        assert (0, 0) == signal.setitimer(signal.ITIMER_REAL, .1, interval)
+    def main_loop(self, stdscr):
+        self.update(stdscr)
+        try:
+            while True:
+                signal.pause()
+                if self.refresh:
+                    self.update(stdscr)
+                    self.refresh = False
+        except KeyboardInterrupt:
+            print sys.exc_type
+    def alarm_callback(self, *args):
+        logging.debug("Alarm triggered")
+        self.refresh = True
+    def run(self):
+        print "starting..."
+        curses.wrapper(self.main_loop)
+    def update(self, stdscr):
+        logging.debug("Updating")
+        self.trafinfo.append((time.time(), _get_process_traffic(self.conn2proc, self.devcaps)))
+        _redraw_screen(stdscr, self.trafinfo[-1][1])
+
+if __name__ == "__main__":
+    logging.basicConfig(filename="nethogs2.log", filemode="w", level=logging.DEBUG)
+
+    parser = optparse.OptionParser()
+    parser.add_option("-i", "--interval", help="time between updates in seconds", type='float', default=1.0)
+    options, posargs = parser.parse_args()
+
+    Nethogs2(options.interval, posargs or ("any",)).run()
