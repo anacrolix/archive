@@ -1,0 +1,2 @@
+This is Windows specific, due to the the region offsets used.
+I don't believe it works with recent versions of Tibia due to changes in the binary.

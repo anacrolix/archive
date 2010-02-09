@@ -10,24 +10,23 @@
 #define debug printf
 
 const char* TIBIA_MC_WARNING = "A Tibia client is already running!";
-const char* TIBIA_FILE_NAME = "Tibia.exe";
+const char *TIBIA_FILE_NAME = "Tibia.exe";
 
-void err_quit (char *quitstr) {
-	printf(quitstr);
-	putchar ('\n');
-	system("pause");
-	exit (EXIT_SUCCESS);
+void err_quit (char *quitstr)
+{
+	puts(quitstr);
+	exit(EXIT_SUCCESS);
 }
 
-void err_sys (char *errstr) {
-	perror (errstr);
-	putchar ('\n');
-	system("pause");
-	exit (EXIT_FAILURE);
+void err_sys(char *errstr)
+{
+	perror(errstr);
+	putchar('\n');
+	exit(EXIT_FAILURE);
 }
 
-int main (int argc, char **argv) {
-
+int main (int argc, char **argv)
+{
 	// open client file
 	FILE *f =	fopen(TIBIA_FILE_NAME, "rb+");
 	if (f == NULL) err_sys("Open client file");
