@@ -1,4 +1,4 @@
-#!python2.6
+#!/usr/bin/env python
 
 # this must go first, we require true division
 from __future__ import division
@@ -7,35 +7,26 @@ from __future__ import division
 PROGNAME = "Nethogs2"
 VERSION = "0.1-dev"
 
-# core library
-import collections
-import curses
-import itertools
-import logging
-import operator
-import optparse
-import os
-import os.path
-import pdb
-import pprint
-import pwd
-import re
-import signal
-import socket
-import string
-import struct
-import sys
-import time
-import unittest
+from common import *
+
+import proctab
+import pktanal
 
 class DeviceCapture(object):
     import pcap # here to force the interface to be pcap free
     def __init__(self, name, promisc=False):
         self.name = name
         self.handle = self.pcap.pcapObject()
-        print "Opening device %s" % repr(name)
-        # snaplen must be long enough for all headers, and short enough that packets aren't dropped
-        self.handle.open_live(name, 150, promisc, 0)
+
+        # configure the pcap device
+        logging.info("Opening device %s" % repr(name))
+        try:
+            # snaplen must be long enough for all headers, and short enough that packets aren't dropped
+            self.handle.open_live(name, 150, promisc, 0)
+        except Exception as e:
+            sys.exit("Error opening %s: %s" % (name, e))
+        self.handle.setnonblock(True)
+
         self.addresses = set()
         for name, desc, addrs, flags in self.pcap.findalldevs():
             if name == self.name:
@@ -54,44 +45,6 @@ class DeviceCapture(object):
         """Returns a tuple containing the number of packets transited on the network, and the number of packets dropped by the driver"""
         return self.handle.stats()[0:2]
 
-def get_packet_endpoints(data, datalink):
-    def tcp(data):
-        return [struct.unpack("!H", data[i:i+2])[0] for i in (0, 2)]
-    udp = tcp
-    def ipv4(data):
-        assert (ord(data[0]) >> 4) == 4
-        hdrl = 4 * (ord(data[0]) & 0xf)
-        assert hdrl >= 20
-        ports = {
-                6: tcp,
-                17: udp,
-            }[ord(data[9])](data[hdrl:])
-        inaddrs = data[12:16], data[16:20]
-        return [(socket.inet_ntoa(i), p) for i, p in zip(inaddrs, ports)]
-    def arp(data):
-        assert ord(data[4]) == 6 # MAC
-        assert ord(data[5]) == 4 # IPv4
-        return [socket.inet_ntoa(i) for i in (data[14:18], data[24:28])]
-    #def ipv6(data):
-    #    pass
-    def ethernet():
-        ethertype = struct.unpack("!H", data[12:14])[0]
-        #ethertype = htonhexstr(data[12:14])
-        try:
-            nextfunc = {
-                    0x0800: ipv4,
-                    #0x0806: arp,
-                    #0x86dd: ipv6,
-                }[ethertype]
-        except KeyError as e:
-            logging.warning("Unhandled ethernet type: %d" % ethertype)
-        else:
-            return nextfunc(data[14:])
-    endps = locals()[datalink]()
-    if endps == None:
-        return
-    return tuple(endps)
-
 def normalize_data_quantity(quantity, multiple=1024):
     assert (7 / 3) != 2 # ensure true division is in effect
     SUFFIXES = ["B"] + [i + {1000: "B", 1024: "iB"}[multiple] for i in "KMGTPEZY"]
@@ -100,9 +53,9 @@ def normalize_data_quantity(quantity, multiple=1024):
             break
         else:
             quantity /= multiple
-    return ("%4d  " if quantity.is_integer() else "%6.1f") % quantity, suffix
+    return ("%5d" if quantity.is_integer() else "%5.1f") % quantity, suffix
 
-ProcessInfo = collections.namedtuple("ProcessInfo", ["pid", "cmdline", "user"])
+NetworkHog = collections.namedtuple("NetworkHog", ["pid", "cmdline", "user", "device"])
 
 class ProcessTraffic(dict):
     def __getitem__(self, key):
@@ -114,112 +67,8 @@ class ProcessTraffic(dict):
         return self
     def __itruediv__(self, other):
         for rates in self.itervalues():
-            logging.debug(rates)
             rates[:] = map(lambda x: x / other, rates)
-            logging.debug(rates)
         return self
-
-def group(iterable, n=2):
-    return itertools.izip(*((iter(iterable),) * n))
-
-def htonhexstr(hexstr):
-    return reversed(["".join(s) for s in group(hexstr)])
-
-def _make_sockino_to_procinfo_mapping():
-    inode2proc = {}
-    for procdir in os.listdir("/proc"):
-        if not re.match(r"\d+$", procdir):
-            # not a process entry
-            continue
-        basepath = os.path.join("/proc", procdir)
-        try:
-            procinfo = ProcessInfo(
-                    pid=int(procdir),
-                    cmdline=open("/proc/%s/cmdline" % procdir).read(),
-                    user=pwd.getpwuid(os.stat(basepath).st_uid).pw_name)
-        except IOError as e:
-            logging.info(e)
-            continue
-        del procdir # won't need it, base path and proc info will suffice
-        try:
-            fdlist = os.listdir(os.path.join(basepath, "fd"))
-        except OSError as e:
-            logging.info(e)
-            continue # next proc entry, this one has disappeared
-        for fd in fdlist:
-            try:
-                linkdata = os.readlink(os.path.join(basepath, "fd", fd))
-            except OSError as e:
-                logging.info(e)
-                continue # next fd, this one probably closed
-            matchobj = re.match(r"socket:\[(\d+)\]$", linkdata)
-            if not matchobj:
-                # not a socket
-                continue # next fd
-            inode = int(matchobj.group(1))
-            inode2proc[inode] = procinfo
-    return inode2proc
-
-def _parse_socket_table(filename, family):
-    """Returns {(localaddr, remaddr): inode} from a proc socket table file"""
-    def make_endpoint((addr, port)):
-        """Returns human readable network address from socket table line"""
-        # reverse hex string octets and pack as binary string
-        packstr = "".join([chr(int(o, 16)) for o in htonhexstr(addr)])
-        addrstr = socket.inet_ntop(family, packstr)
-        # convert hex string to port number (doesn't need to be reversed)
-        port = int(port, 16)
-        return (addrstr, port) # ipv6 might want a different separator
-    # 1 connection per line, the first contains the headers
-    for l in open(filename).readlines()[1:]:
-        cols = re.split("[%s:]+" % string.whitespace, l.strip())
-        conn = (make_endpoint(cols[1:3]), make_endpoint(cols[3:5]))
-        inode = int(cols[13])
-        yield conn, inode
-
-def _make_netconn_to_inode_mapping():
-    mapping = {}
-    for filename, family in (("/proc/net/tcp", socket.AF_INET), ("/proc/net/udp", socket.AF_INET)):
-        mapping.update(_parse_socket_table(filename, family))
-    return mapping
-            #assert not conn in conn2proc
-            #if inode not in inode2proc:
-                #if inode == 0:
-                    #logging.warning("Connection has inode 0: %s" % (conn,))
-                    #continue # move on to next connection
-            #conn2proc[conn] = inode2proc[inode]
-
-class ProcTable(object):
-    UNKNOWN_PROC = ProcessInfo(user="unknown!", cmdline="unknown!", pid=-1)
-    def __init__(self):
-        self.inode2proc = _make_sockino_to_procinfo_mapping()
-        self.conn2inode = _make_netconn_to_inode_mapping()
-    def netconn_to_procinfo(self, endps, lcladdrs):
-        """Return (outgoing, procinfo)"""
-        rendps = endps[::-1]
-        if set((endps, rendps)).isdisjoint(self.conn2inode):
-            self.conn2inode.update(_make_netconn_to_inode_mapping())
-        if endps in self.conn2inode:
-            outgoing = True
-            inode = self.conn2inode[endps]
-        elif rendps in self.conn2inode:
-            outgoing = False
-            inode = self.conn2inode[rendps]
-        else:
-            logging.debug("Connection not found: %s" % str(endps))
-            logging.debug("lcladdr=" + str(lcladdrs))
-            if endps[0][0] in lcladdrs:
-                return True, self.UNKNOWN_PROC
-            elif rendps[0][0] in lcladdrs:
-                return False, self.UNKNOWN_PROC
-        if inode not in self.inode2proc:
-            self.inode2proc.update(_make_sockino_to_procinfo_mapping())
-        try:
-            procinfo = self.inode2proc[inode]
-        except KeyError:
-            logging.debug("Inode not found: %d" % inode)
-            return outgoing, self.UNKNOWN_PROC
-        return outgoing, procinfo
 
 def dispatch_traffic_per_process_per_epoch(devcaps, proctable):
     """Return a dictionary mapping an integer epoch to the recorded per process send and receive byte counts for that second."""
@@ -227,11 +76,15 @@ def dispatch_traffic_per_process_per_epoch(devcaps, proctable):
     trafinfo = {}
     def packet_callback(pktlen, data, ts, devcap):
         # (source, destination)
-        endps = get_packet_endpoints(data, devcap.datalink)
-        if endps == None:
+        conn = pktanal.analyse_packet(data, devcap.datalink)
+        logging.debug("Analyse packet: %s, length=%d" % (conn, pktlen))
+        #logging.debug("Analysed packet: %s" % str(conn))
+        if conn == None:
             return
-        outgoing, procinfo = proctable.netconn_to_procinfo(endps, devcap.addresses)
-        trafinfo.setdefault(int(ts), ProcessTraffic())[procinfo][0 if outgoing else 1] += pktlen
+        outgoing, procinfo = proctable.netconn_to_procinfo(conn, devcap.addresses)
+        #procinfo = proctable.
+        nethog = NetworkHog(device=devcap.name, **procinfo._asdict())
+        trafinfo.setdefault(int(ts), ProcessTraffic())[nethog][0 if outgoing else 1] += pktlen
     for dc in devcaps:
         dc.dispatch(-1, packet_callback)
         # don't allow any packets to drop, this should be moved further down the stack
@@ -240,20 +93,28 @@ def dispatch_traffic_per_process_per_epoch(devcaps, proctable):
 
 def _redraw_screen(win, trafinfo):
     win.clear()
-    win.addstr(0, 0, "%s v%s" % (PROGNAME, VERSION))
-    COLS = ("pid", 5), ("user", 8), ("program", 28), ("dev", 10), ("sent", 12), ("received", 12)
+    win.addstr(0, 0, "%s v. %s" % (PROGNAME, VERSION))
+    # cols determination could be broken out here, to allow dynamically resizing columns
+    COLS = ("pid", 5), ("user", 8), ("program", 33), ("dev", 7), ("sent", 11), ("received", 11)
     LINEFMT = " ".join(["{{{0}:{1}.{1}}}".format(colhdr, width) for colhdr, width in COLS])
     win.addstr(2, 0, LINEFMT.format(**dict([(a[0], a[0].upper()) for a in COLS])), curses.A_REVERSE)
     def keyfunc(x):
+        """Sort by the sum of incoming and outgoing traffic"""
         return sum(x[1])
     def rate_to_str(byterate):
-        return "%s%3s/s" % normalize_data_quantity(byterate)
+        return "%s%s/s" % normalize_data_quantity(byterate)
     linenr = 3
-    for proc, traf in sorted(trafinfo.iteritems(), key=keyfunc, reverse=True):
-        progargs = proc.cmdline.split("\x00")
+    for nethog, traf in sorted(trafinfo.iteritems(), key=keyfunc, reverse=True):
+        progargs = nethog.cmdline.split("\x00")
         program = " ".join([os.path.basename(progargs[0])] + progargs[1:])
-        line = LINEFMT.format(pid=str(proc.pid), program=program, sent=rate_to_str(traf[0]), received=rate_to_str(traf[1]), user=proc.user, dev="stub")
-        logging.debug(repr(line))
+        line = LINEFMT.format(
+                pid=(str(nethog.pid) if nethog.pid != None else ""),
+                program=program,
+                sent=rate_to_str(traf[0]),
+                received=rate_to_str(traf[1]),
+                user=nethog.user,
+                dev=nethog.device)
+        #logging.debug(repr(line))
         win.addstr(linenr, 0, line)
         linenr += 1
         #win.addstr(str((proc, traf)) + "\n")
@@ -263,61 +124,72 @@ def transform(unaries, iterable):
     return map(lambda a, b: a(b) if a is not None else b, unaries, iterable)
 
 class Nethogs2(object):
-    def __init__(self, interval, devnames):
+    def __init__(self, intervals, devnames):
         self.devcaps = []
         for dn in devnames:
             dc = DeviceCapture(dn)
             self.devcaps.append(dc)
-        self.proctable = ProcTable()
-        self.refresh = False
-        self.trafinfo = {} # {epoch: {process: [sent, received]}}
-        signal.signal(signal.SIGALRM, self.alarm_callback)
-        assert (0, 0) == signal.setitimer(signal.ITIMER_REAL, .1, interval)
-    def main_loop(self, stdscr):
-        self.update(stdscr)
-        try:
-            while True:
-                signal.pause()
-                if self.refresh:
-                    self.update(stdscr)
-                    self.refresh = False
-        except KeyboardInterrupt:
-            print sys.exc_type
+        self.proctable = proctab.ProcTable()
+        self.refresh = True
+        self.trafinfo = {} # {epoch: {NetworkHog: [sent, received]}}
+        assert signal.SIG_DFL == signal.signal(signal.SIGALRM, self.alarm_callback)
+        # fire this ASAP, can't use seconds=0 because this disables it
+        assert (0, 0) == signal.setitimer(signal.ITIMER_REAL, intervals['dispatch'], intervals['dispatch'])
+        self.smoothing = intervals['smoothing']
+        self.run()
+    def main_loop(self):
+        self.redraw_screen(time.time())
+        while True:
+            while self.refresh:
+                self.refresh = False
+                self.do_refresh()
+            signal.pause()
     def alarm_callback(self, *args):
-        logging.debug("Alarm triggered")
+        logging.debug("Alarm triggered at %f" % (time.time(),))
         self.refresh = True
     def run(self):
-        print "starting..."
-        curses.wrapper(self.main_loop)
-    def update(self, stdscr):
-        logging.debug("Updating")
-        updstart = int(time.time())
-        newinfo = dispatch_traffic_per_process_per_epoch(self.devcaps, self.proctable)
-        logging.debug(pprint.pformat(newinfo))
-        for epoch, info in newinfo.iteritems():
-            #pdb.set_trace()
-            logging.debug((epoch, self.trafinfo, info))
-            self.trafinfo.setdefault(epoch, ProcessTraffic())
-            logging.debug((epoch, self.trafinfo, info))
-            self.trafinfo[epoch] += info
-        logging.debug(pprint.pformat(self.trafinfo))
-
+        print "Starting user interface..."
+        def curses_wrapper(stdscr):
+            self.stdscr = stdscr
+            self.main_loop()
+        curses.wrapper(curses_wrapper)
+    def redraw_screen(self, cursec):
         meantraf = ProcessTraffic()
-        smooth = 3
-        for tick in xrange(updstart - 1, updstart - 1 - smooth, -1):
+        showticks = range(cursec - 1, cursec - 1 - self.smoothing, -1)
+        assert len(showticks) == self.smoothing
+        for tick in showticks:
             if tick in self.trafinfo:
                 meantraf += self.trafinfo[tick]
-        meantraf /= smooth
-        logging.debug(meantraf)
-
-        #assert (updstart - 1) not in newinfo, updstart + newinfo
-        _redraw_screen(stdscr, meantraf)
+        meantraf /= self.smoothing
+        _redraw_screen(self.stdscr, meantraf)
+    def do_refresh(self):
+        updstart = int(time.time())
+        self.proctable.update_table()
+        newinfo = dispatch_traffic_per_process_per_epoch(self.devcaps, self.proctable)
+        for epoch, info in newinfo.iteritems():
+            self.trafinfo.setdefault(epoch, ProcessTraffic())
+            self.trafinfo[epoch] += info
+        self.redraw_screen(updstart)
 
 if __name__ == "__main__":
-    logging.basicConfig(filename="nethogs2.log", filemode="w", level=logging.DEBUG)
-
-    parser = optparse.OptionParser()
-    parser.add_option("-i", "--interval", help="time between updates in seconds", type='float', default=1.0)
+    parser = optparse.OptionParser(version=VERSION, usage="%prog [options] DEVICES...")
+    parser.add_option("-d", "--dispatch", help="seconds between packet dispatches and proc polling", type='float', default=0.25)
+    parser.add_option("-r", "--refresh", help="time between display updates in seconds", type='float', default=2.0)
+    parser.add_option("-s", "--smoothing", help="average the traffic over this many preceding seconds", type='int', default=3)
+    parser.add_option("--unittests", help="run the unit tests", action='store_true')
+    parser.disable_interspersed_args()
     options, posargs = parser.parse_args()
 
-    Nethogs2(options.interval, posargs or ("any",)).run()
+    # this has to go before any use of logging
+    logging.basicConfig(filename="nethogs2.log", filemode="w", level=logging.DEBUG,
+            format="%(levelname)s:%(filename)s(%(lineno)d):%(message)s")
+
+    logging.debug("Options " + repr(options))
+    logging.debug("Positional arguments " + repr(posargs))
+    if options.unittests:
+        unittest.main(argv=(sys.argv[0:1] + posargs))
+    else:
+        logging.basicConfig(filename="nethogs2.log", filemode="w", level=logging.DEBUG)
+        if len(posargs) == 0:
+            print "No device specified, defaulting to eth0"
+        Nethogs2(dict(dispatch=options.dispatch, refresh=options.refresh, smoothing=options.smoothing), posargs or ("eth0",))
