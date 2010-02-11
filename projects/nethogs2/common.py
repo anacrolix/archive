@@ -1,7 +1,7 @@
 import collections
 import curses
 import itertools
-import logging
+import math
 import operator
 import optparse
 import os
@@ -19,4 +19,4 @@ import sys
 import time
 import unittest
 
-Connection = collections.namedtuple("Connection", ("local", "remote", "family", "protocol"))
+PacketEndpoints = collections.namedtuple("PacketEndpoints", ("source", "destination", "family", "protocol"))

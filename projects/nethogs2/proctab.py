@@ -2,7 +2,18 @@
 
 from common import *
 
+#Connection = collections.namedtuple("Connection", ("local", "remote", "family", "protocol"))
+class Connection(collections.namedtuple("Connection", ("local", "remote", "family", "protocol"))):
+    #def __new__(cl
+    pass
 ProcessInfo = collections.namedtuple("ProcessInfo", ["pid", "cmdline", "user"])
+
+def reversed_connection_endpoints(netconn):
+    a = netconn._asdict()
+    a["local"] = netconn.remote
+    a["remote"] = netconn.local
+    return Connection(**a)
+#EndpointProcesses = collections.namedtuple("EndpointProcesses", ("outgoing", "incoming"))
 
 def group(iterable, n=2):
     return itertools.izip(*((iter(iterable),) * n))
@@ -20,7 +31,7 @@ def procinfo_from_pid(pid):
         logging.info(e)
         return None
 
-def map_sockino_to_procinfo():
+def map_sockino_to_procinfo(logger):
     inode2procinfo = {}
     for procdir in os.listdir("/proc"):
         if not re.match(r"\d+$", procdir):
@@ -30,14 +41,14 @@ def map_sockino_to_procinfo():
         try:
             fdlist = os.listdir(os.path.join("/proc", procdir, "fd"))
         except OSError as e:
-            logging.info(e)
+            logger.info(e)
             continue # next proc entry, this one has probably disappeared
         for fd in fdlist:
             try:
                 linkdata = os.readlink(os.path.join("/proc", procdir, "fd", fd))
             except OSError as e:
                 if pid != os.getpid():
-                    logging.info(e)
+                    logger.info(e)
                 continue # next fd, this one probably closed
             matchobj = re.match(r"socket:\[(\d+)\]$", linkdata)
             if not matchobj:
@@ -66,6 +77,7 @@ def _parse_socket_table(filename, family):
         inode = int(cols[13])
         yield conn + (inode,)
 
+
 def map_netconn_to_inode():
     """Returns {Connection: inode}"""
     mapping = {}
@@ -91,63 +103,25 @@ class ProcTests(unittest.TestCase):
         for n in itertools.repeat(None, 100):
             map_netconn_to_inode()
 
-def reversed_connection_endpoints(netconn):
-    a = netconn._asdict()
-    a["local"] = netconn.remote
-    a["remote"] = netconn.local
-    return Connection(**a)
-
-class PacketDirection(object):
-    pass
-
 class ProcTable(object):
-    UNKNOWN_PROC = ProcessInfo(user="", pid=None, cmdline="[unknown]")
-    def __init__(self):
-        self.conn2inode = {}
-        self.sockino2procinfo = {}
+    def __init__(self, logger):
+        self.logger = logger
+        self.__conn2inode = {}
+        self.__inode2proc = {}
     def update_table(self):
-        self.sockino2procinfo.update(map_sockino_to_procinfo())
-        self.conn2inode.update(map_netconn_to_inode())
-    def netconn_to_procinfo(self, endps, lcladdrs):
-        """Returns (direction, procinfo)"""
-        inode = None
-        incoming = False
-        outgoing = False
-
-        # check connection tables
-        if endps in self.conn2inode:
-            outgoing = True
-            inode = self.conn2inode[endps]
-        rendps = reversed_connection_endpoints(endps)
-        if rendps in self.conn2inode:
-            incoming = True
-            ininode = self.conn2inode[rendps]
-            if inode != None:
-                assert ininode == inode
-            else:
-                inode = ininode
-
-        # determine procinfo
-        if not outgoing and not incoming:
-            logging.info("Unknown connection: %s" % str(endps))
-            assert inode == None
-            procinfo = self.UNKNOWN_PROC
+        self.__inode2proc.update(map_sockino_to_procinfo(self.logger))
+        self.__conn2inode.update(map_netconn_to_inode())
+    def connection_to_inode(self, connection):
+        assert type(connection) == Connection, type(connection)
+        try:
+            return self.__conn2inode[connection]
+        except KeyError:
+            return None
+    def inode_to_procinfo(self, inode):
+        if inode in self.__inode2proc:
+            return self.__inode2proc[inode]
         else:
-            if inode in self.sockino2procinfo:
-                procinfo = self.sockino2procinfo[inode]
-            else:
-                logging.debug("Inode not found: %d, %s" % (inode, endps))
-                procinfo = self.UNKNOWN_PROC
-
-        # check device addresses
-        if not outgoing:
-            if endps.local[0] in lcladdrs:
-                outgoing = True
-        if not incoming:
-            if endps.remote[0] in lcladdrs:
-                incoming = True
-
-        return PacketDirection(incoming=incoming, outgoing=outgoing), procinfo
+            return None
 
 if __name__ == "__main__":
     unittest.main()
