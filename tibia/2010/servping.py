@@ -25,7 +25,7 @@ def server_latencies(count, timeout=1.0, subset=None):
         for s in subset:
             if s not in pingservs:
                 sys.exit("Server %r is not in server list file" % (s,))
-        pingservs = list(pingservs & subset)
+        pingservs = list(subset.intersection(pingservs))
     times = {}
     for _ in xrange(count):
         random.shuffle(pingservs)
@@ -58,6 +58,12 @@ def print_server_latencies(count, subset=None):
         print "%5d %s" % (ping, server)
 
 def main():
+    import atexit, os
+    def press_any_key():
+        if os.name == 'nt':
+            os.system("pause")
+    atexit.register(press_any_key)
+
     import optparse
     parser = optparse.OptionParser()
     parser.usage += " SERVERS..."
