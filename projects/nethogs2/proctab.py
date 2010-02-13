@@ -88,11 +88,12 @@ def map_netconn_to_inode():
             ("/proc/net/udp6", socket.IPPROTO_UDP, socket.AF_INET6),):
         for local, remote, inode in _parse_socket_table(filename, family):
             netconn = Connection(local=local, remote=remote, protocol=proto, family=family)
-            if netconn in mapping:
-                # there is a duplicate connection, check it points to the same inode
-                assert mapping[netconn] == inode
+	    try:
+                inode2 = mapping[netconn]
+            except KeyError:
+                pass
             else:
-                mapping[netconn] = inode
+                assert inode == inode2
     return mapping
 
 class ProcTests(unittest.TestCase):
