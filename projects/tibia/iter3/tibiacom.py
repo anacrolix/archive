@@ -1,7 +1,5 @@
 import re
 import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
-import socket
 import time
 
 def tibia_time_to_unix(s):

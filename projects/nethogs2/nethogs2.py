@@ -179,7 +179,7 @@ def dispatch_traffic_per_process_per_epoch(devcaps, proctable, logger):
     for dc in devcaps:
         dc.dispatch(-1, packet_callback)
         # don't allow any packets to drop, this should be moved further down the stack
-        assert dc.stats()[1] == 0
+        assert dc.stats()[1] == 0, (dc.name, dc.stats())
     return trafdata
 
 def redraw_screen(win, trafinfo):

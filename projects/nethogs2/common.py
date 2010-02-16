@@ -1,6 +1,7 @@
 import collections
 import curses
 import itertools
+import io
 import math
 import operator
 import optparse
@@ -18,5 +19,3 @@ import subprocess
 import sys
 import time
 import unittest
-
-PacketEndpoints = collections.namedtuple("PacketEndpoints", ("source", "destination", "family", "protocol"))

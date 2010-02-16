@@ -38,16 +38,17 @@ def server_latencies(count, timeout=1.0, subset=None):
             try:
                 sock.connect(address)
             except socket.error as e:
-                logger.warning("Error pinging %s (%s): %s", servname, address, e)
+                logger.warning("Error pinging %s (%s): %s", servname, address[0], e)
                 latency = 10 * timeout
             else:
                 latency = time.time() - started
+                #sys.stderr.write(".")
                 logger.debug("Connected to %s in %d ms", servname, round(1000 * latency))
             times[servname].append(latency)
             sock.close()
     return times
 
-def print_server_latencies(count, subset=None):
+def print_server_latencies(count, subset, timeout):
     lags = server_latencies(count=count, subset=subset)
     meaned = []
     for server, times in lags.iteritems():
@@ -58,6 +59,7 @@ def print_server_latencies(count, subset=None):
         print "%5d %s" % (ping, server)
 
 def main():
+    # pause after executing for noobs not running from the shell
     import atexit, os
     def press_any_key():
         if os.name == 'nt':
@@ -70,18 +72,19 @@ def main():
     parser.description = "Pings the given SERVERS (all servers if SERVERS is the empty set) COUNT times each, and returns the mean connect latency."
     parser.add_option("-c", "--count", help="number of pings to each server", type='int', default=1)
     parser.add_option("-u", "--update", help="update server list from internet", action='store_true')
+    parser.add_option("-t", "--timeout", help="timeout on pings after this many seconds", type='float', default=1.0)
+    #parser.add_option("-s", "--sort", help="sort by name (default), ping, ip", type='string', default='name')
     options, posargs = parser.parse_args()
 
     import os.path
-    if not os.path.exists(SERVIPS_FNAME):
+    if not os.path.exists(SERVIPS_FNAME) or options.update:
         download_server_ips()
-    print_server_latencies(options.count, posargs or None)
+    print_server_latencies(options.count, subset=(posargs or None), timeout=options.timeout)
 
 if __name__ == "__main__":
+    # put logger on global level
     import logging
     logging.basicConfig(level=logging.WARNING)
     logger = logging.getLogger()
     del logging
     main()
-
-#  	121.45.217.35

@@ -1,6 +1,6 @@
 from common import *
 
-PacketEndpoints = collections.namedtuple("PacketEndpoints", ("source", "dest", "family", "protocol"))
+PacketEndpoints = collections.namedtuple("PacketEndpoints", ("source", "destination", "family", "protocol"))
 
 class PacketAnalysisError(Exception):
     pass
@@ -29,14 +29,14 @@ class _PacketAnalyzer(object):
                     }[proto])
             inaddrs = [socket.inet_ntoa(i) for i in (data[12:16], data[16:20])]
             self.logger.debug("ports=%s, inaddrs=%s", ports, inaddrs)
-            retval = PacketEndpoints(**dict(zip(("source", "dest"), zip(inaddrs, ports)) + [("family", socket.AF_INET), ("protocol", proto)]))
+            retval = PacketEndpoints(**dict(zip(("source", "destination"), zip(inaddrs, ports)) + [("family", socket.AF_INET), ("protocol", proto)]))
         elif family == 'arp':
             assert ord(data[4]) == 6 # MAC
             assert ord(data[5]) == 4 # IPv4
             self.logger.info("ARP Operation: %d" % (struct.unpack("!H", data[6:8])))
             retval = PacketEndpoints(
                     source=(socket.inet_ntoa(data[14:18]), None),
-                    dest=(socket.inet_ntoa(data[24:28]), None),
+                    destination=(socket.inet_ntoa(data[24:28]), None),
                     family=None,
                     protocol='arp')
         else:
