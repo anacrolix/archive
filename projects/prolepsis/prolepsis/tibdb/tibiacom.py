@@ -1,6 +1,11 @@
+import collections
+from html.parser import HTMLParser, HTMLParseError
+import pdb
 import re
 import urllib.request, urllib.parse, urllib.error
 import time
+
+TIBIA_TIME_STRLEN = len("Mon DD YYYY, HH:MM:SS TZ")
 
 def tibia_time_to_unix(s):
     a = s.split()
@@ -10,28 +15,38 @@ def tibia_time_to_unix(s):
     c -= {"CET": 3600, "CEST": 2 * 3600}[a[-1]]
     return c
 
+def dilute_tibia_html_entities(html):
+    return html.replace("\xa0", " ")
+
 def unescape_tibia_html(string):
+    """Replace HTML entities in the string, and convert any Tibia-specific codepoints"""
     from html.entities import name2codepoint as n2cp
     import re
 
     def substitute_entity(match):
         ent = match.group(2)
         if match.group(1) == "#":
+            # numeric substitution
             return chr(int(ent))
         else:
+            # get the codepoint from the name
             cp = n2cp.get(ent)
 
         if cp:
+            #if a codepoint was found, return it's string value
             return chr(cp)
         else:
+            # codepoint wasn't found, return the match untouched
             return match.group()
 
-    def decode_entity(string):
+    def decode_entities(string):
+        # catch any &(#)(12345); or &()(abcdefgh);
         entity_re = re.compile(r"&(#?)(\d{1,5}|\w{1,8});")
+        # substitute all matches in the string with the result of the function call
         return entity_re.subn(substitute_entity, string)[0]
 
     # replace nbsp, there may be others too..
-    return decode_entity(string).replace("\xa0", " ")
+    return dilute_tibia_html_entities(decode_entities(string))
 
 def pp_death(death):
     b = death
@@ -92,58 +107,107 @@ def __ci_info(html):
             assert False
     return info
 
-def __ci_deaths(html):
-    def slayer_tuple(group):
-        assert len(group) == 2
-        if group[0] == None:
-            assert group[1] != None
-            return (False, group[1])
-        else:
-            assert group[1] == None
-            return (True, unescape_tibia_html(group[0]))
+Killer = collections.namedtuple("Killer", ("player", "name"))
+CharDeath = collections.namedtuple("CharDeath", ("time", "level", "killers"))
 
-    # navigate to start of deaths table
-    m = re.search("""<TABLE.*?>Character Deaths.*?</TR>""", html)
-    if m == None: return []
-    pos = m.end()
+class _DeathParser(HTMLParser):
+    def parse_deaths(self, html):
+        self.section = ''
+        self.alldeaths = []
+        try:
+            self.feed(html)
+        except HTMLParseError as e:
+            print(e)
+        assert self.section == 'finished'
+        return self.alldeaths
+    def handle_data(self, data):
+        if self.section == 'deaths':
+            self.data += data
+        if data == "Character Deaths":
+            self.section = 'deaths'
+            self.deathrow = 0
+    def handle_starttag(self, tag, attrs):
+        if self.section == 'deaths':
+            if tag == 'tr':
+                self.death = []
+            elif tag == 'td':
+                self.data = ""
+    def handle_endtag(self, tag):
+        if self.section == 'deaths':
+            if tag == 'tr':
+                if self.deathrow != 0:
+                    assert len(self.death) == 2
+                    tibia_time_to_unix(self.death[0])
+                    self.alldeaths.append(self.death)
+                    del self.death
+                self.deathrow += 1
+            elif tag == 'td' and self.deathrow != 0:
+                self.death.append(self.data)
+                del self.data
+            elif tag == 'table':
+                assert not hasattr(self, "death")
+                self.section = 'finished'
+    def handle_charref(self, name):
+        if self.section == 'deaths':
+            self.data += dilute_tibia_html_entities(chr(int(name)))
+    #def handle
 
-    CHAR_OR_MONSTER_PATTERN = """(?:<A.*?>([^<]*)</A>|([^<]*))"""
-    # time, level, killer
-    kill1_re = re.compile(
-            """<TR.*?><TD.*?>([^<]+)</TD><TD>\S+ at Level (\d+) by """
-            + CHAR_OR_MONSTER_PATTERN
-            + """</TD></TR>""")
-    # killer
-    kill2_re = re.compile(
-            """\s*<TR.*?><TD.*?></TD><TD>and by """
-            + CHAR_OR_MONSTER_PATTERN
-            + """</TD></TR>""")
+def parse_deaths(html):
+    return _DeathParser().parse_deaths(html)
+    #def slayer_tuple(group):
+        #assert len(group) == 2
+        #if group[0] == None:
+            #assert group[1] != None
+            #return (False, group[1])
+        #else:
+            #assert group[1] == None
+            #return (True, unescape_tibia_html(group[0]))
 
-    deaths = []
-    while True:
-        mo = kill1_re.search(html, pos)
-        if mo is None: break
-        time = unescape_tibia_html(mo.group(1))
-        level = mo.group(2)
-        death = [time, level, slayer_tuple(mo.group(3, 4)), None]
-        pos = mo.end()
-        mo2 = kill2_re.match(html, pos)
-        if mo2 is not None:
-            death[3] = slayer_tuple(mo2.group(1, 2))
-            pos = mo2.end()
-        deaths.append(tuple(death))
+    ## navigate to start of deaths table
+    #m = re.search("""<TABLE.*?>Character Deaths.*?</TR>""", html)
+    #if m == None: return []
+    #pos = m.end()
 
-    return deaths
+    #CHAR_OR_MONSTER_PATTERN = """(?:<A.*?>([^<]*)</A>|([^<]*))"""
+    ## time, level, killer
+    #kill1_re = re.compile(
+            #"""<TR.*?><TD.*?>([^<]+)</TD><TD>\S+ at Level (\d+) by """
+            #+ CHAR_OR_MONSTER_PATTERN
+            #+ """</TD></TR>""")
+    ## killer
+    #kill2_re = re.compile(
+            #"""\s*<TR.*?><TD.*?></TD><TD>and by """
+            #+ CHAR_OR_MONSTER_PATTERN
+            #+ """</TD></TR>""")
 
-def char_info(name):
+    #deaths = []
+    #while True:
+        #mo = kill1_re.search(html, pos)
+        #if mo is None: break
+        #time = unescape_tibia_html(mo.group(1))
+        #level = mo.group(2)
+        #death = [time, level, slayer_tuple(mo.group(3, 4)), None]
+        #pos = mo.end()
+        #mo2 = kill2_re.match(html, pos)
+        #if mo2 is not None:
+            #death[3] = slayer_tuple(mo2.group(1, 2))
+            #pos = mo2.end()
+        #deaths.append(tuple(death))
+
+    #return deaths
+
+def download_character_page_html(charname):
+    return http_get("/community/", {"subtopic": "characters", "name": charname})
+
+def char_info(charname):
     rv = {"timestamp": int(time.time())}
-    html = http_get("/community/", {"subtopic": "characters", "name": name})
+    html = download_character_page_html(charname)
     try: rv.update(__ci_info(html))
     except Exception:
-        print("name:", name)
+        print("name:", charname)
         raise
     assert "deaths" not in rv
-    rv["deaths"] = __ci_deaths(html)
+    rv["deaths"] = parse_deaths(html)
     return rv
 
 class Character():

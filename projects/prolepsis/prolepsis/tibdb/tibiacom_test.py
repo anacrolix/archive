@@ -1,18 +1,7 @@
 #!/usr/bin/env python3
 
-import pdb, unittest
-from tibiacom import *
-
-def assert_equal(expected, actual, description=None):
-    if expected != actual:
-        print("FAILED:",)
-        if description != None: print(description)
-        print("\tExpected:", expected)
-        print("\tActual:  ", actual)
-        print()
-
-from tibiacom import *
-print()
+import pdb, pprint, time, unittest
+from tibiacom import char_info, tibia_time_to_unix, parse_deaths
 
 class TibiaTime(unittest.TestCase):
     def runTest(self):
@@ -24,32 +13,13 @@ class TibiaTime(unittest.TestCase):
                         int(time.time())),
                 ):
             self.assertEqual(unixtime, tibia_time_to_unix(tibtime))
+        skeletor = char_info("Skeletor the Vicious")
+        self.assertEqual(1064301567, tibia_time_to_unix(skeletor["created"]))
 
-print(guild_info("Del Chaos"))
-print()
+class Deaths(unittest.TestCase):
+    def runTest(self):
+        html = open("edkeys.html").read()
+        pprint.pprint(parse_deaths(html=html))
 
-# test char_info()
-skeletor = char_info("Skeletor the Vicious")
-assert_equal(1064301567, tibia_time_to_unix(skeletor["created"]))
-
-pretty_print_char_info(char_info("Eruanno"))
-print()
-
-# test online_list()
-stamp, online = online_list("Dolera")
-pretty_print_online_list(online, stamp)
-print()
-
-pretty_print_online_list(sorted(online, reverse=True, key=lambda x: int(x.level))[:10], stamp)
-print()
-
-print("Searching for recent deaths:")
-for a in sorted(online, reverse=True, key=lambda x: int(x.level)):
-        b = char_info(a.name)
-        pdb.set_trace()
-        for c in b["deaths"]:
-                if tibia_time_to_unix(c[0]) >= stamp - 900:
-                        pretty_print_char_info(b)
-                        break
-        else:
-                print(a.name)
+if __name__ == '__main__':
+    unittest.main()
