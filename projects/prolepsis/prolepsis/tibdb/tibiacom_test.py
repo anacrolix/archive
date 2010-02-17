@@ -19,7 +19,7 @@ class TibiaTime(unittest.TestCase):
 class Deaths(unittest.TestCase):
     def runTest(self):
         html = open("edkeys.html").read()
-        pprint.pprint(parse_deaths(html=html))
+        pprint.pprint(parse_deaths(html))
 
 if __name__ == '__main__':
     unittest.main()

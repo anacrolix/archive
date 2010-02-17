@@ -113,7 +113,7 @@ class PlayerKill:
         self.victim = victim
         self.time = time
         self.final = final
-    def is_pzlocked(self, killer_info):
+    def is_pzlocked(self, killer_info, firstUpdateTime):
         assert isinstance(killer_info, tibiacom.Character)
         if time.time() - tibiacom.tibia_time_to_unix(self.time) >= (1080 if self.final else 180):
             #print "rejected:", self.victim, self.time, self.final
@@ -121,11 +121,14 @@ class PlayerKill:
             return False
         if hasattr(killer_info, "deaths"):
             for d in killer_info.deaths:
-                assert isinstance(d, tuple) and len(d) == 4
-                if tibiacom.tibia_time_to_unix(d[0]) >= tibiacom.tibia_time_to_unix(self.time):
+                assert isinstance(d, tibiacom.CharDeath)
+                if tibiacom.tibia_time_to_unix(d.time) >= tibiacom.tibia_time_to_unix(self.time):
                     print("LATER DIED", d)
                     return False
-        if killer_info.is_online() and killer_info.last_offline() > tibiacom.tibia_time_to_unix(self.time):
+        assert killer_info.last_offline() >= firstUpdateTime
+        #pdb.set_trace()
+        # the killer can only be pzlocked if he's online now, and hasn't been offline since the kill, or the started
+        if killer_info.is_online() and killer_info.last_offline() > tibiacom.tibia_time_to_unix(self.time) and killer_info.last_offline() != firstUpdateTime:
             print("OFFLINE SINCE KILL")
             return False
         #print "accepted pzlock!"
@@ -207,10 +210,10 @@ class ActiveCharacterList:
         for name, info in self.chars.items():
             if not hasattr(info, "deaths"): continue
             for death in info.deaths:
-                if death[2][0]:
-                    add_player_kill(death[2][1], name, death[0], True)
-                if death[3] is not None and death[3][0]:
-                    add_player_kill(death[3][1], name, death[0], False)
+                for killer in death.killers:
+                    if killer.isplayer:
+                        final = death.killers.index(killer) + 1 == len(death.killers)
+                        add_player_kill(killer.name, name, death.time, final)
         return retval
 
 class WidgetState:

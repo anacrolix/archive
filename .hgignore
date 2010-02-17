@@ -25,3 +25,5 @@ syntax: glob
 syntax: regexp
 Debug/
 Release/
+^projects/prolepsis/(stances|members)\.
+^projects/prolepsis/dist

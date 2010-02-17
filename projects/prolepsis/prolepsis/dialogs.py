@@ -175,7 +175,7 @@ class MainDialog:
         self.listbox.config(style="charlist."+self.listbox.winfo_class())
         print(ttk.Style().lookup(self.listbox.winfo_class(), "font"))
         for h in (
-                    ("name", "Name", True, 90),
+                    ("name", "Name", True, 100),
                     ("level", "Lvl", False, 25),
                     ("vocation", "Voc", False, 25),
                     ("guild", "Guild", True, 60)
@@ -320,7 +320,7 @@ class MainDialog:
                 death = False
                 if hasattr(info, "deaths"):
                     for d in info.deaths:
-                        if tibiacom.tibia_time_to_unix(d[0]) > time.time() - 1200:
+                        if tibiacom.tibia_time_to_unix(d.time) > time.time() - 1200:
                             death = True
                             break
                 # get guild
@@ -346,7 +346,7 @@ class MainDialog:
                 if name in player_kills:
                     for kill in player_kills[name]:
                         print(name, kill, end=' ')
-                        if kill.is_pzlocked(info):
+                        if kill.is_pzlocked(info, self.first_update):
                             pzlocked = True
                             break
                 if not death and not pzlocked and (info.vocation == "N" or stance is None and (info.level < self.min_level_var.get() or not self.list_show_unguilded.get())):

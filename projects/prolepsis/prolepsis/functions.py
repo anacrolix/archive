@@ -31,7 +31,13 @@ def open_char_page(event, data):
 
 stdout_lock = threading.Lock()
 def _update_guild_members(gld):
-    fresh_gi = tibiacom.guild_info(gld)
+    for n in range(5):
+        try:
+            fresh_gi = tibiacom.guild_info(gld)
+        except http.client.IncompleteRead:
+            pass
+        else:
+            break
     guild_members.setdefault(gld, set())
     with stdout_lock:
         print("updated %-32s (%4d members)" % (gld, len(fresh_gi)))

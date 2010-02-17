@@ -1,9 +1,9 @@
-import collections
+#/usr/bin/env python3
+
+import collections, pdb, pprint, re, sys, time
 from html.parser import HTMLParser, HTMLParseError
-import pdb
-import re
 import urllib.request, urllib.parse, urllib.error
-import time
+import http.client
 
 TIBIA_TIME_STRLEN = len("Mon DD YYYY, HH:MM:SS TZ")
 
@@ -50,21 +50,19 @@ def unescape_tibia_html(string):
 
 def pp_death(death):
     b = death
-    print(b[0] + ":",)
-    print("killed" if b[2][0] else "died", "at Level", b[1],)
-    print("by", b[2][1])
-    if b[3] is not None:
-            print("\tand by", b[3][1])
+    print(b.time + ":", end=" ")
+    print("Died at Level %d to %s" % (b.level, ", ".join(map(lambda x: x.name, b.killers))))
 
 def pretty_print_char_info(info):
+    # force name to be printed first, and deaths treated specially later
     simple = list(info.keys())
-    for a in ["deaths", "name"]: simple.remove(a)
+    for a in ("deaths", "name"): simple.remove(a)
     for k in ["name"] + simple:
-        print(k + ":", info[k],)
+        print(k + ":", info[k], end=" ")
         if k in ["created", "last login"] and info[k] is not None:
             print("(" + str(int(time.time()) - tibia_time_to_unix(info[k])) + "s ago)")
         elif k is "timestamp":
-            print("(" + time.asctime(time.gmtime(info[k] + 3600)), "CET)")
+            print("(%s CET)" % time.asctime(time.gmtime(info[k] + 3600)))
         else:
             print()
     a = info["deaths"]
@@ -80,7 +78,18 @@ def http_get(url, params):
     content_type = response.getheader("Content-Type")
     charset = re.search("charset=([^;\b]+)", content_type).group(1)
     # read the response data and decode appropriately
-    return response.read().decode(charset)
+    tries = 1
+    while True:
+        try:
+            respdata = response.read()
+        except http.client.IncompleteRead:
+            if tries >= 5:
+                raise
+            else:
+                tries += 1
+        else:
+            break
+    return respdata.decode(charset)
 
 def __ci_info(html):
     FIELDS = (
@@ -107,53 +116,91 @@ def __ci_info(html):
             assert False
     return info
 
-Killer = collections.namedtuple("Killer", ("player", "name"))
+Killer = collections.namedtuple("Killer", ("isplayer", "name"))
 CharDeath = collections.namedtuple("CharDeath", ("time", "level", "killers"))
 
-class _DeathParser(HTMLParser):
-    def parse_deaths(self, html):
-        self.section = ''
-        self.alldeaths = []
-        try:
-            self.feed(html)
-        except HTMLParseError as e:
-            print(e)
-        assert self.section == 'finished'
-        return self.alldeaths
-    def handle_data(self, data):
-        if self.section == 'deaths':
-            self.data += data
-        if data == "Character Deaths":
-            self.section = 'deaths'
-            self.deathrow = 0
-    def handle_starttag(self, tag, attrs):
-        if self.section == 'deaths':
-            if tag == 'tr':
-                self.death = []
-            elif tag == 'td':
-                self.data = ""
-    def handle_endtag(self, tag):
-        if self.section == 'deaths':
-            if tag == 'tr':
-                if self.deathrow != 0:
-                    assert len(self.death) == 2
-                    tibia_time_to_unix(self.death[0])
-                    self.alldeaths.append(self.death)
-                    del self.death
-                self.deathrow += 1
-            elif tag == 'td' and self.deathrow != 0:
-                self.death.append(self.data)
-                del self.data
-            elif tag == 'table':
-                assert not hasattr(self, "death")
-                self.section = 'finished'
-    def handle_charref(self, name):
-        if self.section == 'deaths':
-            self.data += dilute_tibia_html_entities(chr(int(name)))
-    #def handle
+STR = r"<tr[^>]*>"
+ETR = r"</tr>"
+STD = r"<td[^>]*>"
+ETD = r"</td>"
+TIBTIME = r"([^<]+)"
+LEVEL = r".*?at Level (\d+) by "
+KILLERS = r"(.*?)"
 
-def parse_deaths(html):
-    return _DeathParser().parse_deaths(html)
+def parse_deaths(pagehtml):
+    matchobj = re.search(r"<table.*?>Character Deaths<.*?</table>", pagehtml, re.IGNORECASE)
+    if not matchobj:
+        return []
+    deathhtml = matchobj.group()
+    #print(deathhtml)
+    alldeaths = []
+    for deathmo in re.finditer(STR + STD + TIBTIME + ETD + STD + LEVEL + KILLERS + ETD + ETR, deathhtml, re.IGNORECASE):
+        time = unescape_tibia_html(deathmo.group(1))
+        tibia_time_to_unix(time)
+        level = int(deathmo.group(2))
+        killers = []
+        for killermo in re.finditer(r"(?:<a[^>]*>)?([^<]+?)(</a>)?(?: and |, |\.)", deathmo.group(3)):
+            assert killermo.re.groups == 2
+            killers.append(Killer(isplayer=bool(killermo.group(2)), name=unescape_tibia_html(killermo.group(1))))
+        alldeaths.append(CharDeath(time=time, level=level, killers=killers))
+    #pprint.pprint(alldeaths)
+    return alldeaths
+
+#def _data_to_death(data):
+    ## check the first item is valid tibia time
+    #tibia_time_to_unix(data[0])
+    #time = data[0]
+
+    #matchobj = re.search(r"at Level (\d+) by ", data[1])
+    #level = matchobj.group(1)
+    #assert data[1][-1] == "."
+    #killers = re.split(", | and ", data[1][matchobj.end():-1])
+    #return CharDeath(time=time, level=level, killers=killers)
+
+#class _DeathParser(HTMLParser):
+    #def parse_deaths(self, html):
+        #self.section = None
+        #self.alldeaths = []
+        #try:
+            #self.feed(html)
+        #except HTMLParseError as e:
+            #print(e)
+        #assert self.section in ('finished', None)
+        #return self.alldeaths
+    #def handle_data(self, data):
+        #if self.section == 'deaths':
+            #self.data += data
+        #elif data == "Character Deaths" and not self.section:
+            #self.section = 'deaths'
+            #self.deathrow = 0
+        #elif data == "Search Character" and not self.section:
+            #self.section = 'finished'
+    #def handle_starttag(self, tag, attrs):
+        #if self.section == 'deaths':
+            #if tag == 'tr':
+                #self.death = []
+            #elif tag == 'td':
+                #self.data = ""
+    #def handle_endtag(self, tag):
+        #if self.section == 'deaths':
+            #if tag == 'tr':
+                #if self.deathrow != 0:
+                    #self.alldeaths.append(_data_to_death(self.death))
+                    #del self.death
+                #self.deathrow += 1
+            #elif tag == 'td' and self.deathrow != 0:
+                #self.death.append(self.data)
+                #del self.data
+            #elif tag == 'table':
+                #assert not hasattr(self, "death")
+                #self.section = None
+    #def handle_charref(self, name):
+        #if self.section == 'deaths':
+            #self.data += dilute_tibia_html_entities(chr(int(name)))
+    ##def handle
+
+#def parse_deaths(html):
+    #return _DeathParser().parse_deaths(html)
     #def slayer_tuple(group):
         #assert len(group) == 2
         #if group[0] == None:
@@ -202,12 +249,17 @@ def download_character_page_html(charname):
 def char_info(charname):
     rv = {"timestamp": int(time.time())}
     html = download_character_page_html(charname)
-    try: rv.update(__ci_info(html))
+    try:
+        rv.update(__ci_info(html))
     except Exception:
         print("name:", charname)
         raise
     assert "deaths" not in rv
-    rv["deaths"] = parse_deaths(html)
+    try:
+        rv["deaths"] = parse_deaths(html)
+    except:
+        print("charname:", charname, file=sys.stderr)
+        raise
     return rv
 
 class Character():
@@ -288,3 +340,19 @@ def pretty_print_online_list(ol, stamp):
         for a in ol:
                 print("%-32s%5s %s" % (a.name, a.level, a.vocation))
         print(len(ol), "players online as of", time.ctime(stamp))
+
+def usage():
+    print("""usage: $0 <subcommand> [args]
+
+Available subcommands:
+   charinfo""")
+
+def main():
+    if sys.argv[1] == "charinfo":
+        pretty_print_char_info(char_info(sys.argv[2]))
+    else:
+        usage()
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
