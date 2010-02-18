@@ -175,10 +175,10 @@ class MainDialog:
         self.listbox.config(style="charlist."+self.listbox.winfo_class())
         print(ttk.Style().lookup(self.listbox.winfo_class(), "font"))
         for h in (
-                    ("name", "Name", True, 100),
-                    ("level", "Lvl", False, 25),
-                    ("vocation", "Voc", False, 25),
-                    ("guild", "Guild", True, 60)
+                    ("name", "Name", True, 120),
+                    ("level", "Lvl", False, 30),
+                    ("vocation", "Voc", False, 30),
+                    ("guild", "Guild", True, 80)
                 ):
             self.listbox.heading(h[0], text=h[1])
             self.listbox.column(h[0], stretch=h[2], width=h[3])
