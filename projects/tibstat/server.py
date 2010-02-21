@@ -2,7 +2,16 @@
 
 import BaseHTTPServer, Cookie, urlparse, itertools, pdb, sys, time
 sys.path.append("../tibdb")
-import tibiacom
+import dbiface, tibiacom
+
+STANCES = (
+        ("Unspecified", ""),
+        ("Friend", "green"),
+        ("Ally", "blue"),
+        ("Enemy", "red"),)
+
+def get_stance_color(stance):
+    return dict(STANCES).get(stance, "")
 
 class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -18,7 +27,10 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         print self.headers
 
-        self.online_list_page()
+        if self.path == "/whoisonline":
+            self.online_list_page()
+        elif self.path == "/guildstance":
+            self.configure_guild_stances()
 
     def echo_stuff(self):
 
@@ -31,31 +43,31 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def configure_guild_stances(self):
 
-        contentLength = self.headers.getheader("content-length")
+        contentLength = self.headers.getheader("Content-Length")
         if contentLength:
+            # client POSTed, form a cookie, and set it, and then redirect them to nonPOST version
             postData = self.rfile.read(int(contentLength))
-            guildStanceCookie = Cookie.SimpleCookie()
-            for k, v in urlparse.parse_qsl(postData, strict_parsing=True):
-                guildStanceCookie[k] = v
+            guildStances = dict(urlparse.parse_qsl(postData, strict_parsing=True))
+            cookie = Cookie.SimpleCookie()
+            cookie["guildStances"] = guildStances
             self.send_response(303)
-            self.wfile.write(guildStanceCookie.output() + '\r\n')
-            self.send_header("location", self.path)
+            self.wfile.write(cookie.output() + '\r\n')
+            self.send_header("Location", "/whoisonline")
             self.end_headers()
             return
-        else:
-            guildStanceCookie = Cookie.SimpleCookie(self.headers.getheader("cookie"))
+
+        # read existing stances from cookie
+        guildStances = self.get_guild_stances()
         self.send_response(200)
-        self.send_header("Content-type", "text/html")
+        self.send_header("Content-Type", "text/html")
         self.end_headers()
 
         send = self.wfile.write
-        #self.wfile.write(guildStanceCookie)
-        #if self.command == 'POST':
-        #    self.wfile.write(self.rfile.read())
-        self.wfile.write('<form method="post">')
-        self.wfile.write("<table>\n")
-        listOfGuilds = ("Guild" + chr(ord("A") + n) for n in xrange(26))
-        allowedStances = (("Unspecified", None), ("Allies", "blue"), ("Enemies", "red"), ("Friends", "green"))
+
+        send('<form method="post">')
+        send("<table>\n")
+        listOfGuilds = dbiface.list_guilds()
+        allowedStances = STANCES
         defaultStanceIndex = 0
         stanceColors = dict(allowedStances)
         self.wfile.write('<tr>')
@@ -65,13 +77,13 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         #pdb.set_trace()
         for guildName in listOfGuilds:
             color = ''
-            if guildName in guildStanceCookie:
-                color = stanceColors[guildStanceCookie[guildName].value]
-            self.wfile.write('<tr><td><font color="%s">%s</font></td>' % (color, guildName))
+            if guildName in guildStances:
+                color = get_stance_color(guildStances[guildName])
+            send('<tr><td><font color="%s">%s</font></td>' % (color, guildName))
             for stanceIndex, (stanceName, stanceColor) in enumerate(allowedStances):
                 checked = False
-                if guildName in guildStanceCookie:
-                    if guildStanceCookie[guildName].value == stanceName:
+                if guildName in guildStances:
+                    if guildStances[guildName] == stanceName:
                         checked = True
                 elif stanceIndex == defaultStanceIndex:
                     checked = True
@@ -83,6 +95,16 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write("</table>")
         self.wfile.write('<input type="submit">')
         self.wfile.write('</form>')
+
+    def get_guild_stances(self):
+
+        cookie = Cookie.SimpleCookie(self.headers.getheader("Cookie"))
+        try:
+            guildStancesValue = cookie["guildStances"]
+        except KeyError:
+            return {}
+        else:
+            return eval(guildStancesValue.value)
 
     def online_list_page(self):
 
@@ -98,25 +120,41 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         send("<html><body>\n")
 
+        send("<pre>")
+        send("</pre>")
+
                 #time.asctime(time.localtime(listTimestamp))
-        send("There are {0} players on {1}<br>\n".format(len(worldOnlineChars), worldName))
+        send("There are {0} players on {1}.".format(len(worldOnlineChars), worldName))
+        send(' <a href="/guildstance">Click here</a> to configure guild stances<br>\n')
 
         send("<table>\n")
 
         send("\t<tr>")
+
+        def get_char_guild_cell(char):
+            charRow = dbiface.get_char(char.name)
+            if charRow is not None:
+                guild = charRow["guild"]
+                return "<font color=\"%s\">%s</font>" % (
+                        dict(STANCES).get(self.get_guild_stances().get(guild)), guild)
+
         COLUMNS = (
-                ("name", "Character Name"),
-                ("level", "Level"),
-                ("vocation", "Vocation"),
-                ("guild", "Guild"),)
+                ("name", "Character Name", None),
+                ("level", "Level", None),
+                ("vocation", "Vocation", None),
+                ("guild", "Guild", get_char_guild_cell),)
         for col in COLUMNS:
             send("<th>{0}</th>".format(col[1]))
         send("</tr>\n")
 
+        #guildNameGenerator = ("Guild" + chr(ord("A") + n) for n in itertools.cycle(xrange(26)))
         for char in worldOnlineChars:
             send("\t<tr>")
             for col in COLUMNS:
-                value = getattr(char, col[0])
+                if col[2] is None:
+                    value = getattr(char, col[0])
+                else:
+                    value = col[2](char)
                 send("<td>{0}</td>".format(value or ""))
             send("</tr>\n")
         send("</table>\n")
@@ -125,7 +163,7 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 def run(server_class=BaseHTTPServer.HTTPServer,
         handler_class=TestHTTPRequestHandler):
-    server_address = ('', 8000)
+    server_address = ('', 17021)
     httpd = server_class(server_address, handler_class)
     httpd.serve_forever()
 
