@@ -143,10 +143,10 @@ def connection_to_procinfo(connection, proctable, lcladdrs, logger):
 def packet_endpoints_to_connection(pktendps, pktdir):
     if pktdir == 'outbound':
         local = pktendps.source
-        remote = pktendps.dest
+        remote = pktendps.destination
     elif pktdir == 'inbound':
         remote = pktendps.source
-        local = pktendps.dest
+        local = pktendps.destination
     return proctab.Connection(
             local=local, remote=remote,
             family=pktendps.family, protocol=pktendps.protocol)
@@ -334,39 +334,38 @@ class Nethogs2(object):
         if self.should_redraw(updstart):
             self.redraw_screen(updstart)
 
+def unittests():
+    pass
+
 def main():
     # parse options
     parser = optparse.OptionParser(version=VERSION)
     parser.usage += " DEVICES..."
-    parser.add_option("-d", "--dispatch", help="seconds between packet dispatches and proc polling", type='float', default=0.25)
-    parser.add_option("-r", "--refresh", help="time between display updates in seconds", type='int', default=3)
-    parser.add_option("-s", "--smoothing", help="average the traffic over this many preceding seconds", type='int', default=10)
-    parser.add_option("--unittests", help="run the unit tests", action='store_true')
+    parser.add_option("-d", "--dispatch", help="seconds between packet dispatches and proc polling", type='float')
+    parser.add_option("-r", "--refresh", help="time between display updates in seconds", type='int')
+    parser.add_option("-s", "--smoothing", help="average the traffic over this many preceding seconds", type='int')
+    parser.add_option("--unittests", help="run the tests", action='store_true')
     parser.add_option("--log-conffile", help="filename of a python logging configuration file", type='string')
-    parser.add_option("--log-stderr", help="logging output to stderr", action='store_true')
-    parser.add_option("--log-level", help="logging level for stderr logging", type='string')
+    parser.add_option("--log-level", help="logging level for root logger", type='string')
+    parser.set_defaults(dispatch=0.25, refresh=3, smoothing=3, runtests=False)
     parser.disable_interspersed_args()
+
     options, posargs = parser.parse_args()
 
     # configure logging
-    import logging, logging.config
-    logging._defaultFormatter = logging.Formatter("%(levelname)s:%(name)s:%(filename)s(%(lineno)d):%(message)s")
-    if options.log_stderr:
-        logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
-    logging.getLogger().setLevel(getattr(logging, (options.log_level or 'warning').upper()))
-    print options.log_level
-    if options.log_conffile:
-        logging.config.fileConfig(options.log_conffile)
-    # this has to go before any use of logging
-    #logging.basicConfig(
-            #filename="nethogs2.log", filemode="w",
-            #level=logging.DEBUG,
-            #format="%(levelname)s:%(filename)s(%(lineno)d):%(message)s")
+    import logging
+    # set default formatting, and always output to stderr
+    logging._defaultFormatter = logging.Formatter(
+            "%(levelname)s:%(name)s:%(filename)s(%(lineno)d):%(message)s")
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 
-    logging.debug("Options " + repr(options))
-    logging.debug("Positional arguments " + repr(posargs))
+    logging.getLogger().setLevel(getattr(logging, (options.log_level or 'warning').upper()))
+    if options.log_conffile:
+        import logging.config
+        logging.config.fileConfig(options.log_conffile)
+
     if options.unittests:
-        unittest.main(argv=(sys.argv[0:1] + posargs))
+        unittests()
     else:
         if len(posargs) == 0:
             print "No device specified, defaulting to eth0"

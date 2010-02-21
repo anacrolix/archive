@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from common import *
 
 Connection = collections.namedtuple("Connection", ("local", "remote", "family", "protocol"))
@@ -21,33 +19,39 @@ def procinfo_from_pid(pid):
         logging.info(e)
         return None
 
-def map_sockino_to_procinfo(logger):
-    inode2procinfo = {}
+_SOCKET_INODE_REGEXP = re.compile(r"socket:\[(\d+)\]$")
+
+def map_sockino_to_procinfo():
+    retval = {}
     for procdir in os.listdir("/proc"):
-        if not re.match(r"\d+$", procdir):
-            # not a process entry
-            continue
-        pid = int(procdir)
         try:
-            fdlist = os.listdir(os.path.join("/proc", procdir, "fd"))
-        except OSError as e:
-            logger.info(e)
-            continue # next proc entry, this one has probably disappeared
-        for fd in fdlist:
+            pid = int(procdir)
+        except ValueError:
+            pass
+        else:
             try:
-                linkdata = os.readlink(os.path.join("/proc", procdir, "fd", fd))
+                fdlist = os.listdir(os.path.join("/proc", procdir, "fd"))
             except OSError as e:
-                if pid != os.getpid():
-                    logger.info(e)
-                continue # next fd, this one probably closed
-            matchobj = re.match(r"socket:\[(\d+)\]$", linkdata)
-            if not matchobj:
-                # not a socket
-                continue # next fd
-            inode = int(matchobj.group(1))
-            assert inode != 0 # this should not be possible
-            inode2procinfo[inode] = procinfo_from_pid(int(procdir))
-    return inode2procinfo
+                if e.errno != errno.ENOENT:
+                    raise
+            else:
+                procinfo = None
+                for fd in fdlist:
+                    try:
+                        linkdata = os.readlink("/proc/" + procdir + "/fd/" + fd)
+                    except OSError:
+                        pass
+                    else:
+                        matchobj = _SOCKET_INODE_REGEXP.match(linkdata)
+                        if matchobj:
+                            if not procinfo:
+                                procinfo = procinfo_from_pid(pid)
+                            inode = int(matchobj.group(1))
+                            assert inode != 0
+                            retval[inode] = procinfo
+    return retval
+
+_SOCKET_TABLE_LINE_DELIMITER = re.compile("[%s:]+" % string.whitespace)
 
 def _parse_socket_table(filename, family):
     """Returns {(localaddr, remaddr): inode} from a proc socket table file"""
@@ -61,17 +65,19 @@ def _parse_socket_table(filename, family):
         port = int(port, 16)
         return (addrstr, port) # ipv6 might want a different separator
 
+    retval = []
     # 1 connection per line, the first contains the headers
-    for l in open(filename).readlines()[1:]:
-        cols = re.split("[%s:]+" % string.whitespace, l.strip())
-        conn = (make_endpoint(cols[1:3]), make_endpoint(cols[3:5]))
+    for l in itertools.islice(iter(open(filename)), 1, None):
+        cols = _SOCKET_TABLE_LINE_DELIMITER.split(l.strip())
+        endps = (make_endpoint(cols[1:3]), make_endpoint(cols[3:5]))
         inode = int(cols[13])
-        yield conn + (inode,)
-
+        retval.append(endps + (inode,))
+        #yield endps + (inode,)
+    return retval
 
 def map_netconn_to_inode():
     """Returns {Connection: inode}"""
-    mapping = {}
+    retval = {}
     for filename, proto, family in (
             ("/proc/net/tcp", socket.IPPROTO_TCP, socket.AF_INET),
             ("/proc/net/tcp6", socket.IPPROTO_TCP, socket.AF_INET6),
@@ -79,21 +85,9 @@ def map_netconn_to_inode():
             ("/proc/net/udp6", socket.IPPROTO_UDP, socket.AF_INET6),):
         for local, remote, inode in _parse_socket_table(filename, family):
             netconn = Connection(local=local, remote=remote, protocol=proto, family=family)
-	    try:
-                inode2 = mapping[netconn]
-            except KeyError:
-                pass
-            else:
-                assert inode == inode2
-    return mapping
-
-class ProcTests(unittest.TestCase):
-    def testSocketTables(self):
-        # the netstat output contains 2 header lines
-        self.assertEqual(len(map_netconn_to_inode()), int(subprocess.Popen("netstat -tuna | wc -l", stdout=subprocess.PIPE, shell=True).communicate()[0]) - 2)
-    def testUniqueConnections(self):
-        for n in itertools.repeat(None, 100):
-            map_netconn_to_inode()
+            # if the inode is already present, i think that's ok
+            retval[netconn] = inode
+    return retval
 
 class ProcTable(object):
     def __init__(self, logger):
@@ -101,7 +95,7 @@ class ProcTable(object):
         self.__conn2inode = {}
         self.__inode2proc = {}
     def update_table(self):
-        self.__inode2proc.update(map_sockino_to_procinfo(self.logger))
+        self.__inode2proc.update(map_sockino_to_procinfo())
         for conn, inode in map_netconn_to_inode().iteritems():
             assert isinstance(inode, int)
             if inode != 0 or conn not in self.__conn2inode:

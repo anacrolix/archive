@@ -15,7 +15,5 @@ import signal
 import socket
 import string
 import struct
-import subprocess
 import sys
 import time
-import unittest
