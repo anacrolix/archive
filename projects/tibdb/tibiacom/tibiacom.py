@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 from __future__ import print_function
 import collections, pdb, pprint, re, sys, time
@@ -16,7 +16,9 @@ except ImportError:
     from urllib import urlencode
     from htmlentitydefs import name2codepoint
 
-TIBIA_TIME_STRLEN = len("Mon DD YYYY, HH:MM:SS TZ")
+import url
+
+#_TIBIA_TIME_STRLEN = len("Mon DD YYYY, HH:MM:SS TZ")
 
 def tibia_time_to_unix(s):
     a = s.split()
@@ -81,10 +83,12 @@ def pretty_print_char_info(info):
         for b in a:
             pp_death(b)
 
-def http_get(url, params):
-    """Perform a GET request on the Tibia webserver, with the given parameters. Return the decoded response data."""
+def http_get(path=None, params=None, url=None):
+    """Perform a compressed GET request on the Tibia webserver. Return the decoded response data."""
+    if not url:
+        url = "http://www.tibia.com" + path + "?" + urlencode(params)
     request = UrlRequest(
-            "http://www.tibia.com" + url + "?" + urlencode(params),
+            url,
             headers={"Accept-Encoding": "deflate;q=1.0, zlib;q=0.9, gzip;q=0.8, compress;q=0.7, *;q=0"},)
     response = urlopen(request)
     assert response.code == 200
@@ -136,9 +140,6 @@ def parse_deaths(pagehtml):
     #pprint.pprint(alldeaths)
     return alldeaths
 
-def download_character_page_html(charname):
-    return http_get("/community/", {"subtopic": "characters", "name": charname})
-
 def char_info(charname):
 
     def _ci_info(html):
@@ -173,7 +174,7 @@ def char_info(charname):
         return info
 
     rv = {"timestamp": int(time.time())}
-    html = download_character_page_html(charname)
+    html = http_get(url=url.char_page(charname))
     try:
         rv.update(_ci_info(html))
     except Exception:
@@ -243,7 +244,7 @@ def online_list(world):
     return stamp, players
 
 def guild_list(world):
-    html = http_get("/community/", {"subtopic": "guilds", "world": world})
+    html = http_get(url.world_guilds(world))
     groups = re.findall(r'<INPUT TYPE=hidden NAME=GuildName VALUE="([^"]+)', html)
     retval = set()
     for guild in [set([x]) for x in groups]:
@@ -253,7 +254,7 @@ def guild_list(world):
     return retval
 
 def guild_info(guild):
-    html = http_get("/community/", {"subtopic": "guilds", "page": "view", "GuildName": guild})
+    html = http_get(url.guild_members(guild))
     members = set()
     matches = re.findall(r'<TD><A HREF="http://www.tibia.com/community/\?subtopic=characters&name=[^"]+">([^<]+)</A>[^<>]*</TD>', html)
     for m in matches:

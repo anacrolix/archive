@@ -12,7 +12,7 @@ dbConn.row_factory = sqlite3.Row
 
 def update_char(timeval, name, level=None, vocation=None, guild=None, online=None):
     dbConn.execute("insert into player (name, level, guild, vocation) values (?, ?, ?, ?);", (name, level, guild, vocation))
-    if online != None:
+    #if online != None:
 
     dbConn.commit()
 

@@ -1,0 +1,36 @@
+body
+{
+    font-family: Verdana, Arial;
+    background-color: #051122;
+    font-size: 10pt;
+}
+
+table
+{
+    font-family: Verdana, Arial;
+    font-size: 10pt;
+}
+
+#content
+{
+    margin: 0 auto;
+    background-color: #FFF2db;
+    width: 800px;
+}
+
+th
+{
+    font-weight: bold;
+    color: white;
+    background-color: #505050;
+}
+
+tr.odd
+{
+    background-color: #F1E0C6;
+}
+
+tr.even
+{
+    background-color: #D4C0A1;
+}

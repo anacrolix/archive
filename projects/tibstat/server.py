@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import BaseHTTPServer, Cookie, urlparse, itertools, pdb, sys, time
+import BaseHTTPServer, Cookie, urlparse, itertools, os, pdb, shutil, sys, time
 sys.path.append("../tibdb")
 import dbiface, tibiacom
 
@@ -31,6 +31,20 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.online_list_page()
         elif self.path == "/guildstance":
             self.configure_guild_stances()
+        elif self.path == "/tibstats.css":
+            f = open("tibstats.css", "rb")
+            fs = os.fstat(f.fileno())
+            self.send_response(200)
+            self.send_header("Content-Type", "text/css")
+            self.send_header("Content-Length", str(fs.st_size))
+            self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
+            self.end_headers()
+            shutil.copyfileobj(f, self.wfile)
+            f.close()
+        else:
+            self.send_response(301, "Path not yet implemented")
+            self.send_header("Location", "/whoisonline")
+            self.end_headers()
 
     def echo_stuff(self):
 
@@ -118,38 +132,39 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         send = self.wfile.write
 
-        send("<html><body>\n")
+        send('<html><head><link href="/tibstats.css" rel="stylesheet" type="text/css"></head><body>\n')
 
-        send("<pre>")
-        send("</pre>")
-
+        send('<div id="content">')
                 #time.asctime(time.localtime(listTimestamp))
-        send("There are {0} players on {1}.".format(len(worldOnlineChars), worldName))
-        send(' <a href="/guildstance">Click here</a> to configure guild stances<br>\n')
+        send("There are {0} players currently on {1}.".format(len(worldOnlineChars), worldName))
+        send(' <a href="/guildstance">Click here</a> to configure guild stances.<br>\n')
 
-        send("<table>\n")
+        send('<table cellspacing=1 cellpadding=4>\n')
 
         send("\t<tr>")
 
-        def get_char_guild_cell(char):
+        def char_name_cell(char):
+            return '<a href="{0}">{1}</a>'.format(tibiacom.url.char_page(char.name), char.name)
+
+        def char_guild_cell(char):
             charRow = dbiface.get_char(char.name)
             if charRow is not None:
                 guild = charRow["guild"]
-                return "<font color=\"%s\">%s</font>" % (
-                        dict(STANCES).get(self.get_guild_stances().get(guild)), guild)
+                return '<a style="color: %s" href="%s">%s</a>' % (
+                        get_stance_color(self.get_guild_stances().get(guild)), tibiacom.url.guild_members(guild), guild)
 
         COLUMNS = (
-                ("name", "Character Name", None),
+                ("name", "Character Name", char_name_cell),
                 ("level", "Level", None),
                 ("vocation", "Vocation", None),
-                ("guild", "Guild", get_char_guild_cell),)
+                ("guild", "Guild", char_guild_cell),)
         for col in COLUMNS:
             send("<th>{0}</th>".format(col[1]))
         send("</tr>\n")
 
         #guildNameGenerator = ("Guild" + chr(ord("A") + n) for n in itertools.cycle(xrange(26)))
-        for char in worldOnlineChars:
-            send("\t<tr>")
+        for rowNumber, char in enumerate(worldOnlineChars, start=1):
+            send('\t<tr class="{0}">'.format("odd" if rowNumber & 1 else "even"))
             for col in COLUMNS:
                 if col[2] is None:
                     value = getattr(char, col[0])
@@ -159,6 +174,7 @@ class TestHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             send("</tr>\n")
         send("</table>\n")
 
+        send("</div>")
         send("</body></html>")
 
 def run(server_class=BaseHTTPServer.HTTPServer,
