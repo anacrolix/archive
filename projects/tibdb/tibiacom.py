@@ -12,7 +12,7 @@ try:
 except ImportError:
     from httplib import IncompleteRead
     from HTMLParser import HTMLParser, HTMLParseError
-    from urllib2 import urlopen
+    from urllib2 import urlopen, Request as UrlRequest
     from urllib import urlencode
     from htmlentitydefs import name2codepoint
 
@@ -83,23 +83,24 @@ def pretty_print_char_info(info):
 
 def http_get(url, params):
     """Perform a GET request on the Tibia webserver, with the given parameters. Return the decoded response data."""
-    response = urlopen(
-            "http://www.tibia.com" + url + "?" + urlencode(params))
+    request = UrlRequest(
+            "http://www.tibia.com" + url + "?" + urlencode(params),
+            headers={"Accept-Encoding": "deflate;q=1.0, zlib;q=0.9, gzip;q=0.8, compress;q=0.7, *;q=0"},)
+    response = urlopen(request)
+    assert response.code == 200
+
+    # decompress the response data
+    respdata = response.read()
+    assert len(respdata) == int(response.info()["Content-Length"])
+    contentEncoding = response.info()["Content-Encoding"]
+    if contentEncoding == "gzip":
+        import gzip, io
+        respdata = gzip.GzipFile(fileobj=io.BytesIO(respdata)).read()
+
     # retrieve the encoding, so we can decode the bytes to a string
-    content_type = response.info()["Content-Type"]
-    charset = re.search("charset=([^;\b]+)", content_type).group(1)
-    print(response.info())
-    # read the response data and decode appropriately
-    maxTries = 1
-    while True:
-        maxTries -= 1
-        try:
-            respdata = response.read()
-        except http.client.IncompleteRead:
-            if maxTries == 0:
-                raise
-        else:
-            break
+    contentType = response.info()["Content-Type"]
+    charset = re.search("charset=([^;\b]+)", contentType).group(1)
+
     if str != bytes:
         return respdata.decode(charset)
     else:
@@ -223,20 +224,13 @@ def online_list(world):
     stamp = time.time()
     html = http_get("/community/", {"subtopic": "whoisonline", "world": world})
     # html is processed in this function, these are data transformations
+    def vocation_check(vocation):
+        assert vocation in ("None", "Knight", "Elite Knight", "Paladin", "Royal Paladin", "Druid", "Elder Druid", "Sorcerer", "Master Sorcerer")
+        return vocation
     FIELDS = (
         ("name", lambda x: unescape_tibia_html(x)),
         ("level", lambda x: int(x)),
-        ("vocation", lambda x: {
-                "None": "N",
-                "Knight": "K",
-                "Elite Knight": "EK",
-                "Paladin": "P",
-                "Royal Paladin": "RP",
-                "Druid": "D",
-                "Elder Druid": "ED",
-                "Sorcerer": "S",
-                "Master Sorcerer": "MS"}
-            [x]))
+        ("vocation", vocation_check),)
     players = []
     row_re = re.compile("""<TR BGCOLOR=#[A-F0-9]+><TD WIDTH=\d+%><A HREF="http://www.tibia.com/community/\?subtopic=characters&name=[^"]+">([^<]+)</A></TD><TD WIDTH=\d+%>(\d+)</TD><TD WIDTH=\d+%>([^<]+)</TD></TR>""")
     for a in row_re.finditer(html):

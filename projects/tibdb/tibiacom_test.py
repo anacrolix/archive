@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import pdb, pprint, time, unittest
-from tibiacom import char_info, tibia_time_to_unix, parse_deaths
+from tibiacom import char_info, tibia_time_to_unix, parse_deaths, http_get
 
 class TibiaTime(unittest.TestCase):
     def runTest(self):
@@ -20,6 +20,12 @@ class Deaths(unittest.TestCase):
     def runTest(self):
         html = open("edkeys.html").read()
         pprint.pprint(parse_deaths(html))
+
+class Compression(unittest.TestCase):
+    def runTest(self):
+        data = http_get("/community/", {"subtopic": "characters", "name": "Eddy Aleanath"})
+        print data[0:50]
+        print len(data)
 
 if __name__ == '__main__':
     unittest.main()
