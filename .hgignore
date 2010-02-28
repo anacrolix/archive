@@ -27,3 +27,4 @@ Debug/
 Release/
 ^projects/prolepsis/(stances|members)\.
 ^projects/prolepsis/dist
+glob:projects/tibstat/tibia.db

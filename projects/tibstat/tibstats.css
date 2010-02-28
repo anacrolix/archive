@@ -1,3 +1,4 @@
+/*
 body
 {
     font-family: Verdana, Arial;
@@ -10,14 +11,35 @@ table
     font-family: Verdana, Arial;
     font-size: 10pt;
 }
+*/
+a { text-decoration: none; /*font-weight: bold*/}
+a:hover { text-decoration: underline; }
+a:visited { color: Blue; }
 
+a.char { color: Black; font-weight: bold; }
+a.guild { color: Grey; }
+
+a.enemy { color: Red; }
+a.friend { color: Green; }
+a.ally { color: Blue; }
+a.unspec { color: Grey; }
+
+#menu
+{
+    float: left;
+}
+/*
 #content
 {
     margin: 0 auto;
     background-color: #FFF2db;
-    width: 800px;
+    width: 600px;
 }
 
+table.stattab
+{
+    width: 100%;
+}
 th
 {
     font-weight: bold;
@@ -34,3 +56,5 @@ tr.even
 {
     background-color: #D4C0A1;
 }
+
+*/
