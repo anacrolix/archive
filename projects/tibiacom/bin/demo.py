@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-import os, Queue, sys, threading, time, unittest
-import __init__ as tibiacom
+import os, pprint, Queue, sys, threading, time, unittest
+
+sys.path.append("../..")
+import tibiacom
 
 def sync_world_online(world):
     lastchars = None
@@ -39,6 +41,9 @@ def show_recent_deaths(world):
         allthrds.append(t)
     for t in allthrds:
         t.join()
+
+def char_info(name):
+    pprint.pprint(tibiacom.get_char_info(name))
 
 def main():
     globals()[sys.argv[1]](*sys.argv[2:])

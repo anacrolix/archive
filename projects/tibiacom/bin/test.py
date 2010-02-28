@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import time, unittest
-from source import *
+import sys, time, unittest
+sys.path.append("../..")
+from tibiacom import *
 
 class Test(unittest.TestCase):
     def test_http_compression(self):
