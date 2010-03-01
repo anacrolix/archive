@@ -13,16 +13,16 @@ def tag(name, data=None, attrs=None):
     return retval
 
 class HtmlDocument(object):
-    def __init__(self, outputFile):
-        self.outputFile = outputFile
+    def __init__(self, write):
+        self.write = write
         self.tagStack = []
         self.section = ''
     def indent(self):
-        self.outputFile.write(" " * (len(self.tagStack) - 1))
-    def write(self, data):
-        self.outputFile.write(str(data))
+        self.write(" " * (len(self.tagStack) - 1))
+    #def write(self, data):
+        #self.outputFile.write(str(data))
     def newline(self):
-        self.outputFile.write('\n')
+        self.write('\n')
         self.indent()
     def add_tag(self, name, data=None, attrs=None, inline=True):
         if not inline and len(self.tagStack) > 0:
@@ -41,21 +41,6 @@ class HtmlDocument(object):
         self.write('</{0}>'.format(name))
         #if alone:
         #    self.newline()
-    def start_head(self):
-        assert self.section == ''
-        self.section = 'head'
-        self.open_tag("html", inline=False)
-        self.open_tag("head", inline=False)
-    def start_body(self):
-        assert self.section == 'head'
-        self.section = 'body'
-        self.close_tag("head", inline=False)
-        self.open_tag("body", inline=False)
-    def close(self):
-        assert self.section == 'body'
-        self.close_tag("body", inline=False)
-        self.close_tag("html", inline=False)
-        self.newline()
 
 class TagContext(object):
     def __init__(self, htmldoc, tagname, inline):

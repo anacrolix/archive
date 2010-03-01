@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import BaseHTTPServer, Cookie, urlparse, itertools, io, os, pdb, shutil, sys, time
+import BaseHTTPServer
 
 import pages
 
@@ -13,9 +13,13 @@ class TibstatsHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.process_request()
 
     def process_request(self):
-        pages.generate_http_response(self)
+        pages.handle_http_request(self)
 
-def main(server_class=BaseHTTPServer.HTTPServer,
+    def get_selected_world(self):
+        return self.query.get("world", (None,))[0]
+
+def main(
+        server_class=BaseHTTPServer.HTTPServer,
         handler_class=TibstatsHTTPRequestHandler):
     server_address = ('', 17021)
     httpd = server_class(server_address, handler_class)

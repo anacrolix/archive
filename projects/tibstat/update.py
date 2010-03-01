@@ -2,9 +2,7 @@
 
 import pdb, pprint, sys, time, urllib2
 
-import dbiface
-sys.path.append("..")
-import tibiacom
+import dbiface, tibiacom
 
 def update_guilds(world):
     for guild in tibiacom.get_world_guilds(world):

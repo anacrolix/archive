@@ -19,17 +19,6 @@ dbConn.row_factory = MyRow
 
 # player is used for the table name because char/character has programmatic meaning
 
-def collate_stamp(left, right):
-    #print left,
-    left = to_unixepoch(left)
-    #print left
-    #print right,
-    right = to_unixepoch(right)
-    #print right
-    return cmp(left, right)
-
-dbConn.create_collation("stamp_collation", collate_stamp)
-
 def to_unixepoch(value):
     #pdb.set_trace()
     try:
@@ -44,6 +33,22 @@ def to_unixepoch(value):
         return int(value)
     finally:
         pass
+
+def collate_stamp(left, right):
+    #print left,
+    left = to_unixepoch(left)
+    #print left
+    #print right,
+    right = to_unixepoch(right)
+    #print right
+    return cmp(left, right)
+
+dbConn.create_collation("stamp_collation", collate_stamp)
+
+#dbConn.execute("DROP INDEX idx_death_stamp")
+#dbConn.execute("CREATE INDEX idx_unique_death ON death (stamp COLLATE stamp_collation DESC, victim)")
+#dbConn.execute("CREATE INDEX idx_death_stamp ON death (stamp COLLATE stamp_collation DESC)")
+#dbConn.execute("create index idx_online_stamp on online (stamp collate stamp_collation);")
 
 def create_tables():
     dbConn.executescript(
@@ -100,9 +105,10 @@ def get_deaths(after):
     cursor = dbConn.execute("select * from death where time > ? collate stamp_collation", (str(after),))
     return cursor.fetchall()
 
-def get_last_deaths(limits):
-    cursor = dbConn.execute("select * from death order by stamp collate stamp_collation desc limit ?, ?", (limits))
-    return cursor.fetchall()
+def get_last_deaths(limits=None):
+    return dbConn.execute("""
+            SELECT * FROM death ORDER BY stamp COLLATE stamp_collation DESC LIMIT ?, ?""",
+            (limits))
 
 def pz_end(deathRow):
     return tibia_time_to_unix(deathRow["stamp"]) + (900 if deathRow["lasthit"] else 60)
