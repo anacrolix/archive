@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-import calendar, datetime, os.path, pdb, pprint, sqlite3, sys, time
+import calendar, datetime, logging, os.path, pdb, pprint, sqlite3, sys, time
 
 from tibiacom import tibia_time_to_unix
 
@@ -21,6 +21,12 @@ dbConn.row_factory = MyRow
 
 def to_unixepoch(value):
     #pdb.set_trace()
+    if isinstance(value, int):
+        return value
+    try:
+        return int(value)
+    except ValueError:
+        pass
     try:
         return tibia_time_to_unix(value)
     except ValueError:
@@ -28,10 +34,6 @@ def to_unixepoch(value):
     try:
         return calendar.timegm(time.strptime(value, "%a, %d %b %Y %H:%M:%S %Z"))
     except ValueError:
-        pass
-    try:
-        return int(value)
-    finally:
         pass
 
 def collate_stamp(left, right):
@@ -54,22 +56,30 @@ def create_tables():
     dbConn.executescript(
 """create table death (stamp text not null, victim not null, killer not null, lasthit not null, isplayer not null, level integer not null, unique(stamp, victim, killer));""")
 
-def update_char(name, **extra):
-    cursor = dbConn.execute("insert or ignore into player (name) values (?);", (name,))
-    assert (cursor.rowcount & ~1) == 0
+def update_char(name, ifnotset=False, **extra):
+    cursor = dbConn.execute("INSERT OR IGNORE INTO player (name) VALUES (?)", (name,))
+    assert (cursor.rowcount & ~1) == 0 # either it's added, or it isn't.
+    # if online is passed, then put the char's name and stamp into the online list
     if extra.pop("online", False):
         cursor = dbConn.execute("insert into online (name, stamp) values (?, ?)", (name, extra["stamp"]))
     for death in extra.pop("deaths", ()):
         #pdb.set_trace()
-        pprint.pprint(death)
+        logging.debug(pprint.pformat(death))
         for killer in death.killers:
-            cursor = dbConn.execute(
-                    "insert or ignore into death (stamp, victim, killer, lasthit, isplayer, level) values (?, ?, ?, ?, ?, ?)",
+            dbConn.execute(
+                    """INSERT OR IGNORE INTO death
+                        (stamp, victim, killer, lasthit, isplayer, level)
+                        VALUES (?, ?, ?, ?, ?, ?)""",
                     (death.time, name, killer.name, killer is death.killers[-1], killer.isplayer, death.level))
+            if killer.isplayer:
+                update_char(killer.name, ifnotset=True, world=extra["world"])
     extra.pop("stamp", None)
     for col in extra.keys():
-        cursor = dbConn.execute("update player set {0}=? where name=?;".format(col), (extra.pop(col), name))
-        assert cursor.rowcount == 1
+        sql = "UPDATE player SET {0}=? WHERE name=?"
+        if ifnotset:
+            sql += " AND {0} IS NULL"
+        cursor = dbConn.execute(sql.format(col), (extra.pop(col), name))
+        assert (cursor.rowcount & ~1) == 0
     assert len(extra) == 0, extra
     dbConn.commit()
 
@@ -85,9 +95,13 @@ def get_char(name):
 
 def get_online_chars(after=None, world=None):
     if after is None:
-        after = 0
+        assert False # probably now minus 5 mins is best
     # MUST BE STRING TO TRIGGER COLLATION
-    sql = "SELECT player.name, level, vocation, guild, world FROM (SELECT DISTINCT name FROM online WHERE stamp > ? COLLATE stamp_collation) AS onnow INNER JOIN player ON (onnow.name=player.name)"
+    sql = """
+            SELECT player.name, level, vocation, guild, world
+            FROM
+                (SELECT DISTINCT name FROM online WHERE stamp > ? COLLATE stamp_collation) AS onnow
+                INNER JOIN player ON (onnow.name=player.name)"""
     params = [str(after)]
     if world is not None:
         sql += " WHERE world=?"
@@ -105,32 +119,55 @@ def get_deaths(after):
     cursor = dbConn.execute("select * from death where time > ? collate stamp_collation", (str(after),))
     return cursor.fetchall()
 
-def get_last_deaths(limits=None):
-    return dbConn.execute("""
-            SELECT * FROM death ORDER BY stamp COLLATE stamp_collation DESC LIMIT ?, ?""",
-            (limits))
+def get_last_deaths(limits=None, world=None):
+    sql = "SELECT death.*, world FROM death JOIN player ON (death.victim=player.name)"
+    params = []
+    if world:
+        sql += " WHERE world=?"
+        params.append(world)
+    sql += " ORDER BY stamp COLLATE stamp_collation DESC LIMIT ?, ?"
+    params.extend(limits)
+    return dbConn.execute(sql, params)
 
 def pz_end(deathRow):
     return tibia_time_to_unix(deathRow["stamp"]) + (900 if deathRow["lasthit"] else 60)
 
-def get_pzlocks(curtime=None, margin=300):
-    if curtime is None:
-        curtime = int(time.time())
-    #curtime = 1267263300
-    cursor = dbConn.execute("select * from death where isplayer and ((stamp > ? collate stamp_collation and lasthit) or (stamp > ? collate stamp_collation and not lasthit))", (curtime - 900 - margin, curtime - 60 - margin))
+def get_last_pzlocks(world, limits):
+    sql = """
+            SELECT stamp, killer, victim, lasthit, killer.level
+            FROM death JOIN player AS killer ON (death.killer=killer.name)
+            WHERE death.isplayer
+        """
+    params = []
+    if world:
+        sql += " AND world=?"
+        params.append(world)
+    sql += " ORDER BY stamp COLLATE stamp_collation DESC"
+    cursor = dbConn.execute(sql, params)
     mostRecent = []
+    # as the deaths are handled in reverse chrono order, each victim can be added to a list of deceased, and no pz locks attached by kills from that point onwards can count.
+    deceased = set()
     for row in cursor:
+        if row["killer"] in deceased:
+            print >>sys.stderr, "%s died after this kill %s" % (row["killer"], row)
         for a in mostRecent:
             if row["killer"] == a["killer"]:
-                #pdb.set_trace()
+                # the killer is already in our list
                 if pz_end(row) > pz_end(a):
-                    print >>sys.stderr, "%s more recent than %s" % (tuple(row), tuple(a))
+                    # this kill has a pz that ends after the existing entry
+                    #print >>sys.stderr, "%s more recent than %s" % (tuple(row), tuple(a))
                     mostRecent.remove(a)
                     mostRecent.append(row)
+                # since the killer has been found, we've either replaced the entry, or we're done looking for clashes
                 break
         else:
+            # the killer is not in our list yet, so add him
             mostRecent.append(row)
-    return sorted(mostRecent, key=lambda x: pz_end(x), reverse=True)
+        if len(mostRecent) == int(limits[1]):
+            break
+        deceased.add(row["victim"])
+    del cursor
+    return sorted(mostRecent[limits[0]:], key=lambda x: pz_end(x), reverse=True)
 
 def set_worlds(worlds):
     dbConn.execute("delete from world")

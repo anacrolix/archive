@@ -39,6 +39,10 @@ class HtmlDocument(object):
         if not inline:
             self.newline()
         self.write('</{0}>'.format(name))
+    def writelns(self, lines):
+        for l in lines:
+            self.newline()
+            self.write(l)
         #if alone:
         #    self.newline()
 

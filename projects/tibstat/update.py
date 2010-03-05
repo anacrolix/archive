@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import pdb, pprint, sys, time, urllib2
+import calendar, logging, pdb, pprint, sys, time, urllib2
 
 import dbiface, tibiacom
 
@@ -13,7 +13,8 @@ def update_guilds(world):
 def update_world_online(world):
     html, headers = tibiacom.http_get(tibiacom.world_online_url(world))
     players = tibiacom.parse_world_online(html)
-    pprint.pprint(players)
+    logging.debug(pprint.pformat(players))
+    logging.info("Found %d players on %s", len(players), world)
     for p in players:
         dbiface.update_char(p.name, level=p.level, vocation=p.vocation, online=True, stamp=headers["Date"], world=world)
 
@@ -22,13 +23,36 @@ def update_char(name):
     dbiface.update_char(info.pop("name"), **info)
 
 def update_recent_deaths(world):
-    after = int(time.time()) - 540
+    after = int(time.time()) - 300
     for row in dbiface.get_online_chars(after):
         update_char(row["name"])
 
-def standard_world_update(world):
-    update_world_online(world)
-    update_recent_deaths(world)
+def next_tibiacom_whoisonline_update(secs=None):
+    """Returns the unix epoch of the next reasonable time to update from tibia.com whoisonline pages"""
+    a = list(time.gmtime(secs))
+    min = (((((a[4] - 1) // 5) + 1) * 5) + 1)
+    return calendar.timegm(a[0:4] + [min, 0] + a[6:9])
+
+def standard_world_update(world, *options):
+    nextUpdate = next_tibiacom_whoisonline_update()
+    options = list(options)
+    while True:
+        if "immediate" not in options:
+            logging.info("Waiting for %s", time.asctime(time.localtime(nextUpdate)))
+            while True:
+                if time.time() >= nextUpdate:
+                    break
+                else:
+                    time.sleep(1)
+            nextUpdate = next_tibiacom_whoisonline_update()
+        else:
+            options.remove("immediate")
+        startTime = int(time.time())
+        update_world_online(world)
+        update_recent_deaths(world)
+        logging.info("Update took %ds", int(time.time()) - startTime)
+        if "once" in options:
+            break
 
 def update_world_list():
     dbiface.set_worlds(tibiacom.tibia_worlds())
@@ -41,6 +65,10 @@ def main():
         print globals().keys()
 
 def main():
+    logging.basicConfig(
+            level=logging.INFO,
+            stream=sys.stdout,
+            format="%(levelname)s:%(process)d:%(message)s")
     pprint.pprint(globals()[sys.argv[1]](*sys.argv[2:]))
 
 if __name__ == "__main__":
