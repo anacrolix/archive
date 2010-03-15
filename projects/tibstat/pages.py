@@ -1,6 +1,6 @@
 import calendar, contextlib, Cookie, gzip, io, itertools, os, pdb, shutil, time, urllib, urlparse, zlib
 
-import dbiface, tibiacom
+import dbiface, tibiacom, update
 from htmldoc import HtmlDocument, tag
 
 STANCES = (
@@ -12,10 +12,12 @@ STANCE_VALUES = tuple(map(lambda t: t[0], STANCES))
 STANCE_CSS_CLASS = dict(STANCES)
 
 def char_link(name):
-    return tag("a", name, attrs=dict(href=tibiacom.char_page_url(name)))
+    return tag("a", name, attrs={"href": tibiacom.char_page_url(name), "class": "char"})
 
 def guild_link(name, stance):
-    return tag("a", name, attrs={"href": tibiacom.guild_members_url(name), "class": STANCE_CSS_CLASS[stance]})
+    return tag("a", name, attrs={
+            "href": tibiacom.guild_members_url(name),
+            "class": " ".join((STANCE_CSS_CLASS[stance], "guild"))})
 
 class StandardPageContext(object):
     def __init__(self, request):
@@ -86,7 +88,7 @@ SEARCH_ENGINE = '''
   <div>
     <input type="hidden" name="cx" value="partner-pub-5195063250458873:51atcrmvpus" />
     <input type="hidden" name="ie" value="ISO-8859-1" />
-    <input type="text" name="q" size="16" />
+    <input type="text" name="q" size="15" />
     <input type="submit" name="sa" value="Search" />
   </div>
 </form>
@@ -99,20 +101,21 @@ def standard_content_wrapper(write, context, title):
 
     #write('''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">''')
     doc = HtmlDocument(write)
+    headTitle = "{0} - {1}".format(title, context.get_selected_world() or "All Worlds")
     with doc.open_tag("html"):
         with doc.open_tag("head"):
-            doc.add_tag(
-                    "title",
-                    "{0} - {1}".format(title, context.get_selected_world() or "All Worlds"),
-                    inline=False)
+            doc.add_tag("title", headTitle, inline=False)
             doc.add_tag("link", attrs=dict(rel="stylesheet", type="text/css", href="/tibstats.css"), inline=False)
             doc.add_tag("link", attrs=dict(rel="icon", type="image/gif", href="http://static.tibia.com/images/gameguides/skull_black.gif"), inline=False)
         with doc.open_tag("body", inline=False):
-            with doc.open_tag("div", attrs={"style": "display: table; margin-left: auto; margin-right: auto"}):
+            with doc.open_tag("div", attrs={"id": "header", "class": "bodyrow"}, inline=False):
                 doc.writelns(LINK_AD.split("\n"))
-            with doc.open_tag("div", attrs={"id": "container"}, inline=False):
-                with doc.open_tag("div", {"id": "left"}, inline=False):
-                    with doc.open_tag("div", {"id": "menu"}):
+            #with doc.open_tag("div", attrs={"class": "bodyrow"}, inline=False):
+                #with doc.open_tag("div", attrs={"style": "display: table-cell"}):
+            with doc.open_tag("div", attrs={"id": "main"}, inline=False):
+                with doc.open_tag("div", attrs={"id": "left"}, inline=False):
+                    with doc.open_tag("div", {"id": "menu"}, inline=False):
+                        doc.add_tag("div", "Menu", {"id": "menu-title"})
                         for path, entry in PAGES.iteritems():
                             if isinstance(entry, MenuPageEntry):
                                 world = context.get_selected_world()
@@ -120,7 +123,7 @@ def standard_content_wrapper(write, context, title):
                                     path += "?" + urllib.urlencode({"world": world})
                                 doc.add_tag("a", entry.title, attrs={"href": path})
                                 doc.add_tag("br")
-                        with doc.open_tag("form", attrs={"method": "get"}, inline=False):
+                        with doc.open_tag("form", attrs={"method": "get", "class": "world-form"}, inline=False):
                             doc.newline()
                             doc.add_tag("input", attrs=dict(type="submit", value="Set world"))
                             with doc.open_tag("select", attrs={"size": 1, "name": "world"}, inline=False):
@@ -133,12 +136,16 @@ def standard_content_wrapper(write, context, title):
                                 for world in sorted(a["name"] for a in dbiface.get_worlds()):
                                     doc.newline()
                                     doc.add_tag("option", world, attrs=add_selected_world(world, {"value": world}))
-                    with doc.open_tag("center"):
-                        doc.writelns(SKYSCRAPER_AD.split("\n"))
+                    #with doc.open_tag("div", attrs={"id": "left-ad"}):
+                    #    doc.writelns(SKYSCRAPER_AD.split("\n"))
                 with doc.open_tag("div", attrs={"id": "center"}, inline=False):
-                    yield doc
-            with doc.open_tag("div", attrs={"style": "display: table; margin-left: auto; margin-right: auto"}):
-                doc.writelns(SEARCH_ENGINE.split("\n"))
+                    with doc.open_tag("div", attrs={"id": "content-title"}):
+                        doc.writelns(SEARCH_ENGINE.split("\n"))
+                        doc.write(headTitle)
+                    with doc.open_tag("div", attrs={"id": "content"}):
+                        yield doc
+            #with doc.open_tag("div", attrs={"id": "footer", "class": "bodyrow"}):
+                #doc.write("Nothing here yet.")
 
 def stattab_table_tag(openTag):
     return openTag("table", attrs={"class": "stattab", "cellspacing": 1,})
@@ -157,18 +164,19 @@ def human_time_diff(stamp):
     elif diff > 0:
         whence = "more"
     humanbits = []
-    for divisor, units in ((60, "s"), (60, "min"), (24, "h"), (7, "d")):
+    for divisor, units in ((60, "s"), (60, "m"), (24, "h"), (7, "d")):
         bitval = diff % divisor
         humanbits.append("%d%s" % (bitval, units) if bitval else None)
         diff //= divisor
         if diff == 0:
             break
     # take the 2 most significant bits, filter the zeroed ones
-    return " ".join(filter(None, itertools.islice(reversed(humanbits), 2))) + " " + whence
+    return "".join(filter(None, itertools.islice(reversed(humanbits), 2))) + "&nbsp;" + whence
 
 def guild_stances(outfile, context):
     doc = outfile
     world = context.get_selected_world()
+    doc.add_tag("div", 'Here are listed the guilds for the world you have selected. You may set your personal "stance" toward that guild, F=Friend, A=Ally, U=Unspecified, E=Enemy. The guild is then appropriately colored on any page where guild is mentioned to ease categorization at a glance.', attrs={"style": "width: 100%"})
     with doc.open_tag("form", attrs={"method": "post",}): #"action": "/setcookie"}):
         with stattab_table_tag(doc.open_tag):
             with doc.open_tag("tr"):
@@ -283,13 +291,12 @@ def recent_deaths(outfile, context):
 def world_online(doc, pageContext):
     doc.newline()
     world = pageContext.get_selected_world()
-    after = int(time.time()) - 300
-    #after = 0
-    onlineChars = dbiface.get_online_chars(after, world=world)
-    doc.write("This page is still being optimized.<br>")
-    doc.write("There are {0} players online.".format(len(onlineChars)))
+    #after = update.next_tibiacom_whoisonline_update() - 300
+    onlineChars = list(dbiface.get_online_chars(world=world))
+    #doc.write("This page is still being optimized.<br>")
+    doc.write("There are {0} players online on the worlds you have selected.".format(len(onlineChars)))
     onlineChars.sort(key=lambda x: int(x["level"]), reverse=True)
-    with doc.open_tag("table", {"class": "stattab"}):
+    with stattab_table_tag(doc.open_tag):
         with doc.open_tag("tr"):
             doc.add_tag("th", "Name")
             doc.add_tag("th", "Level")
@@ -313,6 +320,7 @@ def pz_locked(doc, pageContext):
     curtime = int(time.time())
     limits = (0, 30)
     #limits = (0, 200)
+    doc.write("Players sorted by descending protection zone lock time remaining. Also shown is their level, vocation, guild, and most recent victim.")
     with stattab_table_tag(doc.open_tag):
         with doc.open_tag("tr", inline=False):
             if not world:
@@ -337,6 +345,26 @@ def pz_locked(doc, pageContext):
                         doc.add_tag("td", killerInfo[field])
                     doc.add_tag("td", pageContext.guild_link(killerInfo["guild"]))
                     doc.add_tag("td", char_link(pzlock["victim"]))
+
+def player_killer_highscores(doc, context):
+    with stattab_table_tag(doc.open_tag):
+        with doc.open_tag("tr", inline=False):
+            doc.add_tag("th", "Kill Count")
+            doc.add_tag("th", "World")
+            doc.add_tag("th", "Assassin Name")
+            doc.add_tag("th", "Level")
+            doc.add_tag("th", "Vocation")
+            doc.add_tag("th", "Guild")
+        rowClass = stattab_row_class()
+        for pker in dbiface.best_player_killers():
+            with doc.open_tag("tr", attrs={"class": rowClass.next()}, inline=False):
+                doc.add_tag("td", pker[0])
+                doc.add_tag("td", pker["world"])
+                doc.add_tag("td", char_link(pker["name"]))
+                #pdb.set_trace()
+                doc.add_tag("td", pker["level"])
+                doc.add_tag("td", pker["vocation"])
+                doc.add_tag("td", context.guild_link(pker["guild"]))
 
 class PageEntry(object):
     def __init__(self, handler):
@@ -364,7 +392,8 @@ PAGES = {
         #"/tibstats-simple.css": PageEntry(tibstats_stylesheet),
         "/recentdeath": StandardPageEntry(recent_deaths, "Recent Deaths"),
         "/pzlocked": StandardPageEntry(pz_locked, "Protection Zone Locked"),
-        "/whoisonline": StandardPageEntry(world_online, "Current Online"),}
+        "/whoisonline": StandardPageEntry(world_online, "Current Online"),
+        "/pkhighscore": StandardPageEntry(player_killer_highscores, "Best Player Killers"),}
 
 def handle_http_request(request):
     try:

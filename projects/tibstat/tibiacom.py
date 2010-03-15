@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import calendar, collections, htmlentitydefs, os.path, pdb, pprint, re, string, sys, time, urllib, urllib2, urlparse
+import calendar, collections, htmlentitydefs, httplib, logging, os.path, pdb, pprint, re, string, sys, threading, time, urllib, urllib2, urlparse
 
 #_TIBIA_TIME_STRLEN = len("Mon DD YYYY, HH:MM:SS TZ")
 
@@ -61,6 +61,12 @@ def tibia_time_to_unix(s):
     c -= HOUR * {"CET": 1, "CEST": 2}[a[-1]]
     return c
 
+def next_whoisonline_update(secs=None):
+    """Returns the unix epoch of the next reasonable time to update from tibia.com whoisonline pages"""
+    a = list(time.gmtime(secs))
+    min = (((((a[4] - 1) // 5) + 1) * 5) + 1)
+    return calendar.timegm(a[0:4] + [min, 0] + a[6:9])
+
 def make_tibia_url(path, query):
     return urlparse.urlunsplit((
             "http",
@@ -79,29 +85,37 @@ def guild_members_url(guild):
     return make_tibia_url("/community/", {"subtopic": "guilds", "page": "view", "GuildName": guild})
 
 def world_online_url(world):
+    assert isinstance(world, str)
     return make_tibia_url("/community/", {"subtopic": "whoisonline", "world": world})
 
-def http_get(url, retries=3):
+def http_get(url):
     """Perform a compressed GET request on the Tibia webserver. Return the decoded response data and other info."""
 
     # prefer deflate, zlib, gzip as they add ascending levels of headers in that order
-    # compress is not as strong compression, prefer it next, avoid identity and unhandled encodings at all cost
+    # compress is not as strong compression, prefer it next
+    # avoid identity and unhandled encodings at all cost
     request = urllib2.Request(
             url,
             headers={"Accept-Encoding": "deflate;q=1.0, zlib;q=0.9, gzip;q=0.8, compress;q=0.7, *;q=0"},)
-    try:
-        response = urllib2.urlopen(request); del request
-    except urllib2.HTTPError as e:
-        if retries > 0:
-            print >>sys.stderr, "Error reading %r: %s" % (url, e)
-            return http_get(url, retries - 1)
+    retries = 0
+    while True:
+        try:
+            response = urllib2.urlopen(request)
+        except urllib2.HTTPError as e:
+            if e.code != 403:
+                raise
+            else:
+                retries += 1
+                print "fail:", time.time(), threading.current_thread().name
+                time.sleep(retries)
         else:
-            raise
-    assert response.code == 200
+            break
+    del retries
 
-    # decompress the response data
     respdata = response.read()
     response.close()
+    assert response.code == 200, (response.code, respdata)
+    # decompress the response data
     assert len(respdata) == int(response.info()["Content-Length"])
     contentEncoding = response.info()["Content-Encoding"]
     if contentEncoding == "gzip":
@@ -115,6 +129,46 @@ def http_get(url, retries=3):
     if str != bytes:
         respdata = respdata.decode(charset)
     return respdata, response.info()
+
+#tibiacomConnection = httplib.HTTPConnection("www.tibia.com")
+#tibiacomConnLock = threading.Lock()
+
+#def http_get(url):
+    #"""Perform a compressed GET request on the Tibia webserver. Return the decoded response data and other info."""
+
+    ## prefer deflate, zlib, gzip as they add ascending levels of headers in that order
+    ## compress is not as strong compression, prefer it next, avoid identity and unhandled encodings at all cost
+    #with tibiacomConnLock:
+        #tibiacomConnection.request("GET", url, headers={
+                #"Accept-Encoding": "deflate;q=1.0, zlib;q=0.9, gzip;q=0.8, compress;q=0.7, *;q=0",})
+        #response = tibiacomConnection.getresponse()
+        #assert response.status == 200
+        ##if response.status != 200:
+        ##    logging.error("%d: %s", response.status, response.reason)
+        ##else:
+        ##    break
+            ##print response.status, response.reason
+            ##print response.getheaders()
+            ###assert response.status == 200
+
+        ## decompress the response data
+        #respdata = response.read()
+    ##response.close()
+    #contentLength = response.msg["Content-Length"]
+    #assert len(respdata) == int(response.msg["Content-Length"])
+    #contentEncoding = response.msg.getheader("Content-Encoding")
+    #if contentEncoding == "gzip":
+        #import gzip, io
+        #respdata = gzip.GzipFile(fileobj=io.BytesIO(respdata)).read()
+
+    ## retrieve the encoding, so we can decode the bytes to a string
+    #contentType = response.msg["Content-Type"]
+    #charset = re.search("charset=([^;\b]+)", contentType).group(1)
+
+    #if str != bytes:
+        #respdata = respdata.decode(charset)
+    #return respdata, response.msg
+
 
 STR = r"<tr[^>]*>"
 ETR = r"</tr>"
@@ -219,7 +273,13 @@ def parse_char_page(html, name):
             info[key] = transform(hits[0]) if transform != None else hits[0]
         else:
             assert False, "Too many hits for field"
-    assert info["name"] == name
+
+    # special name field handling
+    a = info["name"].split(",", 1)
+    info["name"] = a[0]
+    if len(a) > 1:
+        info["deletion"] = a[1].strip()
+    assert info["name"] == name, (info["name"], name)
 
     info["deaths"] = _parse_char_page_deaths(html)
 
@@ -228,7 +288,11 @@ def parse_char_page(html, name):
 def get_char_page(name):
     return parse_char_page(http_get(char_page_url(name))[0], name)
 
+def get_world_online(world):
+    return parse_world_online(http_get(world_online_url(world))[0])
+
 def parse_world_online(html):
+    assert html
     # html is processed in this function, these are data transformations
     def vocation_check(vocation):
         assert vocation in ("None", "Knight", "Elite Knight", "Paladin", "Royal Paladin", "Druid", "Elder Druid", "Sorcerer", "Master Sorcerer")
@@ -245,7 +309,14 @@ def parse_world_online(html):
         # FIELDS is iterated by index because of 1-based MatchObject.group()
         players.append(Character(**dict(
                 ((f[0], f[1](a.group(i + 1))) for i, f in enumerate(FIELDS)))))
-    assert int(re.search(r"Currently (\d+) players are online\.", html).group(1)) == len(players)
+
+    # check the page player count matches the number of players we found
+    pagePlayerCount = re.search(r"Currently (\d+) players are online\.", html)
+    if pagePlayerCount is not None:
+        pagePlayerCount = int(pagePlayerCount.group(1))
+    else:
+        pagePlayerCount = 0
+    assert len(players) == pagePlayerCount
     return players
 
 def parse_world_guilds(html, world):
