@@ -243,6 +243,9 @@ def _parse_char_page_deaths(html):
     #pprint.pprint(alldeaths)
     return alldeaths
 
+class CharDoesNotExist(Exception):
+    pass
+
 def parse_char_page(html, name):
     info = {}
 
@@ -250,9 +253,10 @@ def parse_char_page(html, name):
     FIELDS = (
             # key name, field name, data transform, required field
             ("name", "Name", lambda x: unescape_tibia_html(x), True),
+            ("former_names", "Former Names", lambda x: x.split(", "), False),
             ("sex", "Sex", None, True),
             ("vocation", "Profession", None, True),
-            ("level", "Level", None, True),
+            ("level", "Level", int, True),
             ("world", "World", None, True),
             ("residence", "Residence", None, True),
             (       "guild",
@@ -267,21 +271,32 @@ def parse_char_page(html, name):
                 "<TR.*?><TD.*?>{0}:</TD><TD>(.+?)</TD></TR>".format(field),
                 html)
         if len(hits) == 0:
-            assert not required, "Character page for %r: Required field %s not found" % (name, field)
-            info[key] = None
+            if required:
+                if re.search(
+                        r"Character <B>{0}</B> does not exist.".format(name),
+                        html):
+                    assert key == FIELDS[0][0]
+                    raise CharDoesNotExist(name)
+                else:
+                    assert False, "Character page for %r: Required field %s not found" % (name, field)
+            else:
+                info[key] = None
         elif len(hits) == 1:
             info[key] = transform(hits[0]) if transform != None else hits[0]
         else:
             assert False, "Too many hits for field"
+
+    info["deaths"] = _parse_char_page_deaths(html)
 
     # special name field handling
     a = info["name"].split(",", 1)
     info["name"] = a[0]
     if len(a) > 1:
         info["deletion"] = a[1].strip()
-    assert info["name"] == name, (info["name"], name)
 
-    info["deaths"] = _parse_char_page_deaths(html)
+    if name != info["name"]:
+        assert name in info["former_names"]
+        #raise CharNameChanged(info)
 
     return info
 

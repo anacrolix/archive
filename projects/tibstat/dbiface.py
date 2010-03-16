@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import calendar, datetime, logging, os.path, pdb, pprint, sqlite3, sys, time
+import calendar, contextlib, datetime, logging, os.path, pdb, pprint, sqlite3, sys, threading, time
 
+import tibiacom
 from tibiacom import tibia_time_to_unix, next_whoisonline_update
 
 # player is used for the table name because char/character has programmatic meaning
@@ -41,19 +42,25 @@ class MyRow(sqlite3.Row):
 class TibstatDatabase(object):
 
     _dbpath = "tibia.db"
+    _writeLock = threading.Lock()
 
     def __init__(self):
         assert os.path.exists(self._dbpath) # sqlite3 will create if it doesn't exist
-        self._dbconn = sqlite3.connect(self._dbpath, timeout=20)
+        self._dbconn = sqlite3.connect(self._dbpath, timeout=.01)#, isolation_level='DEFERRED')
         self._dbconn.text_factory = str
         self._dbconn.row_factory = MyRow
         self._dbconn.create_collation("stamp_collation", collate_stamp)
 
-    def commit(self):
-        self._dbconn.commit()
-
     def _update_char(self, name, ifnotset=False, **extra):
         dbConn = self._dbconn
+        formerNames = extra.pop("former_names", None)
+        if formerNames:
+            for fn in formerNames:
+                cursor = dbConn.execute("DELETE FROM player WHERE name=?", (fn,))
+                if cursor.rowcount == 1:
+                    logging.warning("Replacing former player %r with %r", fn, name)
+                else:
+                    assert cursor.rowcount == 0
         cursor = dbConn.execute("INSERT OR IGNORE INTO player (name) VALUES (?)", (name,))
         assert (cursor.rowcount & ~1) == 0 # either it's added, or it isn't.
         # if online is passed, then put the char's name and stamp into the online list
@@ -78,7 +85,15 @@ class TibstatDatabase(object):
             cursor = dbConn.execute(sql.format(col), (extra.pop(col), name))
             assert (cursor.rowcount & ~1) == 0
         assert len(extra) == 0, extra
-        #dbConn.commit()
+
+    def get_all_chars(self, world=None):
+        sql = "SELECT * FROM player"
+        params = []
+        if world:
+            sql += " WHERE world=?"
+            params.append(world)
+        sql += " ORDER BY name"
+        return self._dbconn.execute(sql, params)
 
     def get_char(self, name):
         dbConn = self._dbconn
@@ -200,6 +215,54 @@ class TibstatDatabase(object):
                 LIMIT 0, 30
             """)
 
+    @contextlib.contextmanager
+    def _write_lock(self):
+        with self._writeLock:
+            def until_succeeds(func, *args):
+                while True:
+                    try:
+                        func(*args)
+                    except sqlite3.OperationalError as e:
+                        assert e.args[0] == "database is locked"
+                        #logging.warning(e)
+                    else:
+                        break
+            until_succeeds(self._dbconn.execute, "BEGIN IMMEDIATE")
+            yield
+            until_succeeds(self._dbconn.commit)
+
+    def update_guilds(self, world):
+        for guild in tibiacom.get_world_guilds(world):
+            logging.info("Updating guild %r", guild)
+            for member in tibiacom.get_guild_members(guild):
+                dbiface.update_char(member, guild=guild, world=world)
+
+    def update_world_online(self, world):
+        localStamp = int(time.time())
+        html, headers = tibiacom.http_get(tibiacom.world_online_url(world))
+        players = tibiacom.parse_world_online(html)
+        logging.info("Found %d players on %s", len(players), world)
+        serverStamp = to_unixepoch(headers["Date"])
+        assert abs(localStamp - serverStamp) <= 1, (serverStamp, localStamp)
+        #print to_unixepoch(headers["Date"]), int(time.time())
+        with self._write_lock():
+            for p in players:
+                self._update_char(
+                        p.name, level=p.level, vocation=p.vocation, online=True,
+                        stamp=serverStamp, world=world)
+        #self._commit()
+
+    def update_char(self, name):
+        info = tibiacom.get_char_page(name)
+        charName = info.pop("name")
+        with self._write_lock():
+            self._update_char(charName, **info)
+        return charName
+
+    def update_recent_deaths(self, after):
+        for row in dbiface.get_online_chars(after):
+            update_char(row["name"])
+
 _tsdb = TibstatDatabase()
 for a in dir(_tsdb):
     if not a.startswith("_"):
@@ -210,7 +273,9 @@ for a in dir(_tsdb):
 #select count(*), victim from (select distinct time, victim from death) group by victim order by count(*);
 
 def main():
-    pprint.pprint(list(globals()[sys.argv[1]](*sys.argv[2:])))
+    tsdb = TibstatDatabase()
+    print getattr(tsdb, sys.argv[1])(*sys.argv[2:])
+    #tsdb.commit()
 
 if __name__ == "__main__":
     main()
