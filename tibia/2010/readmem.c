@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,10 +33,20 @@ int main(int argc, char **argv)
 	assert(NULL != outbuf);
 
 	assert(!ptrace(PTRACE_ATTACH, pid, NULL, NULL));
-	int status = 0;
-	assert(pid == waitpid(pid, &status, 0));
-	assert(WIFSTOPPED(status));
-	assert(SIGSTOP == WSTOPSIG(status));
+
+	// deliver signals to the tracee until it receives SIGSTOP
+	while (true) {
+		int status = 0;
+		assert(pid == waitpid(pid, &status, 0));
+		assert(WIFSTOPPED(status));
+		if (WSTOPSIG(status) == SIGSTOP) {
+			break;
+		}
+		else {
+			assert(!ptrace(PTRACE_CONT, pid, NULL, WSTOPSIG(status)));
+		}
+	}
+
 	int memfd = open(mempath, O_RDONLY);
 	assert(-1 != memfd);
 	//fprintf(stderr, "preading 0x%zx bytes at %p\n", size, (void *)address);
@@ -52,7 +63,8 @@ int main(int argc, char **argv)
 	assert(!close(memfd));
 	assert(!ptrace(PTRACE_DETACH, pid, NULL, 0));
 
-	assert(1 == fwrite(outbuf, size, 1, stdout));
+	// byte count in nmemb to handle writes of length 0
+	assert(size == fwrite(outbuf, 1, size, stdout));
 
 	free(outbuf);
 	free(mempath);
