@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
+import sys
+
 SERVIPS_FNAME = "ips.txt"
 
 def download_server_ips():
+    print >>sys.stderr, "Downloading World Server IPs"
     import  urllib, zipfile
     from StringIO import StringIO as MemFile
     params = urllib.urlencode({"txtDownloadID": "112", "submit": "Download"})
@@ -46,17 +49,28 @@ def server_latencies(count, timeout=1.0, subset=None):
                 logger.debug("Connected to %s in %d ms", servname, round(1000 * latency))
             times[servname].append(latency)
             sock.close()
-    return times
+    return dict(((k, (servips[k], v)) for k, v in times.iteritems()))
 
-def print_server_latencies(count, subset, timeout):
+def print_server_latencies(count, subset, timeout, sortcol, sortdir):
     lags = server_latencies(count=count, subset=subset)
     meaned = []
-    for server, times in lags.iteritems():
+    for server, (ipstr, times) in lags.iteritems():
         logger.info("Timings for %s: %s", server, times)
-        item = (int(round(1000 * sum(times) / float(count))), server)
+        item = (int(round(1000 * sum(times) / float(count))), server, ipstr)
         meaned.append(item)
-    for ping, server in sorted(meaned, reverse=True):
-        print "%5d %s" % (ping, server)
+    keyfunc, defsort = {
+            'name': (lambda x: x[1], False),
+            'ping': (lambda x: x[0], True),
+            'ip': (lambda x: x[2], False),
+        }[sortcol]
+    if sortdir in ("asc",):
+        sortdesc = False
+    elif sortdir in ("desc",):
+        sortdesc = True
+    else:
+        sortdesc = defsort
+    for a in sorted(meaned, key=keyfunc, reverse=sortdesc):
+        print "%5d %-32s %s" % a
 
 def main():
     # pause after executing for noobs not running from the shell
@@ -70,16 +84,22 @@ def main():
     parser = optparse.OptionParser()
     parser.usage += " SERVERS..."
     parser.description = "Pings the given SERVERS (all servers if SERVERS is the empty set) COUNT times each, and returns the mean connect latency."
-    parser.add_option("-c", "--count", help="number of pings to each server", type='int', default=1)
+    parser.add_option("-c", "--count", help="number of pings to each server", type='int', default=2)
     parser.add_option("-u", "--update", help="update server list from internet", action='store_true')
     parser.add_option("-t", "--timeout", help="timeout on pings after this many seconds", type='float', default=1.0)
-    #parser.add_option("-s", "--sort", help="sort by name (default), ping, ip", type='string', default='name')
+    parser.add_option("-s", "--sort", help="sort by name (default), ping, ip", type='string', default='name')
+    parser.add_option("-d", "--sort-dir", help="sort ascending or descending, default is appropriate for the sort column")
     options, posargs = parser.parse_args()
 
     import os.path
     if not os.path.exists(SERVIPS_FNAME) or options.update:
         download_server_ips()
-    print_server_latencies(options.count, subset=(posargs or None), timeout=options.timeout)
+    print_server_latencies(
+            options.count,
+            subset=(posargs or None),
+            timeout=options.timeout,
+            sortcol=options.sort,
+            sortdir=options.sort_dir)
 
 if __name__ == "__main__":
     # put logger on global level
