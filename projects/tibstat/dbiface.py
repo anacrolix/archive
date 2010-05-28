@@ -31,7 +31,7 @@ def collate_stamp(left, right):
     return cmp(left, right)
 
 def pz_end(deathRow):
-    return tibia_time_to_unix(deathRow["stamp"]) + (900 if deathRow["lasthit"] else 60)
+    return tibia_time_to_unix(deathRow["stamp"]) + ((16 * 60) if deathRow["lasthit"] else 60)
 
 # prefer key lookups to indexing tuples
 class MyRow(sqlite3.Row):
@@ -116,7 +116,7 @@ class TibstatDatabase(object):
                 SELECT  player.name, player.level, player.vocation, player.level,
                         player.guild, player.world
                 FROM online JOIN player ON (online.name = player.name)
-                WHERE online.stamp > ? COLLATE stamp_collation
+                WHERE vocation != 'None' AND online.stamp > ? COLLATE stamp_collation
             """
         # MUST BE STRING TO TRIGGER COLLATION
         params = [str(after)]
@@ -131,26 +131,36 @@ class TibstatDatabase(object):
                 yield row
                 returned[row["name"]] = row
 
-    def list_guilds(self):
+    def list_guilds(self, world):
         dbConn = self._dbconn
-        return dbConn.execute("""
-                SELECT DISTINCT guild, world
-                FROM player
-                WHERE world NOT NULL AND guild NOT NULL
-                ORDER BY world""")
+        return self._dbconn.execute("""
+                    SELECT guild, COUNT(*)
+                    FROM player
+                    WHERE world = ? AND guild NOT NULL
+                    GROUP BY guild""",
+                (world,))
 
     def get_deaths(self, after):
         dbConn = self._dbconn
         cursor = dbConn.execute("select * from death where time > ? collate stamp_collation", (str(after),))
         return cursor.fetchall()
 
-    def get_last_deaths(self, limits=None, world=None):
+    def get_last_deaths(self, limits=None, world=None, minlevel=None):
         dbConn = self._dbconn
-        sql = "SELECT death.*, world FROM death JOIN player ON (death.victim=player.name)"
+        sql = """
+                SELECT death.*, world, guild
+                FROM death JOIN player ON (death.victim=player.name)
+            """
         params = []
+        whereops = []
         if world:
-            sql += " WHERE world=?"
+            whereops.append("world = ?")
             params.append(world)
+        if minlevel:
+            whereops.append("death.level >= ?")
+            params.append(minlevel)
+        if whereops:
+            sql += " WHERE " + " AND ".join(whereops)
         sql += " ORDER BY stamp COLLATE stamp_collation DESC LIMIT ?, ?"
         params.extend(limits)
         return dbConn.execute(sql, params)
@@ -204,16 +214,22 @@ class TibstatDatabase(object):
         dbConn = self._dbconn
         return dbConn.execute("SELECT name FROM world")
 
-    def best_player_killers(self):
-        dbConn = self._dbconn
-        return dbConn.execute("""
+    def best_player_killers(self, world=None):
+        sql = """
                 SELECT count(*), player.world, player.name, player.level, player.vocation, player.guild
                 FROM death JOIN player ON (death.killer = player.name)
                 WHERE isplayer AND lasthit
+            """
+        params = []
+        if world:
+            sql += " AND world = ?"
+            params.append(world)
+        sql += """
                 GROUP BY killer
                 ORDER BY count(*) DESC
                 LIMIT 0, 30
-            """)
+            """
+        return self._dbconn.execute(sql, params)
 
     @contextlib.contextmanager
     def _write_lock(self):
@@ -243,7 +259,8 @@ class TibstatDatabase(object):
         players = tibiacom.parse_world_online(html)
         logging.info("Found %d players on %s", len(players), world)
         serverStamp = to_unixepoch(headers["Date"])
-        assert abs(localStamp - serverStamp) <= 1, (serverStamp, localStamp)
+        if abs(localStamp - serverStamp) > 1:
+            logging.warning("Page Date %d and localtime %s differ greatly", serverStamp, localStamp)
         #print to_unixepoch(headers["Date"]), int(time.time())
         with self._write_lock():
             for p in players:

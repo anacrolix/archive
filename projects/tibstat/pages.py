@@ -1,7 +1,8 @@
-import calendar, contextlib, Cookie, gzip, io, itertools, os, pdb, shutil, time, urllib, urlparse, zlib
+import base64, calendar, contextlib, Cookie, gzip, io, itertools, os, pdb, shutil, sqlite3, sys, time, urllib, urlparse, zlib
 
 import dbiface, tibiacom, update
 from htmldoc import HtmlDocument, tag
+from common import TIBSTAT_VERSION
 
 STANCES = (
         ("F", "friend"),
@@ -11,6 +12,8 @@ STANCES = (
 STANCE_VALUES = tuple(map(lambda t: t[0], STANCES))
 STANCE_CSS_CLASS = dict(STANCES)
 
+#http://www.tibiastat.com/img/tibia.gif
+
 def char_link(name):
     return tag("a", name, attrs={"href": tibiacom.char_page_url(name), "class": "char"})
 
@@ -18,6 +21,24 @@ def guild_link(name, stance):
     return tag("a", name, attrs={
             "href": tibiacom.guild_members_url(name),
             "class": " ".join((STANCE_CSS_CLASS[stance], "guild"))})
+
+def world_select(htmldoc, curworld, onchange):
+    selectAttrs = {"size": 1, "name": "world"}
+    if onchange:
+        selectAttrs["onchange"] = "this.form.submit();"
+    with htmldoc.open_tag(
+            "select",
+            selectAttrs,
+            inline=False):
+        def add_selected_world(world, attrs):
+            if curworld == world:
+                attrs["selected"] = None
+            return attrs
+        htmldoc.newline()
+        htmldoc.add_tag("option", "All Worlds", attrs=add_selected_world(None, {"value": ""}))
+        for world in sorted(a["name"] for a in dbiface.get_worlds()):
+            htmldoc.newline()
+            htmldoc.add_tag("option", world, attrs=add_selected_world(world, {"value": world}))
 
 class StandardPageContext(object):
     def __init__(self, request):
@@ -27,17 +48,26 @@ class StandardPageContext(object):
         self.queries = urlparse.parse_qs(a.query)
         self.cookies = Cookie.SimpleCookie(request.headers.getheader("Cookie"))
     def get_guild_stance(self, guild):
-        #pdb.set_trace()
+        for g, s in self.get_all_guild_stances():
+            if g == guild:
+                return s
+        else:
+            return "U"
+    def get_all_guild_stances(self):
         if "guildStance" in self.cookies:
-            for a in self.cookies["guildStance"].value.split(","):
-                b = a.split("|")
-                if guild == b[0]:
-                    return b[1]
-        return "U"
+            cookieStr = self.cookies["guildStance"].value
+            try:
+                cookieStr = zlib.decompress(base64.b64decode(cookieStr))
+            except:
+                pass
+            for a in cookieStr.split(","):
+                yield a.split("|", 1)
     def get_selected_world(self):
-        return self.queries.get("world", (None,))[0]
+        return self.get_query("world")
     def guild_link(self, guild):
         return guild_link(guild, self.get_guild_stance(guild))
+    def get_query(self, query):
+        return self.queries.get(query, (None,))[-1]
 
 def standard_page(request, title, content):
     context = StandardPageContext(request)
@@ -103,7 +133,9 @@ def standard_content_wrapper(write, context, title):
     doc = HtmlDocument(write)
     headTitle = "{0} - {1}".format(title, context.get_selected_world() or "All Worlds")
     with doc.open_tag("html"):
-        with doc.open_tag("head"):
+        with doc.open_tag("head", inline=False):
+            doc.add_tag("meta", inline=False, attrs={"name": "description", "content": "Tibia statistics fansite that shows current protection zone locks, online characters, guild stances and recent deaths."})
+            doc.add_tag("meta", inline=False, attrs={"name": "keywords", "content": "tibia, statistics, stats, fansite, protection zone lock, pzls, pz locks, characters, guilds, online guild stances, recent deaths, deaths"})
             doc.add_tag("title", headTitle, inline=False)
             doc.add_tag("link", attrs=dict(rel="stylesheet", type="text/css", href="/tibstats.css"), inline=False)
             doc.add_tag("link", attrs=dict(rel="icon", type="image/gif", href="http://static.tibia.com/images/gameguides/skull_black.gif"), inline=False)
@@ -112,30 +144,20 @@ def standard_content_wrapper(write, context, title):
                 doc.writelns(LINK_AD.split("\n"))
             #with doc.open_tag("div", attrs={"class": "bodyrow"}, inline=False):
                 #with doc.open_tag("div", attrs={"style": "display: table-cell"}):
-            with doc.open_tag("div", attrs={"id": "main"}, inline=False):
+            with doc.open_tag("div", attrs={"id": "main", "class": "bodyrow"}, inline=False):
                 with doc.open_tag("div", attrs={"id": "left"}, inline=False):
                     with doc.open_tag("div", {"id": "menu"}, inline=False):
                         doc.add_tag("div", "Menu", {"id": "menu-title"})
                         for path, entry in PAGES.iteritems():
                             if isinstance(entry, MenuPageEntry):
-                                world = context.get_selected_world()
-                                if world:
-                                    path += "?" + urllib.urlencode({"world": world})
+                                #world = context.get_selected_world()
+                                #if world:
+                                #    path += "?" + urllib.urlencode({"world": world})
                                 doc.add_tag("a", entry.title, attrs={"href": path})
                                 doc.add_tag("br")
-                        with doc.open_tag("form", attrs={"method": "get", "class": "world-form"}, inline=False):
-                            doc.newline()
-                            doc.add_tag("input", attrs=dict(type="submit", value="Set world"))
-                            with doc.open_tag("select", attrs={"size": 1, "name": "world"}, inline=False):
-                                def add_selected_world(world, attrs):
-                                    if context.get_selected_world() == world:
-                                        attrs["selected"] = None
-                                    return attrs
-                                doc.newline()
-                                doc.add_tag("option", "All Worlds", attrs=add_selected_world(None, {"value": ""}))
-                                for world in sorted(a["name"] for a in dbiface.get_worlds()):
-                                    doc.newline()
-                                    doc.add_tag("option", world, attrs=add_selected_world(world, {"value": world}))
+                        #with doc.open_tag("form", attrs={"method": "get", "class": "world-form"}, inline=False):
+                        #    doc.newline()
+                        #    world_select(doc, context.get_selected_world(), onchange=True)
                     #with doc.open_tag("div", attrs={"id": "left-ad"}):
                     #    doc.writelns(SKYSCRAPER_AD.split("\n"))
                 with doc.open_tag("div", attrs={"id": "center"}, inline=False):
@@ -144,11 +166,11 @@ def standard_content_wrapper(write, context, title):
                         doc.write(headTitle)
                     with doc.open_tag("div", attrs={"id": "content"}):
                         yield doc
-            #with doc.open_tag("div", attrs={"id": "footer", "class": "bodyrow"}):
-                #doc.write("Nothing here yet.")
+            with doc.open_tag("div", attrs={"id": "footer", "class": "bodyrow"}):
+                doc.write("Version " + TIBSTAT_VERSION)
 
 def stattab_table_tag(openTag):
-    return openTag("table", attrs={"class": "stattab", "cellspacing": 1,})
+    return openTag("table", attrs={"class": "stattab", "cellspacing": 1,}, inline=False)
 
 def stattab_row_class():
     return itertools.cycle(("odd", "even"))
@@ -160,47 +182,65 @@ def human_time_diff(stamp):
         return "now"
     if diff < 0:
         whence = "ago"
-        diff = -diff # must be positive for identity: x == (x/y)*y +  (x%y)
+        diff = -diff # must be positive for identity: x == (x/y)*y + (x%y)
     elif diff > 0:
         whence = "more"
     humanbits = []
-    for divisor, units in ((60, "s"), (60, "m"), (24, "h"), (7, "d")):
-        bitval = diff % divisor
-        humanbits.append("%d%s" % (bitval, units) if bitval else None)
+    for divisor, units in ((60, "s"), (60, "m"), (24, "h"), (None, "d")):
+        if divisor is not None:
+            bitval = diff % divisor
+        else:
+            bitval = diff
+        humanbits.append(("%d%s" % (bitval, units)) if bitval else None)
+        del bitval
+        if divisor is None:
+            break
         diff //= divisor
         if diff == 0:
             break
+    del diff
     # take the 2 most significant bits, filter the zeroed ones
     return "".join(filter(None, itertools.islice(reversed(humanbits), 2))) + "&nbsp;" + whence
 
 def guild_stances(outfile, context):
     doc = outfile
     world = context.get_selected_world()
-    doc.add_tag("div", 'Here are listed the guilds for the world you have selected. You may set your personal "stance" toward that guild, F=Friend, A=Ally, U=Unspecified, E=Enemy. The guild is then appropriately colored on any page where guild is mentioned to ease categorization at a glance.', attrs={"style": "width: 100%"})
-    with doc.open_tag("form", attrs={"method": "post",}): #"action": "/setcookie"}):
+    doc.add_tag("p", 'Here are listed the guilds for the world you have selected. You may set your personal "stance" toward that guild, F=Friend, A=Ally, U=Unspecified, E=Enemy. The guild is then appropriately colored on any page where guild is mentioned to ease categorization at a glance.', attrs={"style": "width: 100%"})
+    with doc.open_tag("form", attrs={"method": "get"}):
+        doc.write("World:")
+        world_select(doc, world, onchange=True)
+    guildsListed = set()
+    with doc.open_tag("form", attrs={"method": "post",}, inline=False): #"action": "/setcookie"}):
         with stattab_table_tag(doc.open_tag):
             with doc.open_tag("tr"):
-                for heading in ("Guild Name",) + STANCE_VALUES:
+                for heading in ("Guild Name", "Members") + STANCE_VALUES:
                     doc.add_tag("th", heading)
                 if not world:
                     doc.add_tag("th", "World")
             rowClass = stattab_row_class()
-            for guild, guildWorld in dbiface.list_guilds():
-                if not world or world == guildWorld:
-                    with doc.open_tag("tr", attrs={"class": rowClass.next()}, inline=False):
+            for guild, memberCount in dbiface.list_guilds(world):
+                #if not world or world == guildWorld:
+                with doc.open_tag("tr", attrs={"class": rowClass.next()}, inline=False):
+                    doc.newline()
+                    doc.add_tag("td", guild_link(guild, context.get_guild_stance(guild)))
+                    doc.add_tag("td", memberCount)
+                    for stance in STANCE_VALUES:
                         doc.newline()
-                        doc.add_tag("td", guild_link(guild, context.get_guild_stance(guild)))
-                        for stance in STANCE_VALUES:
-                            doc.newline()
-                            with doc.open_tag("td", inline=True):
-                                attrs = dict(type="radio", name=guild, value=stance)
-                                if stance == context.get_guild_stance(guild):
-                                    attrs["checked"] = None
-                                doc.add_tag("input", attrs=attrs, inline=True)
-                        if not world:
-                            doc.add_tag("td", guildWorld)
+                        with doc.open_tag("td", inline=True):
+                            attrs = dict(type="radio", name=guild, value=stance)
+                            if stance == context.get_guild_stance(guild):
+                                attrs["checked"] = None
+                            doc.add_tag("input", attrs=attrs, inline=True)
+                        #if not world:
+                        #    doc.add_tag("td", guildWorld)
+                guildsListed.add(guild)
 #        doc.add_tag("input", attrs={"type": "hidden", "name": "NEXT_LOCATION", "value": "/whoisonline"})
-        doc.add_tag("input", attrs={"type": "submit"})
+        for g, s in context.get_all_guild_stances():
+            if g not in guildsListed:
+                doc.newline()
+                doc.add_tag("input", attrs={"type": "hidden", "name": g, "value": s})
+        doc.newline()
+        doc.add_tag("input", attrs={"type": "submit", "value": "Change Stances!"})
 
 def guild_stances_page(request, title):
     if request.command == "POST":
@@ -209,8 +249,9 @@ def guild_stances_page(request, title):
         postData = request.rfile.read(int(contentLength))
         guildStances = dict(urlparse.parse_qsl(postData, strict_parsing=True))
         cookie = Cookie.SimpleCookie()
-        cookie["guildStance"] = ",".join("|".join(a) for a in guildStances.iteritems())
-        cookie["guildStance"]["max-age"] = 7 * 24 * 60 * 60
+        cookie["guildStance"] = base64.b64encode(zlib.compress(",".join("|".join(a) for a in guildStances.iteritems() if a[1] != "U"), 9))
+        #cookie["guildStance"] = ",".join("|".join(a) for a in guildStances.iteritems() if a[1] != "U")
+        cookie["guildStance"]["max-age"] = 30 * 24 * 60 * 60
         request.send_response(303) # See Other (GET)
         request.wfile.write(cookie.output() + '\r\n')
         # go back whence thee came
@@ -227,6 +268,7 @@ def tibstats_stylesheet(request):
         varmtime = request.headers.getheader("If-Modified-Since")
         if varmtime:
             # If-Modified-Since: Sat, 27 Feb 2010 16:13:49 GMT
+            varmtime = varmtime.split(";", 1)[0]
             varmtime = calendar.timegm(time.strptime(varmtime, "%a, %d %b %Y %H:%M:%S %Z"))
             #print fs.st_mtime, varmtime
             if fs.st_mtime <= varmtime:
@@ -242,23 +284,35 @@ def tibstats_stylesheet(request):
 
 def recent_deaths(outfile, context):
     doc = outfile
-    limits = (0, 100)
+    limits = (0, 200)
     world = context.get_selected_world()
+    try:
+        minlevel = int(context.get_query("minlevel"))
+    except (ValueError, TypeError):
+        minlevel = 45
+    with doc.open_tag("form", attrs={"method": "get"}):
+        doc.write("World:")
+        world_select(doc, world, onchange=False)
+        doc.write("Min Level:")
+        doc.add_tag("input", attrs={"type": "text", "name": "minlevel", "value": minlevel, "maxlength": "3", "size": "3"})
+        doc.add_tag("input", attrs={"type": "submit", "value": "Apply Filter"})
     with stattab_table_tag(doc.open_tag):
         with doc.open_tag("tr"):
-            for a in ("Time", "Deceased", "Level", "Killer", "Accomplices"):
+            for a in ("Time", "Deceased", "Level", "Guild", "Killer", "Accomplices"):
                 doc.add_tag("th", a)
             if not world:
                 doc.add_tag("th", "World")
-        killsIter = dbiface.get_last_deaths(limits, world=world)
+        killsIter = dbiface.get_last_deaths(limits, world=world, minlevel=minlevel)
         currentDeath = killsIter.next()
         killsEnded = False
+        rowsMade = 0
         rowClass = stattab_row_class()
-        while not killsEnded:
+        while not killsEnded and rowsMade < 30:
             with doc.open_tag("tr", attrs={"class": rowClass.next()}):
                 doc.add_tag("td", human_time_diff(currentDeath["stamp"]))
                 doc.add_tag("td", char_link(currentDeath["victim"]))
                 doc.add_tag("td", currentDeath["level"])
+                doc.add_tag("td", context.guild_link(currentDeath["guild"]))
                 def make_killer(kill):
                     if kill["isplayer"]:
                         s = char_link(kill["killer"])
@@ -286,6 +340,7 @@ def recent_deaths(outfile, context):
                 doc.add_tag("td", ", ".join(data[1:]))
                 if not world:
                     doc.add_tag("td", currentDeath["world"])
+            rowsMade += 1
             currentDeath = nextDeath
 
 def world_online(doc, pageContext):
@@ -307,7 +362,10 @@ def world_online(doc, pageContext):
         rowClass = stattab_row_class()
         for char in onlineChars:
             doc.newline()
-            with doc.open_tag("tr", attrs={"class": rowClass.next()}):
+            rowAttrs = {"class": rowClass.next()}
+            if char["level"] < 45:
+                rowAttrs["class"] += " greyed"
+            with doc.open_tag("tr", attrs=rowAttrs):
                 doc.add_tag("td", char_link(char["name"]))
                 for field in ("level", "vocation"):
                     doc.add_tag("td", data=str(char[field]))
@@ -334,12 +392,17 @@ def pz_locked(doc, pageContext):
         rowColor = stattab_row_class()
         for pzlock in dbiface.get_last_pzlocks(world, limits):
             killerInfo = dbiface.get_char(pzlock["killer"])
+            #pdb.set_trace()
+            pzEndStamp = dbiface.pz_end(pzlock)
             if world is None or killerInfo["world"] == world:
-                with doc.open_tag("tr", attrs={"class": rowColor.next()}, inline=False):
+                rowAttrs = {"class": rowColor.next()}
+                if pzEndStamp < int(time.time()):
+                    rowAttrs["class"] += " greyed"
+                with doc.open_tag("tr", attrs=rowAttrs, inline=False):
                     assert killerInfo["name"] == pzlock["killer"]
                     if not world:
                         doc.add_tag("td", killerInfo["world"])
-                    doc.add_tag("td", human_time_diff(dbiface.pz_end(pzlock)))
+                    doc.add_tag("td", human_time_diff(pzEndStamp))
                     doc.add_tag("td", char_link(pzlock["killer"]))
                     for field in ("level", "vocation"):
                         doc.add_tag("td", killerInfo[field])
@@ -347,19 +410,22 @@ def pz_locked(doc, pageContext):
                     doc.add_tag("td", char_link(pzlock["victim"]))
 
 def player_killer_highscores(doc, context):
+    world = context.get_selected_world()
     with stattab_table_tag(doc.open_tag):
         with doc.open_tag("tr", inline=False):
             doc.add_tag("th", "Kill Count")
-            doc.add_tag("th", "World")
+            if not world:
+                doc.add_tag("th", "World")
             doc.add_tag("th", "Assassin Name")
             doc.add_tag("th", "Level")
             doc.add_tag("th", "Vocation")
             doc.add_tag("th", "Guild")
         rowClass = stattab_row_class()
-        for pker in dbiface.best_player_killers():
+        for pker in dbiface.best_player_killers(world):
             with doc.open_tag("tr", attrs={"class": rowClass.next()}, inline=False):
                 doc.add_tag("td", pker[0])
-                doc.add_tag("td", pker["world"])
+                if not world:
+                    doc.add_tag("td", pker["world"])
                 doc.add_tag("td", char_link(pker["name"]))
                 #pdb.set_trace()
                 doc.add_tag("td", pker["level"])
@@ -407,6 +473,12 @@ def handle_http_request(request):
             request.send_header("Location", "/pzlocked")
             request.end_headers()
             return
+    except sqlite3.OperationalError as e:
+        if e.args[0] == "database is locked":
+            request.send_error(408, "Try again soon")
+        else:
+            raise
     except:
         request.send_error(500, "Computer says no")
+        print >>sys.stderr, "Headers:", repr(str(request.headers))
         raise

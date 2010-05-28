@@ -1,18 +1,27 @@
 body {
+    font-family: Verdana, Arial;
+    font-size: 10pt;
     background-color: #1E1E20;
     margin: 0 auto;
     max-width: 1000px;
     width: 100%;
 }
 .bodyrow {
-    text-align: center;
     background-color: #2A2C2B;
     width: 100%;
     overflow: hidden;
 }
+#header {
+    text-align: center;
+}
 #main {
     display: table;
-    width: 100%;
+}
+#footer {
+    text-align: center;
+    color: white;
+    font-family: Verdana, Arial;
+    font-size: 8pt;
 }
 #left {
     display: table-cell;
@@ -42,7 +51,7 @@ form {
 }
 #center {
     //display: table-cell;
-    background-color: #D9CB9E;
+    background-color: #FFF2DB;
     padding: 3px;
 }
 #search-ad {
@@ -70,14 +79,16 @@ form {
     font-weight: bold;
    // white-space: nowrap;
 }
+/*
 .world-form input, .world-form select {
     font-family: sans-serif;
     font-size: 8pt;
     padding: 0;
 }
+*/
 .stattab {
     width: 100%;
-    background-color: #DC3522;
+    //background-color: #DC3522;
 }
 .stattab th, .stattab td {
     padding: 2;
@@ -94,6 +105,10 @@ form {
 }
 .stattab tr.even {
     background-color: #ffa873;
+}
+.greyed {
+    //background-color: white;
+    opacity: 0.6;
 }
 a {
     text-decoration: none;
