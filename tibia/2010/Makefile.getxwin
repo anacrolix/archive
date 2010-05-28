@@ -1,4 +1,4 @@
 CFLAGS = -std=c99
 LDFLAGS = -lX11
 
-xwinkey:
+getxwin:

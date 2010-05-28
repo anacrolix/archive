@@ -288,7 +288,7 @@ int	main(int argc, char **argv)
     for (ii=0;ii<(int)count;ii++)
       SendKeyPressedEvent(keysym, shift);
 
-    XCloseDisplay(display);
+    //XCloseDisplay(display);
 
     return 0;
 }

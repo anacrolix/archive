@@ -1,73 +1,70 @@
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#include "botutil.h"
 
-#include <assert.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ptrace.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-
-#undef NDEBUG
-
+/*
+Returns 0: success, 1: general failure, 2: argument issue, 3: retry
+*/
 int main(int argc, char **argv)
 {
-	int exitcode = EXIT_SUCCESS;
-	assert(argc >= 3);
+	/* parse arguments */
+
+	if (argc < 4)
+	{
+		fprintf(stderr, "Missing arguments\n");
+		return 2;
+	}
+
 	pid_t const pid = atoi(argv[1]);
-	assert(0 < pid);
 	uintptr_t const address = strtoul(argv[2], NULL, 0);
-	assert(ULONG_MAX != address);
 	size_t const size = strtoul(argv[3], NULL, 0);
-	assert(ULONG_MAX != size);
+
+	if (pid <= 0 || address == ULONG_MAX || size == ULONG_MAX)
+	{
+		fprintf(stderr, "Invalid arguments\n");
+		return 2;
+	}
+
+	/* prepare for memory reads */
 
 	char *mempath = NULL;
-	assert(-1 != asprintf(&mempath, "/proc/%d/mem", pid));
-	//fprintf(stderr, "memory file path: %s\n", mempath);
+	verify(-1 != asprintf(&mempath, "/proc/%d/mem", pid));
 	char *outbuf = malloc(size);
-	assert(NULL != outbuf);
+	assert(outbuf != NULL);
 
-	assert(!ptrace(PTRACE_ATTACH, pid, NULL, NULL));
+	/* attach to target process */
 
-	// deliver signals to the tracee until it receives SIGSTOP
-	while (true) {
-		int status = 0;
-		assert(pid == waitpid(pid, &status, 0));
-		assert(WIFSTOPPED(status));
-		if (WSTOPSIG(status) == SIGSTOP) {
-			break;
+	// attach or exit with code 3 to indicate try again
+	if (0 != ptrace(PTRACE_ATTACH, pid, NULL, NULL))
+	{
+		int errattch = errno;
+		if (errattch == EPERM)
+		{
+			pid_t tracer = get_tracer_pid(pid);
+			if (tracer != 0)
+			{
+				fprintf(stderr, "Process %d is currently attached\n", tracer);
+				return 3;
+			}
 		}
-		else {
-			assert(!ptrace(PTRACE_CONT, pid, NULL, WSTOPSIG(status)));
-		}
+		error(3, errattch, "ptrace(PTRACE_ATTACH)");
 	}
+
+	wait_until_tracee_stops(pid);
 
 	int memfd = open(mempath, O_RDONLY);
-	assert(-1 != memfd);
-	//fprintf(stderr, "preading 0x%zx bytes at %p\n", size, (void *)address);
-	ssize_t readret = pread(memfd, outbuf, size, address);
-	if (readret != size) {
-		if (readret == -1) {
-			perror("pread");
-		}
-		else {
-			fprintf(stderr, "pread only read %zd bytes\n", readret);
-		}
-		exitcode = EXIT_FAILURE;
-	}
-	assert(!close(memfd));
-	assert(!ptrace(PTRACE_DETACH, pid, NULL, 0));
+	assert(memfd != -1);
 
+	// read bytes from the tracee's memory
+	verify(size == pread(memfd, outbuf, size, address));
+
+	verify(!close(memfd));
+	verify(!ptrace(PTRACE_DETACH, pid, NULL, 0));
+
+	// write requested memory region to stdout
 	// byte count in nmemb to handle writes of length 0
-	assert(size == fwrite(outbuf, 1, size, stdout));
+	verify(size == fwrite(outbuf, 1, size, stdout));
 
 	free(outbuf);
 	free(mempath);
 
-	return exitcode;
+	return 0;
 }

@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
-import contextlib, operator, os, signal, struct, subprocess
+import contextlib, operator, os, signal, struct, subprocess, time
+import botutil
 
 class ClientNotFound(Exception):
+	pass
+
+class MemoryReadError(Exception):
 	pass
 
 def find_client_pid():
@@ -31,10 +35,21 @@ def iter_proc_maps(pid):
 			yield ProcMapsLine(line)
 
 def read_process_memory(pid, address, size):
-	child = subprocess.Popen(["./readmem", str(pid), hex(address), str(size)], stdout=subprocess.PIPE)
-	data = child.communicate()[0]
-	assert child.returncode == 0, "Memory read failed"
-	return data
+	for attempt in xrange(5):
+		child = subprocess.Popen(
+				["./readmem", str(pid), hex(address), str(size)],
+				stdout=subprocess.PIPE)
+		data = child.communicate()[0]
+		#assert child.poll()
+		if child.returncode == 0:
+			#print "succeed"
+			return data
+		elif child.returncode == 3:
+			time.sleep(0)
+			continue
+		else:
+			break
+	raise MemoryReadError()
 
 class EntityId(int):
 	def __new__(cls, buf):
@@ -115,11 +130,20 @@ class Entity(object):
 		return self.id != 0 and len(self.name) > 0
 
 class Client(object):
+
 	def __init__(self, pid=None):
 		if pid is None:
 			pid = find_client_pid()
 		self.pid = pid
 		self.attached = False
+		self.windowid = botutil.get_window_id("Tibia Player Linux")
+		assert self.windowid != 0
+	def send_key_press(self, keystr):
+		args = ["./xsendkey", "-window", hex(self.windowid), keystr]
+		subprocess.check_call(args)
+
+	# memory ops
+
 	def iter_memory_regions(self):
 		for region in iter_proc_maps(self.pid):
 			if region.inode == 0:
@@ -130,8 +154,6 @@ class Client(object):
 		return strctobj.unpack(self.read_memory(address, strctobj.size))
 	def read_memory(self, address, size):
 		return read_process_memory(self.pid, address, size)
-	def player_coords(self):
-		return EntityCoords(self.read_struct_from_memory(PLAYER_COORDS, struct.Struct("iii")))
 	def find_string(self, s):
 		for offset, data in self.iter_memory_regions():
 			pos = -1
@@ -140,11 +162,24 @@ class Client(object):
 				if pos < 0:
 					break
 				yield pos + offset
+
+	# pretty ops
+
 	def human_readable_entity(self, entity):
 		assert entity.onscreen
 		return "{name}; level: ~{level}; position: {relpos}".format(name=entity.name, level=entity.speed_as_level(), relpos=(entity.coords-client.player_coords()).as_relative())
+
+	# status ops
+
+	def player_coords(self):
+		return EntityCoords(self.read_structured_memory(PLAYER_COORDS, "iii"))
 	def player_target_entity_id(self):
 		return EntityId(self.read_memory(PLAYER_TARGET_ID, 4))
+	def player_entity(self):
+		player_entity_id = self.player_entity_id()
+		for entity in self.iter_entities():
+			if entity.id == player_entity_id:
+				return entity
 	def player_entity_id(self):
 		return EntityId(self.read_memory(PLAYER_ENTITY_ID, 4))
 	def player_current_hitpoints(self):
@@ -166,9 +201,23 @@ class Client(object):
 			else:
 				yield entity
 
-if __name__ == "__main__":
-	a = Client()
-	a.find_string("Eruanna Darkelf")
-	for b in a.iter_entities():
-		print b
-	a.dump_memory()
+class Bot(object):
+	def __init__(self):
+		self.client = Client()
+		self.notifier = botutil.PlayerNotifier(self.client)
+	def start_up(self):
+		pass
+	def do_stuff(self):
+		raise NotImplemented()
+	def __call__(self):
+		self.start_up()
+		self.notifier.info("Bot started up")
+		with botutil.beep_catch_all(self.notifier):
+			self.curtick = int(time.time())
+			while True:
+				self.do_stuff()
+				try:
+					self.curtick = botutil.wait_for_next_tick(self.curtick)
+				except KeyboardInterrupt:
+					raise SystemExit()
+				self.notifier.do_stuff()

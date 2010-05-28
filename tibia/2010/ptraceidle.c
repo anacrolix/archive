@@ -1,24 +1,20 @@
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/ptrace.h>
+#include "botutil.h"
 
 int main(int argc, char **argv)
 {
 	pid_t pid = atoi(argv[1]);
-	if (-1 == ptrace(PTRACE_ATTACH, pid, NULL, NULL))
+	verify(0 == ptrace(PTRACE_ATTACH, pid, NULL, NULL));
+	wait_until_tracee_stops(pid);
+	verify(0 == ptrace(PTRACE_CONT, pid, NULL, 0));
+	while (true)
 	{
-		perror("ptrace");
+		int status;
+		verify(pid == waitpid(pid, &status, 0));
+		verify(WIFSTOPPED(status));
+		int signal = WSTOPSIG(status);
+		fprintf(stderr, "Delivering signal %d to tracee\n", signal);
+		verify(0 == ptrace(PTRACE_CONT, pid, NULL, WSTOPSIG(status)));
 	}
-	else
-	{
-		while (true)
-		{
-			char buf[1];
-			ssize_t readret = read(STDIN_FILENO, buf, 1);
-		}
-		assert(-1 != ptrace(PTRACE_DETACH, pid, NULL, 0));
-	}
+	verify(0 == ptrace(PTRACE_DETACH, pid, NULL, NULL));
 	return 0;
 }

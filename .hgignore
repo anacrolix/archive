@@ -28,3 +28,7 @@ Release/
 ^projects/prolepsis/(stances|members)\.
 ^projects/prolepsis/dist
 glob:projects/tibstat/tibia.db
+glob:tibia/2010/readmem
+glob:tibia/2010/ptraceidle
+glob:tibia/2010/xsendkey
+glob:tibia/2010/getxwin

@@ -1,6 +1,5 @@
+#include "botutil.h"
 #include <X11/Xlib.h>
-#include <stdio.h>
-#include <string.h>
 
 Window window_with_name(
 	Display *dpy, Window top, char *name)
@@ -26,6 +25,7 @@ Window window_with_name(
 	return retval;
 }
 
+#if 0
 void send_key_event(Display *display, KeySym keysym)
 {
 	XKeyEvent event;
@@ -34,12 +34,14 @@ void send_key_event(Display *display, KeySym keysym)
 	event.keycode = XKeysymToKeycode(display, keysym);
 	event.type = KeyRelease;
 }
+#endif
 
 int main(int argc, char **argv)
 {
 	Display *display = XOpenDisplay(NULL);
-	Window window = window_with_name(display, DefaultRootWindow(display), "Tibia Player Linux");
-	printf("Tibia Window ID: 0x%08lx\n", window);
+	Window window = window_with_name(display, DefaultRootWindow(display), argv[1]);
+	printf("0x%08lx\n", window);
+#if 0
 	for (int i = 1; i < argc; ++i)
 	{
 		KeySym keysym;
@@ -51,6 +53,7 @@ int main(int argc, char **argv)
 			key = strtok(NULL, "+");
 		}
 	}
-	XCloseDisplay(display);
+#endif
+	//XCloseDisplay(display);
 	return 0;
 }
