@@ -3,13 +3,14 @@
 import random, time
 import botutil, pytibia
 
-SAFE_LIST = ("Plashz", "Orelius", "Royal Makia", "Cuppydo")
+SAFE_LIST = ("Plashz", "Orelius", "Royal Makia", "Cuppydo", \
+		"Kataztros", "Blackarcher", "Zaus Tibard")
 
 class TelasGolemTraining(pytibia.Bot):
 	def start_up(self):
 		self.startpos = self.client.player_coords()
 		self.lastact = 0
-		self.lastface = 0
+		self.lastface = random.randint(0, 3)
 	def do_stuff(self):
 		client = self.client
 		startpos = self.startpos
