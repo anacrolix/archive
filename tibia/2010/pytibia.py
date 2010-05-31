@@ -1,13 +1,49 @@
 #!/usr/bin/env python
 
-import contextlib, operator, os, signal, struct, subprocess, time
+import contextlib, itertools, operator, os, signal, struct, \
+		subprocess, time
 import botutil
+
+# CONSTANTS
+
+ENTITY_ARRAY_OFFSET = 0x8570740
+ENTITY_STRUCT_SIZE = 0xa8
+
+# least common multiple of page and entity sizes
+PAGE_ENTITY_LCD = 86016
+assert (PAGE_ENTITY_LCD % ENTITY_STRUCT_SIZE) == 0
+assert (PAGE_ENTITY_LCD % 4096) == 0
+
+PLAYER_TARGET_ID = 0x0857ad1c
+PLAYER_CURRENT_HITPOINTS = 0x0857ac58
+PLAYER_MAXIMUM_HITPOINTS = 0x0857ac5c
+PLAYER_CURRENT_MANA = 0x0857ad08
+PLAYER_MAXIMUM_MANA = 0x0857ad0c
+PLAYER_ENTITY_ID = 0x0857ac54
+PLAYER_AMMO_SLOT = 0x856deac
+PLAYER_COORDS = 0x0842d740
+LOGIN_LIST_INDEX = 0x8427d8c
+
+# PLAYER_*_PROGRESS addresses
+SKILL_NAMES = ("fist", "club", "sword", "axe", "distance", "shielding", "fishing")
+SKILL_PROGRESS_BASE_ADDRESS = 0x0857ad44
+for skillnam, address in zip(
+		SKILL_NAMES,
+		itertools.imap(lambda x: 0x0857ad44 + x * 4, itertools.count())):
+	varname = "PLAYER_" + skillnam.upper() + "_PROGRESS"
+	assert not varname in globals()
+	globals()[varname] = address
+assert PLAYER_SWORD_PROGRESS == SKILL_PROGRESS_BASE_ADDRESS + 4 * SKILL_NAMES.index("sword")
+
+# EXCEPTIONS
 
 class ClientNotFound(Exception):
 	pass
 
 class MemoryReadError(Exception):
 	pass
+
+# GENERAL FUNCTIONS
 
 def find_client_pid():
 	child = subprocess.Popen(["pgrep", "Tibia"], stdout=subprocess.PIPE)
@@ -59,19 +95,6 @@ class EntityId(int):
 		return self < 0x40000000
 	def __str__(self):
 		return "{0:08x}".format(self)
-
-ENTITY_ARRAY_OFFSET = 0x8570740
-ENTITY_STRUCT_SIZE = 0xa8
-PLAYER_TARGET_ID = 0x0857ad1c
-PLAYER_CURRENT_HITPOINTS = 0x0857ac58
-PLAYER_MAXIMUM_HITPOINTS = 0x0857ac5c
-PLAYER_CURRENT_MANA = 0x0857ad08
-PLAYER_MAXIMUM_MANA = 0x0857ad0c
-PLAYER_ENTITY_ID = 0x0857ac54
-PLAYER_AMMO_SLOT = 0x856deac
-PLAYER_COORDS = 0x0842d740
-LOGIN_LIST_INDEX = 0x8427d8c
-#0xBFE25ED4
 
 class EntityCoords(tuple):
 	def __sub__(self, other):
@@ -171,6 +194,12 @@ class Client(object):
 
 	# status ops
 
+	def skill_progress(self, skillnam):
+		progress = self.read_structured_memory(
+				globals()["PLAYER_" + skillnam.upper() + "_PROGRESS"],
+				"I")[0]
+		assert 0 <= progress < 100
+		return progress
 	def player_coords(self):
 		return EntityCoords(self.read_structured_memory(PLAYER_COORDS, "iii"))
 	def player_target_entity_id(self):
@@ -191,15 +220,16 @@ class Client(object):
 	def player_maximum_mana(self):
 		return self.read_structured_memory(PLAYER_MAXIMUM_MANA, "i")[0]
 	def iter_entities(self):
-		offset = ENTITY_ARRAY_OFFSET
+		offset = 0
+		data = self.read_memory(ENTITY_ARRAY_OFFSET, PAGE_ENTITY_LCD)
 		while True:
-			data = self.read_memory(offset, ENTITY_STRUCT_SIZE)
-			offset += ENTITY_STRUCT_SIZE
-			entity = Entity(data)
+			#data = self.read_memory(offset, ENTITY_STRUCT_SIZE)
+			entity = Entity(data[offset:offset+ENTITY_STRUCT_SIZE])
 			if not entity:
 				break
 			else:
 				yield entity
+			offset += ENTITY_STRUCT_SIZE
 
 class Bot(object):
 	def __init__(self):
@@ -209,15 +239,27 @@ class Bot(object):
 		pass
 	def do_stuff(self):
 		raise NotImplemented()
-	def __call__(self):
+	def main_loop(self):
+		self.curtick = int(time.time())
+		while True:
+			#print "Start doing stuff", time.time()
+			begstuff = time.time()
+			self.notifier.do_stuff()
+			self.do_stuff()
+			stufftim = time.time() - begstuff
+			if stufftim >= 0.1:
+				self.notifier.attend("Bot main loop consumed %ums", 1000 * stufftim, persist=False)
+			#print "Finish doing stuff", time.time()
+			try:
+				self.curtick = botutil.wait_for_next_tick(self.curtick)
+				#print "Finished waiting for next tick", time.time()
+			except KeyboardInterrupt:
+				raise SystemExit()
+	def __call__(self, catchexc=True):
 		self.start_up()
 		self.notifier.info("Bot started up")
-		with botutil.beep_catch_all(self.notifier):
-			self.curtick = int(time.time())
-			while True:
-				self.do_stuff()
-				try:
-					self.curtick = botutil.wait_for_next_tick(self.curtick)
-				except KeyboardInterrupt:
-					raise SystemExit()
-				self.notifier.do_stuff()
+		if catchexc:
+			with botutil.beep_catch_all(self.notifier):
+				return self.main_loop()
+		else:
+			return self.main_loop()
