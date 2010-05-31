@@ -21,6 +21,7 @@ syntax: glob
 *.suo
 *.d
 *.dep
+tibia/2010/_memdump_*
 
 syntax: regexp
 Debug/
