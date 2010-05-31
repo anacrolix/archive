@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import random, time
+import os, random, signal, time
 import botutil, pytibia
 
 from eruanno import SAFE_LIST
@@ -25,10 +25,6 @@ class TelasGolemTraining(pytibia.Bot):
 		maxhp = client.player_maximum_hitpoints()
 		if curhp < self.lasthp:
 			notifier.critical("Player hitpoints %d/%d", curhp, maxhp)
-		curmana = client.player_current_mana()
-		maxmana = client.player_maximum_mana()
-		if curmana >= maxmana - 50:
-			notifier.attend("Player mana %d/%d", curmana, maxmana)
 		for entity in client.iter_entities():
 			if 		entity.onscreen \
 					and entity.is_player() \
@@ -52,14 +48,16 @@ class TelasGolemTraining(pytibia.Bot):
 
 		# here we do stuff based on findings above
 
-		if curhp < maxhp - 750 and curhp < self.lasthp:
-			self.client.send_key_press("F1")
 		if self.notifier.level is None and \
-				self.curtick >= self.lastact + 15*60+random.randint(1, 30):
+				self.curtick >= self.lastact + 15*60+random.randint(1, 45):
 			self.client.send_key_press("Control+" + ["Up", "Right", "Down", "Left"][self.lastface])
 			self.lastface = (self.lastface + 1) % 4
 			self.lastact = self.curtick
+		if self.notifier.level > notifier.ATTEND:
+			notifier.critical("Closing client")
+			os.kill(self.client.pid, signal.SIGKILL)
+			raise SystemExit()
 
 		self.lasthp = curhp
 
-TelasGolemTraining()()
+TelasGolemTraining()(catchexc=False)
