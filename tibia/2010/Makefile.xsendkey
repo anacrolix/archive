@@ -1,4 +1,0 @@
-CFLAGS = -std=c99 -O2
-LDFLAGS = -lX11
-
-xsendkey:
