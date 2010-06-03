@@ -1,65 +1,67 @@
 #!/usr/bin/env python
 
-import random, time
+import os, random, sys, time
+
 import botutil, pytibia
-
 from eruanno import SAFE_LIST
+from defcon.level import *
 
-class TelasGolemTraining(pytibia.Bot):
+class TelasGolemTraining(botutil.TibiaBot):
+	def __init__(self, afk):
+		botutil.TibiaBot.__init__(self, silent=afk)
+		self.afk = afk
 	def start_up(self):
 		self.startpos = self.client.player_coords()
-		self.lastact = 0
-		self.lastface = random.randint(0, 3)
+		self.lstacttk = time.time() - pytibia.IDLE_TIMEOUT_SECS
+		self.nextface = random.randint(0, 3)
 		self.lasthp = self.client.player_current_hitpoints()
-		self.skilprog = [self.client.skill_progress(skillnam) for skillnam in pytibia.SKILL_NAMES]
-		assert len(self.skilprog) == len(pytibia.SKILL_NAMES)
 	def do_stuff(self):
-		# compatibility with these once being globals
-		client = self.client
-		startpos = self.startpos
-		notifier = self.notifier
-
-		# get various values from the client, and elevate the notifier level
-
-		curhp = client.player_current_hitpoints()
-		maxhp = client.player_maximum_hitpoints()
+		curhp = self.client.player_current_hitpoints()
+		maxhp = self.client.player_maximum_hitpoints()
 		if curhp < self.lasthp:
-			notifier.critical("Player hitpoints %d/%d", curhp, maxhp)
-		curmana = client.player_current_mana()
-		maxmana = client.player_maximum_mana()
-		if curmana >= maxmana - 50:
-			notifier.attend("Player mana %d/%d", curmana, maxmana)
-		for entity in client.iter_entities():
+			self.notify(CRITICAL, "Player hitpoints %d/%d", curhp, maxhp)
+		for entity in self.client.iter_entities():
 			if 		entity.onscreen \
 					and entity.is_player() \
-					and entity.id != client.player_entity_id() \
+					and entity.id != self.client.player_entity_id() \
 					and entity.name not in SAFE_LIST:
-				notifier.danger(
+				self.notify(
+						DANGER,
 						"Intruder: %s",
-						entity.human_readable(client.player_coords()),
-						persist=True)
-		if not client.player_target_entity_id():
-			notifier.attend("No target")
-		if not client.player_coords() == startpos:
-			notifier.danger("Player has moved", persist=False)
-		# check for changes in skill progress
-		for skillidx, skillnam in enumerate(pytibia.SKILL_NAMES):
-			newprog = self.client.skill_progress(skillnam)
-			oldprog = self.skilprog[skillidx]
-			if newprog != oldprog:
-				notifier.attend("Skill %s has %u%% remaining", skillnam.upper(), 100 - newprog, persist=False)
-				self.skilprog[skillidx] = newprog
+						entity.human_readable(self.client.player_coords()))
+		if not self.afk:
+			curmana = self.client.player_current_mana()
+			maxmana = self.client.player_maximum_mana()
+			# 2.5 mins for a knight
+			if curmana >= maxmana - 20 * 2.5:
+				self.notify(ATTEND, "Player mana %d/%d", curmana, maxmana, persist=False)
+		if not self.client.player_target_entity_id():
+			self.notify(ATTEND, "No target")
+		if not self.client.player_coords() == self.startpos:
+			self.notify(DANGER, "Player has moved", persist=False)
 
-		# here we do stuff based on findings above
+		# don't try to stay online if we're in danger, better to be dropped
+		if self.afk and self.defcon_level >= ATTEND:
+			self.client.terminate()
+			#raise SystemExit()
 
-		if curhp < maxhp - 750 and curhp < self.lasthp:
+		if self.defcon_level < DANGER:
+			nxtacttk = self.lstacttk + pytibia.IDLE_TIMEOUT_SECS + random.randint(5, 45)
+			if time.time() >= nxtacttk:
+				self.client.send_key_press("Control+" + ["Up", "Right", "Down", "Left"][self.nextface])
+				self.nextface = (self.nextface + 1) % 4
+				self.lstacttk = time.time()
+		if curhp < maxhp - 800 and (self.defcon_level >= DANGER or curhp < self.lasthp):
 			self.client.send_key_press("F1")
-		if self.notifier.level is None and \
-				self.curtick >= self.lastact + 15*60+random.randint(1, 30):
-			self.client.send_key_press("Control+" + ["Up", "Right", "Down", "Left"][self.lastface])
-			self.lastface = (self.lastface + 1) % 4
-			self.lastact = self.curtick
+
+		# update persistent values
 
 		self.lasthp = curhp
 
-TelasGolemTraining()()
+if __name__ == "__main__":
+	from optparse import OptionParser
+	parser = OptionParser()
+	parser.add_option("--afk", action="store_true", default=False)
+	options, args = parser.parse_args()
+	#print options, args
+	TelasGolemTraining(afk=options.afk)()

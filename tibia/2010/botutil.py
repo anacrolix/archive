@@ -1,18 +1,21 @@
 from __future__ import division
-import collections, contextlib, subprocess, time, traceback
 
-beepproc = None
+import collections, contextlib, subprocess, sys, time, traceback
+
+import defcon, pytibia
+from defcon.level import *
+
+def send_key_press(self, windowid, keystr):
+	args = ["./xsendkey", "-window", hex(windowid), keystr]
+	subprocess.check_call(args)
+
 def beep(frequency=None, duration=None):
-	global beepproc
-	if beepproc is not None:
-		if beepproc.returncode is None:
-			beepproc.wait()
 	args = ["beep"]
 	if frequency is not None:
 		args += ["-f", str(frequency)]
 	if duration is not None:
 		args += ["-l", str(duration)]
-	beepproc = subprocess.Popen(args)
+	return subprocess.Popen(args)
 
 def wait_for_next_tick(curtick=None):
 	if curtick is None:
@@ -24,6 +27,20 @@ def wait_for_next_tick(curtick=None):
 	assert newtick == curtick + 1
 	return newtick
 
+def _notify(level, fmtstr, *pargs, **kwargs):
+	#setbeep = kwargs.pop("setbeep", True)
+	#persist = kwargs.pop("persist", setbeep and level >= DANGER)
+	# persist cannot be True if setbeep is False
+	#assert not persist or setbeep
+	name = kwargs.pop("name", "root")
+	#assert len(kwargs) == 0, "Unused parameters: {0}".format(kwargs)
+	print >>sys.stderr, "{time}:{name}:{level}:{message}".format(
+			time=time.strftime("%a %H:%M:%S"),
+			name=name,
+			level=level,
+			message=(fmtstr % pargs))
+	#if setbeep:
+		#beeper.set(level, persist=persist)
 
 def get_window_id(wintitle):
 	return int(subprocess.Popen(
@@ -45,48 +62,60 @@ def beep_catch_all(notifier):
 				raise SystemExit()
 			notifier.do_stuff()
 
-PlayerNotifyLevel = collections.namedtuple(
-		"PlayerNotifyLevel",
-		["numeric", "interval", "frequency", "duration"])
+#def _pick_items(srcdict, *keyseq, leave=False):
+	#retval = {}
+	#for key in keyseq:
+		#if key in srcdict:
+			#retval[key] = srcdict[key]
+			#if not leave:
+				#del srcdict[key]
+	#return retval
 
-class PlayerNotifier(object):
-	INFO = None
-	ATTEND = PlayerNotifyLevel(1, 15, 2*440, 200/2)
-	DANGER = PlayerNotifyLevel(2, 4, None, None)
-	CRITICAL = PlayerNotifyLevel(3, 2, 440/2, 200*2)
-	def __init__(self, client):
-		self.client = client
-		self.persist = False
-		self.level = None
-		self.lastbeep = 0
-	def notify(self, level, fmtstr, *pargs, **kwargs):
-		print "{time}:{charname}:{message}".format(
-				time=time.strftime("%a %H:%M:%S"),
-				charname=self.client.player_entity().name,
-				message=(fmtstr % pargs))
-		self.persist = any((self.persist, kwargs.pop("persist", False)))
-		if level > self.level:
-			if self.persist:
-				self.lastbeep = 0
-			self.level = level
-	def info(self, *pargs, **kwargs):
-		return self.notify(self.INFO, *pargs, **kwargs)
-	def attend(self, *pargs, **kwargs):
-		return self.notify(self.ATTEND, *pargs, **kwargs)
-	def danger(self, *pargs, **kwargs):
-		kwargs.setdefault("persist", True)
-		return self.notify(self.DANGER, *pargs, **kwargs)
-	def critical(self, *pargs, **kwargs):
-		kwargs.setdefault("persist", True)
-		return self.notify(self.CRITICAL, *pargs, **kwargs)
+class TibiaBot(object):
+	def __init__(self, sklpglvl=INFO, silent=False):
+		self.__sklpglvl = sklpglvl
+		self.client = pytibia.Client()
+		self.__defcon = defcon.BotDefcon() if silent else defcon.BeepingBotDefcon()
+		self.__skilprog = [self.client.skill_progress(skillnam) for skillnam in pytibia.SKILL_NAMES]
+		assert len(self.__skilprog) == len(pytibia.SKILL_NAMES)
+	def start_up(self):
+		pass
 	def do_stuff(self):
-		if self.level is not None:
-			curtime = int(time.time())
-			assert curtime > self.lastbeep
-			if curtime >= self.lastbeep + self.level.interval:
-				beep(frequency=self.level.frequency, duration=self.level.duration)
-				self.lastbeep = curtime
-		if not self.persist:
-			self.level = None
-assert PlayerNotifier.INFO < PlayerNotifier.ATTEND \
-		< PlayerNotifier.DANGER < PlayerNotifier.CRITICAL
+		raise NotImplementedError()
+	def notify(self, level, *pargs, **kwargs):
+		kwargs.setdefault("persist", level >= DANGER)
+		self.__defcon.set(level, **kwargs)
+		kwargs.setdefault("name", self.client.player_entity().name)
+		return _notify(level, *pargs, **kwargs)
+	@property
+	def defcon_level(self):
+		return self.__defcon.level
+	def __main_loop(self):
+		while True:
+			begstuff = time.time()
+			self.__defcon.clear()
+			self.__check_skill_progress()
+			self.do_stuff()
+			stufftim = time.time() - begstuff
+			if stufftim >= 0.1:
+				self.notify(ATTEND, "Bot main loop consumed %ums", 1000 * stufftim)
+			try:
+				time.sleep(1.0)
+			except KeyboardInterrupt:
+				raise SystemExit()
+	def __call__(self):
+		self.start_up()
+		self.notify(INFO, "Bot started up")
+		return self.__main_loop()
+	def __check_skill_progress(self):
+		# check for changes in skill progress
+		for skillidx, skillnam in enumerate(pytibia.SKILL_NAMES):
+			newprog = self.client.skill_progress(skillnam)
+			oldprog = self.__skilprog[skillidx]
+			if newprog != oldprog:
+				self.notify(
+						self.__sklpglvl,
+						"Skill %s has %u%% remaining",
+						skillnam.upper(),
+						100 - newprog)
+				self.__skilprog[skillidx] = newprog

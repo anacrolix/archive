@@ -2,7 +2,9 @@
 
 import contextlib, itertools, operator, os, signal, struct, \
 		subprocess, time
+
 import botutil
+from defcon.level import *
 
 # CONSTANTS
 
@@ -23,6 +25,7 @@ PLAYER_ENTITY_ID = 0x0857ac54
 PLAYER_AMMO_SLOT = 0x856deac
 PLAYER_COORDS = 0x0842d740
 LOGIN_LIST_INDEX = 0x8427d8c
+IDLE_TIMEOUT_SECS = 15 * 60
 
 # PLAYER_*_PROGRESS addresses
 SKILL_NAMES = ("fist", "club", "sword", "axe", "distance", "shielding", "fishing")
@@ -158,12 +161,21 @@ class Client(object):
 		if pid is None:
 			pid = find_client_pid()
 		self.pid = pid
-		self.attached = False
 		self.windowid = botutil.get_window_id("Tibia Player Linux")
 		assert self.windowid != 0
+
+	def terminate(self):
+		self.notify(CRITICAL, "Closing client")
+		os.kill(self.pid, signal.SIGKILL)
+
 	def send_key_press(self, keystr):
+		self.notify(INFO, "Sending key press: %s", keystr, name=self.player_entity().name)
 		args = ["./xsendkey", "-window", hex(self.windowid), keystr]
 		subprocess.check_call(args)
+
+	def notify(self, *pargs, **kwargs):
+		kwargs.setdefault("name", self.player_entity().name)
+		return botutil._notify(*pargs, **kwargs)
 
 	# memory ops
 
@@ -230,36 +242,3 @@ class Client(object):
 			else:
 				yield entity
 			offset += ENTITY_STRUCT_SIZE
-
-class Bot(object):
-	def __init__(self):
-		self.client = Client()
-		self.notifier = botutil.PlayerNotifier(self.client)
-	def start_up(self):
-		pass
-	def do_stuff(self):
-		raise NotImplemented()
-	def main_loop(self):
-		self.curtick = int(time.time())
-		while True:
-			#print "Start doing stuff", time.time()
-			begstuff = time.time()
-			self.notifier.do_stuff()
-			self.do_stuff()
-			stufftim = time.time() - begstuff
-			if stufftim >= 0.1:
-				self.notifier.attend("Bot main loop consumed %ums", 1000 * stufftim, persist=False)
-			#print "Finish doing stuff", time.time()
-			try:
-				self.curtick = botutil.wait_for_next_tick(self.curtick)
-				#print "Finished waiting for next tick", time.time()
-			except KeyboardInterrupt:
-				raise SystemExit()
-	def __call__(self, catchexc=True):
-		self.start_up()
-		self.notifier.info("Bot started up")
-		if catchexc:
-			with botutil.beep_catch_all(self.notifier):
-				return self.main_loop()
-		else:
-			return self.main_loop()
