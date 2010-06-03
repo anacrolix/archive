@@ -34,10 +34,12 @@ void require(bool exprres, int exitcode, char const *format, ...)
 	va_start(varargs);
 	vfprintf(stderr, format, varargs);
 	va_end(varargs);
+	exit(exitcode);
 }
 #endif
 
-// returns the pid of a tracer, or 0 if there is none
+// returns the pid of a tracer, 0 if there is none
+// the function will asplode if something is not right
 pid_t get_tracer_pid(pid_t pid)
 {
 	pid_t tracepid = -1;
