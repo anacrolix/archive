@@ -1,35 +1,12 @@
-glob:*.o
-glob:*.so
-glob:*.obj
-glob:*.pyd
-glob:*.pyc
-glob:*.lib
-relre:^algorithms/tests/reuters21578
-glob:*.exp
-glob:*.manifest
-relre:^algorithms/benchmark/reuters21578/
-
 syntax: glob
-*.dll
-*.idb
-*.ilk
-*.pdb
-*.exe
-*.res
-*.user
+*.pyc
 *.ncb
 *.suo
-*.d
-*.dep
+*.db
+*.user
 tibia/2010/_memdump_*
 
 syntax: regexp
+tibia/2010/(monoclk|getxwin|ptraceidle|readmem|xsendkey)
+projects/prolepsis/(members|stances)\.(bak|dat|dir)
 Debug/
-Release/
-^projects/prolepsis/(stances|members)\.
-^projects/prolepsis/dist
-glob:projects/tibstat/tibia.db
-glob:tibia/2010/readmem
-glob:tibia/2010/ptraceidle
-glob:tibia/2010/xsendkey
-glob:tibia/2010/getxwin
