@@ -1,3 +1,4 @@
+[SORTING]
 blue djinn, pink
 edron, blue
 green djinn, fur
@@ -7,6 +8,7 @@ rashid, yellow
 venore, green
 yalahar, brocade
 
+[WARES]
 ancient amulet, 200, rashid
 ancient shield, 900, green djinn
 ancient stone, 200, edron, telas
@@ -146,26 +148,3 @@ wyvern talisman, 265, edron, fiona
 yellow piece of cloth, 150 or player 1k?, venore
 zaoan shoes, 5000+, farmine, esrik
 zaogun's shouldplates, 150, farmine, esrik
-
-green djinn (fur)
-strange talisman (30)
-poison dagger (50)
-mysterious fetish (50)
-black shield (800)
-springsprout rod (3600)
-
-rashid (yellow)
-silver brooch (150)
-crystal ring
-dragonbone staff (3000)
-
-thais (brown)
-
-wand of inferno (3000)
-broadsword (500)
-blue robe (10000)
-
-kazordoon (black)
-plate legs (115)
-double axe (260)
-
