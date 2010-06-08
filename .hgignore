@@ -4,9 +4,8 @@ syntax: glob
 *.suo
 *.db
 *.user
-tibia/2010/_memdump_*
 
 syntax: regexp
-tibia/2010/(monoclk|getxwin|ptraceidle|readmem|xsendkey)
+tibia/butox/cutil/(monoclk|getxwin|ptraceidle|readmem|xsendkey)
 projects/prolepsis/(members|stances)\.(bak|dat|dir)
 Debug/

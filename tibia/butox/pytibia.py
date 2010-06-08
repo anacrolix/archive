@@ -74,6 +74,7 @@ def iter_proc_maps(pid):
 			yield ProcMapsLine(line)
 
 def read_process_memory(pid, address, size):
+	"""Read memory region by calling external C utility"""
 	for attempt in xrange(5):
 		child = subprocess.Popen(
 				["./readmem", str(pid), hex(address), str(size)],
@@ -89,6 +90,18 @@ def read_process_memory(pid, address, size):
 		else:
 			break
 	raise MemoryReadError()
+
+def read_process_memory(pid, address, size):
+	"""Read memory region by using ptrace module"""
+	import ptrace
+	try:
+		ptrace.ptrace_attach(pid)
+		ptrace.wait_for_tracee_stop(pid)
+		with open("/proc/{0}/mem".format(pid)) as memfile:
+			memfile.seek(address)
+			return memfile.read(size)
+	finally:
+		ptrace.ptrace_detach(pid)
 
 class EntityId(int):
 	def __new__(cls, buf):
@@ -170,7 +183,7 @@ class Client(object):
 
 	def send_key_press(self, keystr):
 		self.notify(INFO, "Sending key press: %s", keystr, name=self.player_entity().name)
-		args = ["./xsendkey", "-window", hex(self.windowid), keystr]
+		args = [botutil.cutil_path("xsendkey"), "-window", hex(self.windowid), keystr]
 		subprocess.check_call(args)
 
 	def notify(self, *pargs, **kwargs):

@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -23,21 +24,41 @@
 #	define verify assert
 #endif
 
-#if 0
-void require(bool exprres, int exitcode, char const *format, ...)
-	__attribute__((format(printf, 3, 4)))
+__attribute__((format(printf, 6, 7), noreturn))
+void requiref_fail(
+		char const *expr,
+		int code,
+		char const *file,
+		int line,
+		char const *func,
+		char const *fmt,
+		...)
 {
-	if (exprres)
+	int const errnum = errno;
+	fprintf(stderr, "%s: %s:%d: %s: '%s' failed",
+			program_invocation_name, file, line, func, expr);
+	if (fmt != NULL)
 	{
-		return;
+		fprintf(stderr, ": ");
+		va_list ap;
+		va_start(ap, fmt);
+		vfprintf(stderr, fmt, ap);
+		va_end(ap);
 	}
-	va_list varargs;
-	va_start(varargs);
-	vfprintf(stderr, format, varargs);
-	va_end(varargs);
-	exit(exitcode);
+	if (errnum != 0)
+	{
+		fprintf(stderr, ": %s", strerror(errnum));
+	}
+	fprintf(stderr, ".\n");
+	exit(code);
 }
-#endif
+
+#define requiref(expr, code, fmt, ...) \
+	((expr) || (requiref_fail(#expr, code, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__), false))
+
+#define require2(expr, code) requiref(expr, code, NULL)
+
+#define require(expr) require2(expr, EXIT_FAILURE)
 
 // returns the pid of a tracer, 0 if there is none
 // the function will asplode if something is not right
@@ -60,7 +81,7 @@ pid_t get_tracer_pid(pid_t pid)
 			break;
 		}
 	}
-	verify(tracepid != -1);
+	require(tracepid != -1);
 	free(line);
 	verify(0 == fclose(sttsfile));
 	return tracepid;

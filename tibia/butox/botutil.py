@@ -5,8 +5,12 @@ import collections, contextlib, subprocess, sys, time, traceback
 import defcon, pytibia
 from defcon.level import *
 
+def cutil_path(exename):
+	from os.path import join
+	return join("cutil", exename)
+
 def send_key_press(self, windowid, keystr):
-	args = ["./xsendkey", "-window", hex(windowid), keystr]
+	args = [cutil_path("xsendkey"), "-window", hex(windowid), keystr]
 	subprocess.check_call(args)
 
 def beep(frequency=None, duration=None):
@@ -44,7 +48,7 @@ def _notify(level, fmtstr, *pargs, **kwargs):
 
 def get_window_id(wintitle):
 	return int(subprocess.Popen(
-			["./getxwin", wintitle],
+			[cutil_path("getxwin"), wintitle],
 			stdout=subprocess.PIPE
 		).communicate()[0], 0)
 
@@ -97,7 +101,7 @@ class TibiaBot(object):
 			self.__check_skill_progress()
 			self.do_stuff()
 			stufftim = time.time() - begstuff
-			if stufftim >= 0.1:
+			if stufftim >= 0.2:
 				self.notify(ATTEND, "Bot main loop consumed %ums", 1000 * stufftim)
 			try:
 				time.sleep(1.0)

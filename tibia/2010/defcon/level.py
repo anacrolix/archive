@@ -1,4 +1,0 @@
-INFO = 0
-ATTEND = 1
-DANGER = 2
-CRITICAL = 3

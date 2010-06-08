@@ -10,3 +10,6 @@ getxwin: getxwin.c
 
 monoclk: monoclk.c
 	$(CC) -o $@ $(CFLAGS) -lrt $^
+
+ptraceidle: ptraceidle.c botutil.h
+	$(CC) -o $@ $(CFLAGS) $^
