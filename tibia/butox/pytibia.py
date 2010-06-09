@@ -93,15 +93,21 @@ def read_process_memory(pid, address, size):
 
 def read_process_memory(pid, address, size):
 	"""Read memory region by using ptrace module"""
+	import errno, traceback
 	import ptrace
+	ptrace.ptrace_attach(pid)
 	try:
-		ptrace.ptrace_attach(pid)
+		#raise Exception("wtf")
 		ptrace.wait_for_tracee_stop(pid)
 		with open("/proc/{0}/mem".format(pid)) as memfile:
 			memfile.seek(address)
 			return memfile.read(size)
 	finally:
-		ptrace.ptrace_detach(pid)
+		try:
+			ptrace.ptrace_detach(pid)
+		except OSError as e:
+			if e.errno != errno.ESRCH:
+				raise
 
 class EntityId(int):
 	def __new__(cls, buf):
