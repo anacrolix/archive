@@ -46,12 +46,24 @@ def wait_for_tracee_stop(pid):
 			print >>stderr, "Passing signal to tracee:", signum
 			ptrace_cont(pid, signum)
 
+def pass_on_signals(pid):
+	from os import waitpid, WIFSTOPPED, WSTOPSIG
+	from sys import stderr
+	while True:
+		retpid, status = waitpid(pid, 0)
+		assert WIFSTOPPED(status)
+		signum = WSTOPSIG(status)
+		print >>stderr, "Passing signal to tracee:", signum
+		ptrace_cont(pid, signum)
+
 def __main():
 	"""Attach, wait for stop, and then detach from pid=sys.argv[1]"""
-	import os, signal, sys, time
-	pid = int(sys.argv[1])
+	from sys import argv
+	pid = int(argv[1])
 	ptrace_attach(pid)
 	wait_for_tracee_stop(pid)
+	ptrace_cont(pid)
+	pass_on_signals(pid)
 	ptrace_detach(pid)
 
 if __name__ == "__main__":
