@@ -39,7 +39,7 @@ def _notify(level, fmtstr, *pargs, **kwargs):
 	name = kwargs.pop("name", "root")
 	#assert len(kwargs) == 0, "Unused parameters: {0}".format(kwargs)
 	print >>sys.stderr, "{time}:{name}:{level}:{message}".format(
-			time=time.strftime("%a %H:%M:%S"),
+			time=time.strftime("%a %H%M.%S"),
 			name=name,
 			level=level,
 			message=(fmtstr % pargs))
@@ -89,7 +89,10 @@ class TibiaBot(object):
 	def notify(self, level, *pargs, **kwargs):
 		kwargs.setdefault("persist", level >= DANGER)
 		self.__defcon.set(level, **kwargs)
-		kwargs.setdefault("name", self.client.player_entity().name)
+		try:
+			kwargs.setdefault("name", self.client.player_entity().name)
+		except pytibia.PlayerEntityNotFound:
+			pass
 		return _notify(level, *pargs, **kwargs)
 	@property
 	def defcon_level(self):

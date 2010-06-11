@@ -1,4 +1,5 @@
-class Level(object):
+# i will probably inherit this from int when i can work out how
+class _Level(object):
 	def __init__(self, intval, strval):
 		self._intval = intval
 		self._strval = strval
@@ -10,7 +11,7 @@ class Level(object):
 
 def add_level(intval, strval):
 	assert not strval in globals()
-	globals()[strval] = Level(intval, strval)
+	globals()[strval] = _Level(intval, strval)
 
 for args in [
 		(0, "INFO"),

@@ -5,6 +5,7 @@ import contextlib, itertools, operator, os, signal, struct, \
 
 import botutil
 from defcon.level import *
+from memutil import read_process_memory
 
 # CONSTANTS
 
@@ -43,7 +44,7 @@ assert PLAYER_SWORD_PROGRESS == SKILL_PROGRESS_BASE_ADDRESS + 4 * SKILL_NAMES.in
 class ClientNotFound(Exception):
 	pass
 
-class MemoryReadError(Exception):
+class PlayerEntityNotFound(Exception):
 	pass
 
 # GENERAL FUNCTIONS
@@ -54,60 +55,6 @@ def find_client_pid():
 	if len(stdout) == 0:
 		raise ClientNotFound()
 	return int(stdout)
-
-#("address", "perms", "offset", "dev", "inode", "pathname"),
-class ProcMapsLine(object):
-	def __init__(self, line):
-		self.__line = line.rstrip("\n")
-		fields = self.__line.split(None, 5)
-		assert len(fields) in xrange(5, 7), self.line
-		self.inode = int(fields[4])
-		self.start, self.end = map(lambda x: int(x, 16), fields[0].split("-"))
-		self.length = self.end - self.start
-		self.address = fields[0]
-	def __repr__(self):
-		return self.__line
-
-def iter_proc_maps(pid):
-	with open("/proc/{0}/maps".format(pid)) as mapsfile:
-		for line in mapsfile:
-			yield ProcMapsLine(line)
-
-def read_process_memory(pid, address, size):
-	"""Read memory region by calling external C utility"""
-	for attempt in xrange(5):
-		child = subprocess.Popen(
-				["./readmem", str(pid), hex(address), str(size)],
-				stdout=subprocess.PIPE)
-		data = child.communicate()[0]
-		#assert child.poll()
-		if child.returncode == 0:
-			#print "succeed"
-			return data
-		elif child.returncode == 3:
-			time.sleep(0)
-			continue
-		else:
-			break
-	raise MemoryReadError()
-
-def read_process_memory(pid, address, size):
-	"""Read memory region by using ptrace module"""
-	import errno, traceback
-	import ptrace
-	ptrace.ptrace_attach(pid)
-	try:
-		#raise Exception("wtf")
-		ptrace.wait_for_tracee_stop(pid)
-		with open("/proc/{0}/mem".format(pid)) as memfile:
-			memfile.seek(address)
-			return memfile.read(size)
-	finally:
-		try:
-			ptrace.ptrace_detach(pid)
-		except OSError as e:
-			if e.errno != errno.ESRCH:
-				raise
 
 class EntityId(int):
 	def __new__(cls, buf):
@@ -240,6 +187,8 @@ class Client(object):
 		for entity in self.iter_entities():
 			if entity.id == player_entity_id:
 				return entity
+		else:
+			raise PlayerEntityNotFound()
 	def player_entity_id(self):
 		return EntityId(self.read_memory(PLAYER_ENTITY_ID, 4))
 	def player_current_hitpoints(self):
