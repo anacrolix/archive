@@ -18,6 +18,13 @@ def main():
 	servsock.listen(socket.SOMAXCONN)
 	players = []
 	entidgen = itertools.count(1)
+	fullmap = Map()
+	mapfile = open("level")
+	for y, line in enumerate(mapfile):
+		assert line[-1] == "\n"
+		line = line[:-1]
+		for x, tile in enumerate(line):
+			fullmap.set_tile(x, y, tile)
 	while True:
 		socksout = []
 		socksin = [servsock]
@@ -31,8 +38,13 @@ def main():
 				logging.debug("Incoming connection")
 				newsock, remaddr = servsock.accept()
 				logging.info("Accepted connection from %s", remaddr)
-				newplyr = Player(newsock, Entity(id=entidgen.next()))
-				newplyr.somsgbuf.post_message("loggedin", id=newplyr.entity.id)
+				while True:
+					y, xdata = random.choice(fullmap.get_data().items())
+					x, glyph = random.choice(xdata.items())
+					if walkable_glyph(glyph):
+						break
+				newplyr = Player(newsock, Entity(id=entidgen.next(), coords=Coords(x, y)))
+				newplyr.somsgbuf.post_message("loggedin", id=newplyr.entity.id, startmap=fullmap)
 				players.append(newplyr)
 				for plyr in players:
 					newplyr.somsgbuf.post_message("entity", entity=plyr.entity)
@@ -53,9 +65,7 @@ def main():
 						if message.title == "move":
 							newpos = readrdy.entity.coords
 							newpos += DIRECTIONS[message.kwdata["direction"]]
-							print newpos
-							if	newpos.x in xrange(VIEWPORT_DIMENSIONS[0]) \
-									and newpos.y in xrange(VIEWPORT_DIMENSIONS[1]):
+							if walkable_glyph(fullmap.get_tile(*newpos)):
 								readrdy.entity.coords = newpos
 								for plyr in players:
 									plyr.somsgbuf.post_message("entity", entity=readrdy.entity)

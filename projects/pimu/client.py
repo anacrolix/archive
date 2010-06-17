@@ -40,6 +40,7 @@ def main():
 	assert message.title == "loggedin"
 	#plyrent = message.kwdata["entity"]
 	playerid = message.kwdata["id"]
+	mapdata = message.kwdata["startmap"]
 	entities = {}
 	chathist = []
 	curchat = u""
@@ -88,12 +89,29 @@ def main():
 				logging.warning("Unknown message: %s", message)
 		#pdb.set_trace()
 		screen.fill((0, 0, 0))
-		pygame.draw.rect(screen, (0, 0xa0, 0), pygame.Rect((0, 0), map(operator.mul, GRIDDIM, VIEWPORT_DIMENSIONS)))
+		#pygame.draw.rect(screen, (0, 0xa0, 0), pygame.Rect((0, 0), map(operator.mul, GRIDDIM, VIEWPORT_DIMENSIONS)))
+		plyrpos = entities[playerid].coords
+		#pdb.set_trace()
+		viewtop = plyrpos.y - (VIEWPORT_DIMENSIONS[1] - 1) / 2
+		viewleft = plyrpos.x - (VIEWPORT_DIMENSIONS[0] - 1) / 2
+		for y in xrange(viewtop, viewtop + VIEWPORT_DIMENSIONS[1]):
+			for x in xrange(viewleft, viewleft + VIEWPORT_DIMENSIONS[0]):
+				tileclr = {
+						",": (0, 0xa0, 0),
+						".": (0xc0, 0x80, 0x40),
+						"0": (0x40, 0x40, 0x40),
+						"T": (0, 0x80, 0),
+						"o": (0x80, 0x80, 0x80),
+						"R": (0xff, 0, 0),
+						None: (0, 0, 0),
+					}[mapdata.get_tile(x, y)]
+				#pdb.set_trace()
+				pygame.draw.rect(screen, tileclr, pygame.Rect(map(operator.mul, (x - viewleft, y - viewtop), GRIDDIM), GRIDDIM))
 		for ent in entities.values():
 			entsurf = entity_surface(ent.color, ent.id)
 			dest = entsurf.get_rect()
-			shiftedEntityCoords = map(lambda x: x + 0.5, ent.coords)
-			dest.center = map(operator.mul, GRIDDIM, shiftedEntityCoords)
+			viewpos = ent.coords - (viewleft, viewtop)
+			dest.center = tuple(a * (b + 0.5) for a, b in zip(GRIDDIM, viewpos))
 			screen.blit(entsurf, dest)
 		chatfont = pygame.font.SysFont(None, 16)
 		#pdb.set_trace()

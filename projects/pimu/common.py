@@ -8,6 +8,31 @@ DIRECTIONS = {
 
 VIEWPORT_DIMENSIONS = (15, 11)
 
+def walkable_glyph(glyph):
+	return glyph in ".,"
+
+class Map(object):
+
+	def __init__(self, data=None):
+		if data is None:
+			data = {}
+		self.__data = data
+
+	def set_tile(self, x, y, glyph):
+		self.__data.setdefault(y, {})[x] = glyph
+
+	def get_tile(self, x, y):
+		try:
+			return self.__data[y][x]
+		except KeyError:
+			return None
+
+	def get_data(self):
+		return self.__data
+
+	def __repr__(self):
+		return "Map({0})".format(self.__data)
+
 class Entity(object):
 	#__slots__ = ["color", "coords"]
 	def __init__(self, color=None, coords=None, id=None):
@@ -78,32 +103,24 @@ class SocketMessageBuffer(object):
 	def fileno(self):
 		return self.__socket.fileno()
 
-#import collections
-#import pdb
-#import select
-#import socket
-
-#DIRECTIONS = {
-		#'north': (0, -1),
-		#'east': (1, 0),
-		#'south': (0, 1),
-		#'west': (-1, 0),}
-
-#Message = collections.namedtuple("Message", ("title", "data"))
-
-#class Disconnected(Exception):
-	#pass
-
 class Coords(object):
+
 	def __init__(self, x=0, y=0):
 		self.x = x
 		self.y = y
+
 	def __iter__(self):
 		yield self.x
 		yield self.y
+
 	def __add__(self, other):
 		assert len(other) == 2
 		return Coords(self.x + other[0], self.y + other[1])
+
+	def __sub__(self, other):
+		assert len(other) == 2
+		return Coords(self.x - other[0], self.y - other[1])
+
 	def __repr__(self):
 		return "Coords(x=%r, y=%r)" % (self.x, self.y)
 
