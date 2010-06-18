@@ -44,7 +44,10 @@ def main():
 	entities = {}
 	chathist = []
 	curchat = u""
-	screen = pygame.display.set_mode((640, 480))
+	chatfont = pygame.font.SysFont(None, 16)
+	screen = pygame.display.set_mode((
+			VIEWPORT_DIMENSIONS[0] * GRIDDIM[0],
+			VIEWPORT_DIMENSIONS[1] * GRIDDIM[1] + 11 * chatfont.get_linesize()))
 	logging.info("Session started")
 	clock = pygame.time.Clock()
 	MOVE_KEYS = {
@@ -82,13 +85,13 @@ def main():
 				entity = message.kwdata["entity"]
 				entities[entity.id] = entity
 			elif message.title == "chat":
-				chathist.insert(0, message.pdata[0])
+				chathist.append(message.pdata[0])
 			elif message.title == "remove_entity":
 				del entities[message.kwdata["id"]]
 			else:
 				logging.warning("Unknown message: %s", message)
 		#pdb.set_trace()
-		screen.fill((0, 0, 0))
+		screen.fill((0x20, 0x20, 0x20))
 		#pygame.draw.rect(screen, (0, 0xa0, 0), pygame.Rect((0, 0), map(operator.mul, GRIDDIM, VIEWPORT_DIMENSIONS)))
 		plyrpos = entities[playerid].coords
 		#pdb.set_trace()
@@ -113,15 +116,16 @@ def main():
 			viewpos = ent.coords - (viewleft, viewtop)
 			dest.center = tuple(a * (b + 0.5) for a, b in zip(GRIDDIM, viewpos))
 			screen.blit(entsurf, dest)
-		chatfont = pygame.font.SysFont(None, 16)
 		#pdb.set_trace()
-		rect = pygame.Rect((0, GRIDDIM[1] * VIEWPORT_DIMENSIONS[1]), (screen.get_width(), chatfont.get_linesize()))
-		for chatmsg in chathist:
+		rect = pygame.Rect(
+				(0, screen.get_height() - 2 * chatfont.get_linesize()),
+				(screen.get_width(), chatfont.get_linesize()))
+		for chatmsg in reversed(chathist):
+			if rect.top < VIEWPORT_DIMENSIONS[1] * GRIDDIM[1]:
+				break
 			msgsurf = chatfont.render(chatmsg, True, (0xff, 0xff, 0x0))
 			screen.blit(msgsurf, rect)
-			rect.top += chatfont.get_linesize()
-			if rect.bottom >= screen.get_height() - chatfont.get_linesize():
-				break
+			rect.top -= chatfont.get_linesize()
 		chatsurf = chatfont.render(curchat, True, (0xff, 0xff, 0))
 		screen.blit(chatsurf, (0, screen.get_height() - chatsurf.get_height()))
 		pygame.display.flip()

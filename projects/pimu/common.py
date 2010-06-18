@@ -9,7 +9,7 @@ DIRECTIONS = {
 VIEWPORT_DIMENSIONS = (15, 11)
 
 def walkable_glyph(glyph):
-	return glyph in ".,"
+	return not glyph is None and glyph in ".,"
 
 class Map(object):
 
