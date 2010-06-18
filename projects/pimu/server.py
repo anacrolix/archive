@@ -16,6 +16,7 @@ def main():
 	servsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 	servsock.bind(('', 7172))
 	servsock.listen(socket.SOMAXCONN)
+	logging.info("Listening on %s", servsock.getsockname())
 	players = []
 	entidgen = itertools.count(1)
 	fullmap = Map()
@@ -78,48 +79,6 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
-		#self.servsock = create_server()
-		#self.clentids = [] # connected client ids
-		#self.entities = {}
-		#self.entidgen = itertools.count(1)
-		#while True:
-			#pendoutl = filter(lambda a: a.pending_out(), self.iter_clients())
-			#ready = select.select([self.servsock] + self.iter_clients(), pendoutl, [])
-			#for r in ready[0]:
-				#if r == self.servsock:
-					#logging.debug("Incoming connection")
-					#newsock, remaddr = self.servsock.accept()
-					#logging.info("Accepted connection from %s" % str(remaddr))
-					#self.add_client(newsock, remaddr)
-				#else:
-					#try:
-						#r.recv()
-					#except Disconnected:
-						#self.remove_client(r)
-			#for w in ready[1]:
-				#w.send()
-			#self.handle_player_messages()
-			#if self.changed:
-				#self.send_entity_info()
-				#self.changed = False
-
-
-#import itertools
-#import logging
-#import pdb
-#import random
-#import select
-#import socket
-
-#from common import *
-
-#def create_server():
-	#servsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	#servsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	#servsock.bind(('', 7172))
-	#servsock.listen(socket.SOMAXCONN)
-	#return servsock
 
 #class Client(Entity, SocketMessageBuffer):
 	#def __init__(self, clntsock, addr, entid):

@@ -108,7 +108,6 @@ def main():
 						"R": (0xff, 0, 0),
 						None: (0, 0, 0),
 					}[mapdata.get_tile(x, y)]
-				#pdb.set_trace()
 				pygame.draw.rect(screen, tileclr, pygame.Rect(map(operator.mul, (x - viewleft, y - viewtop), GRIDDIM), GRIDDIM))
 		for ent in entities.values():
 			entsurf = entity_surface(ent.color, ent.id)
@@ -154,17 +153,6 @@ if __name__ == "__main__":
 		#self.player = Player(**message.data)
 		#self.display_login("Starting...")
 		#MainGame(self, Player(**message.data))()
-
-#import logging
-#import operator
-#import pdb
-#import pygame
-#import socket
-#import time
-
-#from common import *
-
-#GRIDDIM = (64, 64)
 
 #def create_player_surface(color):
 	#surface = pygame.Surface(GRIDDIM)

@@ -34,7 +34,7 @@ class Map(object):
 		return "Map({0})".format(self.__data)
 
 class Entity(object):
-	#__slots__ = ["color", "coords"]
+
 	def __init__(self, color=None, coords=None, id=None):
 		if color is None:
 			color = (random.randint(0, 0xff), 0, random.randint(0, 0xff))
@@ -44,6 +44,7 @@ class Entity(object):
 		self.color = color
 		self.coords = coords
 		self.id = id
+
 	def __repr__(self):
 		return "Entity(**{0})".format(self.__dict__)
 
@@ -123,21 +124,3 @@ class Coords(object):
 
 	def __repr__(self):
 		return "Coords(x=%r, y=%r)" % (self.x, self.y)
-
-#class Entity(object):
-	#def __init__(self, entid, coords, color):
-		#self.__entid = entid
-		#self.__coords = coords
-		#self.__color = color
-	#def get_entity_id(self):
-		#return self.__entid
-	#def get_coords(self):
-		#return self.__coords
-	#def set_coords(self, newval):
-		#self.__coords = newval
-	#def get_color(self):
-		#return self.__color
-	#def __repr__(self):
-		#return "Entity(entid={0}, coords={1}, color={2})".format(
-				#self.__entid, self.__coords, self.__color)
-
