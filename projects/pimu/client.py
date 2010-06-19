@@ -1,26 +1,45 @@
 #!/usr/bin/env python
 
-import logging, operator, pdb, socket
+import logging, operator, pdb, socket, string, sys
 import pygame
 from common import *
 
-GRIDDIM = (32, 32)
+GRIDDIM = (48, 48)
 framerate = 40
 
-def entity_surface(color, id):
-	surface = pygame.Surface(GRIDDIM)
-	surface.set_colorkey((0, 0, 0))
-	rect = surface.get_rect()
+def entity_surface(entity):
+	# base entity surface is 3x3 tiles
+	# source alpha for font anti-aliasing
+	surface = pygame.Surface(tuple(3 * a for a in GRIDDIM), pygame.SRCALPHA)
+	# draw the player
+	rect = pygame.Rect((0, 0), GRIDDIM)
 	rect.width *= 0.8
 	rect.center = surface.get_rect().center
-	#color = (0xd0, 0xa0, 0xa0) # pink?
-	pygame.draw.ellipse(surface, color, rect, 0)
-	viewfont = pygame.font.SysFont(None, 16)
-	idsurf = viewfont.render(str(id), True, (0, 0xff, 0))
+	pygame.draw.ellipse(surface, entity.color, rect, 0)
+	# draw the id on his shirt for now
+	idsurf = viewfont.render(str(entity.id), True, [0xff - a for a in entity.color])
 	rect = idsurf.get_rect()
 	rect.center = surface.get_rect().center
 	surface.blit(idsurf, rect)
+	# draw the health bar, 3 pixels height
+	rect.width = GRIDDIM[0] * 0.6 * 1.0 # hp level tbd
+	rect.height = 3
+	rect.midbottom = (GRIDDIM[0] * 1.5, GRIDDIM[1])
+	pygame.draw.line(surface, (0, 0xff, 0), rect.midleft, rect.midright, 2)
+	# draw the name
+	namesurf = viewfont.render(entity.name, True, (0xff, 0xff, 0xff, 0xc0))
+	rect = namesurf.get_rect()
+	rect.midbottom = (GRIDDIM[0] * 1.5, GRIDDIM[1])
+	surface.blit(namesurf, rect)
 	return surface
+
+def get_option(optstr, default=None):
+	try:
+		index = sys.argv.index(optstr)
+	except ValueError:
+		return default
+	else:
+		return sys.argv[index + 1]
 
 def main():
 	logging.basicConfig(level=logging.DEBUG)
@@ -28,10 +47,16 @@ def main():
 	pygame.display.init()
 	logging.info("Display driver: {0}".format(pygame.display.get_driver()))
 	pygame.font.init()
+	global viewfont
+	viewfont = pygame.font.SysFont("Arial", 12, bold=True)
 	pygame.event.set_blocked([pygame.MOUSEMOTION, pygame.ACTIVEEVENT])
 	logging.info("Connecting")
-	somsgbuf = SocketMessageBuffer(socket.create_connection(("localhost", 7172)))
+	gamehost = get_option("servhost", "localhost")
+	somsgbuf = SocketMessageBuffer(socket.create_connection((gamehost, 7172)))
 	logging.info("Logging in")
+	somsgbuf.post_message("login", name=get_option("charname"))
+	while somsgbuf.pending_out():
+		somsgbuf.send_pending()
 	while somsgbuf.receive_more():
 		message = somsgbuf.get_message()
 		if message is not None:
@@ -44,10 +69,11 @@ def main():
 	entities = {}
 	chathist = []
 	curchat = u""
-	chatfont = pygame.font.SysFont(None, 16)
+	chatfont = pygame.font.SysFont("Arial", 12, bold=True)
 	screen = pygame.display.set_mode((
 			VIEWPORT_DIMENSIONS[0] * GRIDDIM[0],
 			VIEWPORT_DIMENSIONS[1] * GRIDDIM[1] + 11 * chatfont.get_linesize()))
+	screen.set_colorkey((0xff, 0, 0xff))
 	logging.info("Session started")
 	clock = pygame.time.Clock()
 	MOVE_KEYS = {
@@ -71,7 +97,9 @@ def main():
 						if len(curchat) > 0:
 							somsgbuf.post_message("say", curchat)
 						curchat = u""
-					else:
+					elif event.key is pygame.K_BACKSPACE:
+						curchat = curchat[:-1]
+					elif event.unicode in string.printable:
 						curchat += event.unicode
 				else:
 					somsgbuf.post_message("move", direction=direction)
@@ -110,7 +138,7 @@ def main():
 					}[mapdata.get_tile(x, y)]
 				pygame.draw.rect(screen, tileclr, pygame.Rect(map(operator.mul, (x - viewleft, y - viewtop), GRIDDIM), GRIDDIM))
 		for ent in entities.values():
-			entsurf = entity_surface(ent.color, ent.id)
+			entsurf = entity_surface(ent)
 			dest = entsurf.get_rect()
 			viewpos = ent.coords - (viewleft, viewtop)
 			dest.center = tuple(a * (b + 0.5) for a, b in zip(GRIDDIM, viewpos))

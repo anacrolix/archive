@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 import itertools, logging, select, socket
+from enum import enum
 from common import *
 
 class Player(object):
-	def __init__(self, opensock, entity):
+	State = enum("LOGGING_IN", "ACTIVE")
+	def __init__(self, opensock):
 		self.somsgbuf = SocketMessageBuffer(opensock)
-		self.entity = entity
+		self.entity = None
+		self.state = self.State.LOGGING_IN
 	def fileno(self):
 		return self.somsgbuf.fileno()
 
@@ -39,18 +42,8 @@ def main():
 				logging.debug("Incoming connection")
 				newsock, remaddr = servsock.accept()
 				logging.info("Accepted connection from %s", remaddr)
-				while True:
-					y, xdata = random.choice(fullmap.get_data().items())
-					x, glyph = random.choice(xdata.items())
-					if walkable_glyph(glyph):
-						break
-				newplyr = Player(newsock, Entity(id=entidgen.next(), coords=Coords(x, y)))
-				newplyr.somsgbuf.post_message("loggedin", id=newplyr.entity.id, startmap=fullmap)
+				newplyr = Player(newsock)
 				players.append(newplyr)
-				for plyr in players:
-					newplyr.somsgbuf.post_message("entity", entity=plyr.entity)
-					if plyr != newplyr:
-						plyr.somsgbuf.post_message("entity", entity=newplyr.entity)
 			else:
 				try:
 					readrdy.somsgbuf.receive_more()
@@ -74,6 +67,27 @@ def main():
 							fullmsg = "{0}: {1}".format(readrdy.entity.id, message.pdata[0])
 							for plyr in players:
 								plyr.somsgbuf.post_message("chat", fullmsg)
+						elif message.title == "login":
+							assert readrdy.state == Player.State.LOGGING_IN
+							assert not readrdy.entity
+							# decide where to place the new guy
+							while True:
+								y, xdata = random.choice(fullmap.get_data().items())
+								x, glyph = random.choice(xdata.items())
+								if walkable_glyph(glyph):
+									break
+							name = message.kwdata["name"]
+							if name is None:
+								name = random.choice(["Black & Gold", "No Name", "Super Saver", "Home Brand"])
+							readrdy.entity = Entity(id=entidgen.next(), coords=Coords(x, y), name=name)
+							readrdy.somsgbuf.post_message("loggedin", id=readrdy.entity.id, startmap=fullmap)
+							plyr.state = plyr.State.ACTIVE
+							for plyr in players:
+								readrdy.somsgbuf.post_message("entity", entity=plyr.entity)
+								if plyr != readrdy:
+									plyr.somsgbuf.post_message("entity", entity=readrdy.entity)
+						else:
+							logging.warning("Unknown message: %s", message)
 		for writerdy in readyfds[1]:
 			writerdy.somsgbuf.send_pending()
 

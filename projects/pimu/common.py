@@ -35,7 +35,7 @@ class Map(object):
 
 class Entity(object):
 
-	def __init__(self, color=None, coords=None, id=None):
+	def __init__(self, color=None, coords=None, id=None, name=None):
 		if color is None:
 			color = (random.randint(0, 0xff), 0, random.randint(0, 0xff))
 		if coords is None:
@@ -44,6 +44,7 @@ class Entity(object):
 		self.color = color
 		self.coords = coords
 		self.id = id
+		self.name = name
 
 	def __repr__(self):
 		return "Entity(**{0})".format(self.__dict__)
