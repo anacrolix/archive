@@ -5,7 +5,7 @@ import pygame
 from common import *
 
 GRIDDIM = (48, 48)
-framerate = 40
+framerate = 30
 
 def entity_surface(entity):
 	# base entity surface is 3x3 tiles
@@ -22,12 +22,18 @@ def entity_surface(entity):
 	rect.center = surface.get_rect().center
 	surface.blit(idsurf, rect)
 	# draw the health bar, 3 pixels height
-	rect.width = GRIDDIM[0] * 0.6 * 1.0 # hp level tbd
+	rect.width = GRIDDIM[0] * 0.6 * entity.health # hp level tbd
 	rect.height = 3
 	rect.midbottom = (GRIDDIM[0] * 1.5, GRIDDIM[1])
-	pygame.draw.line(surface, (0, 0xff, 0), rect.midleft, rect.midright, 2)
+	for cutoff, color in [
+			(0.7, (0, 0xff, 0)),
+			(0.3, (0xff, 0xff, 0)),
+			(0, (0xff, 0, 0))]:
+		if entity.health >= cutoff:
+			break
+	pygame.draw.line(surface, color, rect.midleft, rect.midright, 2)
 	# draw the name
-	namesurf = viewfont.render(entity.name, True, (0xff, 0xff, 0xff, 0xc0))
+	namesurf = viewfont.render(entity.name, True, color)
 	rect = namesurf.get_rect()
 	rect.midbottom = (GRIDDIM[0] * 1.5, GRIDDIM[1])
 	surface.blit(namesurf, rect)
@@ -119,7 +125,7 @@ def main():
 			else:
 				logging.warning("Unknown message: %s", message)
 		#pdb.set_trace()
-		screen.fill((0x20, 0x20, 0x20))
+		screen.fill((0x30, 0x30, 0x30))
 		#pygame.draw.rect(screen, (0, 0xa0, 0), pygame.Rect((0, 0), map(operator.mul, GRIDDIM, VIEWPORT_DIMENSIONS)))
 		plyrpos = entities[playerid].coords
 		#pdb.set_trace()
@@ -127,23 +133,13 @@ def main():
 		viewleft = plyrpos.x - (VIEWPORT_DIMENSIONS[0] - 1) / 2
 		for y in xrange(viewtop, viewtop + VIEWPORT_DIMENSIONS[1]):
 			for x in xrange(viewleft, viewleft + VIEWPORT_DIMENSIONS[0]):
-				tileclr = {
-						",": (0, 0xa0, 0),
-						".": (0xc0, 0x80, 0x40),
-						"0": (0x40, 0x40, 0x40),
-						"T": (0, 0x80, 0),
-						"o": (0x80, 0x80, 0x80),
-						"R": (0xff, 0, 0),
-						None: (0, 0, 0),
-					}[mapdata.get_tile(x, y)]
-				pygame.draw.rect(screen, tileclr, pygame.Rect(map(operator.mul, (x - viewleft, y - viewtop), GRIDDIM), GRIDDIM))
+				pygame.draw.rect(screen, mapdata[x, y].get_color(), pygame.Rect(map(operator.mul, (x - viewleft, y - viewtop), GRIDDIM), GRIDDIM))
 		for ent in entities.values():
 			entsurf = entity_surface(ent)
 			dest = entsurf.get_rect()
 			viewpos = ent.coords - (viewleft, viewtop)
 			dest.center = tuple(a * (b + 0.5) for a, b in zip(GRIDDIM, viewpos))
 			screen.blit(entsurf, dest)
-		#pdb.set_trace()
 		rect = pygame.Rect(
 				(0, screen.get_height() - 2 * chatfont.get_linesize()),
 				(screen.get_width(), chatfont.get_linesize()))
