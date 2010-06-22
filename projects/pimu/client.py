@@ -51,6 +51,7 @@ def main():
 	logging.basicConfig(level=logging.DEBUG)
 	logging.info("Pygame version: %s" % pygame.version.ver)
 	pygame.display.init()
+	pygame.display.set_caption("Pimu: Oldschool MMO", "pimu")
 	logging.info("Display driver: {0}".format(pygame.display.get_driver()))
 	pygame.font.init()
 	global viewfont
