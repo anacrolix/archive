@@ -59,9 +59,7 @@ class World(object):
 class Entity(object):
 	__slots__ = "color", "coords", "id", "name", "health"
 	def __init__(self, **kwargs):
-		kwargs.setdefault("coords", Coords())
-		kwargs.setdefault("health", 1.0)
-		for name in self.__slots__:
+		for name in kwargs:
 			setattr(self, name, kwargs.get(name))
 	def __repr__(self):
 		return "{0}(**{1})".format(

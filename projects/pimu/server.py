@@ -3,15 +3,20 @@
 from __future__ import division
 import itertools, logging, pdb, select, socket
 from enum import enum
+from monotime import monotonic_time
 from common import *
 
 class ServerEntity(Entity):
-	__slots__ = "curhp", "maxhp"
+	__slots__ = "curhp", "maxhp", "lastmove", "movecool"
+	def __init__(self):
+		Entity.__init__(self)
+		self.lastmove = None
 	@property
 	def health(self):
 		return self.curhp / self.maxhp
 
 class Player(ServerEntity):
+	__slots__ = "state", "__somsgbuf"
 	State = enum("LOGGING_IN", "ACTIVE")
 	def __init__(self, opensock):
 		ServerEntity.__init__(self)
@@ -36,9 +41,10 @@ class Player(ServerEntity):
 		return self.__somsgbuf.get_socket().getpeername()
 
 class Monster(ServerEntity):
+	__slots__ = []
 	def __init__(self):
 		ServerEntity.__init__(self)
-		self.speed = 500
+		self.movecool = 1
 		self.maxhp = 50
 		self.curhp = 50
 		self.coords=Coords(x=9, y=1)
@@ -61,7 +67,7 @@ def receive_player_data(player):
 		logging.info("Disconnected %s", player.get_remote_address())
 		players.remove(player)
 		for plyr in players:
-			plyr.somsgbuf.post_message("remove_entity", id=player.id)
+			plyr.post_message("remove_entity", id=player.id)
 		return
 	message = player.get_message()
 	if message is None:
@@ -87,10 +93,10 @@ def receive_player_data(player):
 			if position_walkable((x, y)):
 				break
 		player.coords = Coords(x, y)
-		player.name = message.kwdata["name"]
 		player.id = entidgen.next()
-		player.curhp = 60
-		player.maxhp = 100
+		player.name = message.kwdata["name"] or "Noob {0}".format(player.id)
+		player.curhp = random.randint(0, 1337)
+		player.maxhp = 1337
 		#player.health = 0.6
 		player.color = (0x40, 0, random.randint(0, 0xff))
 		player.post_message("loggedin", id=player.id, startmap=world)
@@ -135,6 +141,9 @@ def position_walkable(coords):
 
 def do_monster_actions():
 	for monster in monsters:
+		if 		monster.lastmove is not None \
+				and monotonic_time() < monster.lastmove + monster.movecool:
+			continue
 		target = closest_player(monster.coords)
 		if target is None:
 			continue
@@ -148,6 +157,7 @@ def do_monster_actions():
 		newcoord = monster.coords + relcoord
 		if position_walkable(newcoord):
 			monster.coords = newcoord
+			monster.lastmove = monotonic_time()
 			for player in players:
 				player.post_message("entity", entity=monster)
 
