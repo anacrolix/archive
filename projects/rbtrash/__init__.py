@@ -15,24 +15,22 @@ class RBTrashPlugin(rb.Plugin):
 	def activate(self, shell):
 		shellPlayer = shell.get_player()
 		uiManager = shell.get_ui_manager()
-		#iconTheme = gtk.icon_theme_get_default()
-		#iconSize = gtk.icon_size_lookup(gtk.ICON_SIZE_MENU)[0]
-		#icon = rb.try_load_icon(iconTheme, "user-trash", iconSize, 0)
-		#print icon
-		action = gtk.Action(
+
+		trashAction = gtk.Action(
 				"TrashPlayingTrack",
 				_("Trash Current Track"),
 				_("Trash currently playing track"),
 				None)#"user-trash")
-		action.set_icon_name("user-trash")
-		action.connect(
+		trashAction.set_icon_name("user-trash")
+		trashAction.connect(
 				"activate",
 				self.trash_playing_track,
 				shell)
-		action.set_sensitive(shellPlayer.get_playing())
+		trashAction.set_sensitive(shellPlayer.get_playing())
 		self.actionGroup = gtk.ActionGroup("RBTrashPluginActions")
-		self.actionGroup.add_action(action)
+		self.actionGroup.add_action(trashAction)
 		uiManager.insert_action_group(self.actionGroup)
+
 		self.uiMergeId = uiManager.add_ui_from_string(uiString)
 		self.handlerId = shellPlayer.connect(
 				"playing-changed",
@@ -49,11 +47,44 @@ class RBTrashPlugin(rb.Plugin):
 
 	def trash_playing_track(self, action, shell):
 		playingEntry = shell.get_player().get_playing_entry()
-		if playingEntry:
-			defaultDb = shell.get_property("db")
-			rhythmdb.RhythmDB.entry_move_to_trash(defaultDb, playingEntry)
+		if not playingEntry:
+			return
+
+		# can also get this from shell.props.db?
+		defaultDb = shell.get_property("db")
+
+		title = defaultDb.entry_get(playingEntry, rhythmdb.PROP_TITLE)
+		artist = defaultDb.entry_get(playingEntry, rhythmdb.PROP_ARTIST)
+		album = defaultDb.entry_get(playingEntry, rhythmdb.PROP_ALBUM)
+		primaryText = title or "<Unknown Title>"
+		secondaryText = "by {0}\nfrom {1}".format(
+				artist or "<Unknown Artist>",
+				album or "<Unknown Album>")
+		del title, artist, album
+
+		if hasattr(self, "dialog"):
+			self.dialog.destroy()
+		self.dialog = gtk.MessageDialog(
+				parent=shell.props.window,
+				type=gtk.MESSAGE_QUESTION,
+				flags=gtk.DIALOG_DESTROY_WITH_PARENT|gtk.DIALOG_MODAL,
+				message_format=primaryText)
+		self.dialog.format_secondary_text(secondaryText)
+		self.dialog.set_title("Move to Trash?")
+		self.dialog.add_buttons(
+				gtk.STOCK_DELETE, gtk.RESPONSE_ACCEPT,
+				gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT)
+		self.dialog.connect(
+				"response",
+				self.trash_dialog_response,
+				defaultDb, playingEntry)
+		self.dialog.show()
+
+	def trash_dialog_response(self, dialog, response, rhythmDb, entry):
+		dialog.destroy()
+		if response == gtk.RESPONSE_ACCEPT:
+			rhythmDb.entry_move_to_trash(entry)
 
 	def playing_changed(self, shell, playing):
-		print shell, playing
 		trashAction = self.actionGroup.get_action("TrashPlayingTrack")
 		trashAction.set_sensitive(playing)
