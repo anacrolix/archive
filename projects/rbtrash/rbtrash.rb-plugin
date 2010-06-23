@@ -1,0 +1,9 @@
+[RB Plugin]
+Loader=python
+Module=rbtrash
+IAge=1
+Name=Trash Current Song
+Description=Quickly delete current playing song
+Authors=Matthew Joiner <anacrolix@gmail.com>
+Copyright=Copyright © 2010 Matthew Joiner
+Website=http://code.google.com/p/anacrolix/
