@@ -1,0 +1,3 @@
+* The trash action is probably best suited in a placeholder "TrackControlPlaceholder" placed around the "Control{Previous,Next}" actions in "plugins/status-icon/status-icon-ui.xml:/ui/RhythmboxIndicator".
+* Either merge the action and its behaviour into the status-icon plugin, or create a dependency on it that will prevent activation without it loaded, deactivate it if it's unloaded, and ensure that the trash action is placed in the correct position in the menu.
+* Use a dialog to confirm track deletion, this can be done similarly to the one in tracklet.
