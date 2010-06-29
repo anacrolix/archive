@@ -1,0 +1,3 @@
+* Use a decrypted private key context, either manually, or when support is added
+	in Python 2.7 or 3.2: http://bugs.python.org/issue3823
+* Determine if it's possible to generate certificates that never expire.

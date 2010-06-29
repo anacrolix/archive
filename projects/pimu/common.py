@@ -71,6 +71,9 @@ Message = collections.namedtuple("Message", ("title", "pdata", "kwdata"))
 class SocketClosed(Exception):
 	pass
 
+class InvalidMessage(Exception):
+	pass
+
 class SocketMessageBuffer(object):
 	def __init__(self, opensock):
 		self.__inbuf = ""
@@ -87,7 +90,10 @@ class SocketMessageBuffer(object):
 			return
 		data = self.__inbuf[:index]
 		self.__inbuf = self.__inbuf[index+1:]
-		return Message(*eval(data))
+		try:
+			return Message(*eval(data))
+		except SyntaxError as exc:
+			raise InvalidMessage(repr(exc.text))
 	def flush(self):
 		if self.pending_out():
 			writefds = [self.__socket]

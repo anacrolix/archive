@@ -1,0 +1,2 @@
+* SSL PEMs generated with `openssl req -new -x509 -nodes -out cert.pem -keyout privkey.pem`
+	which for now makes a decrypted private key, see the TODOs for more.

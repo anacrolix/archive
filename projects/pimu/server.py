@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import division
-import itertools, logging, pdb, select, socket
+import itertools, logging, pdb, select, socket, ssl
 from enum import enum
 from monotime import monotonic_time
 from common import *
@@ -22,6 +22,8 @@ class Player(ServerEntity):
 		ServerEntity.__init__(self)
 		self.__somsgbuf = SocketMessageBuffer(opensock)
 		self.state = self.State.LOGGING_IN
+	def disconnect(self):
+		self.__somsgbuf.get_socket().close()
 	def socket_fileno(self):
 		return self.__somsgbuf.fileno()
 	def needs_writing(self):
@@ -60,16 +62,25 @@ def create_server_socket():
 	logging.info("Listening on %s", servsock.getsockname())
 	return servsock
 
+def disconnect_player(player):
+	logging.info("Disconnected %s", player.get_remote_address())
+	player.disconnect()
+	players.remove(player)
+	for plyr in players:
+		plyr.post_message("remove_entity", id=player.id)
+
 def receive_player_data(player):
 	try:
 		player.read_incoming()
 	except SocketClosed:
-		logging.info("Disconnected %s", player.get_remote_address())
-		players.remove(player)
-		for plyr in players:
-			plyr.post_message("remove_entity", id=player.id)
+		disconnect_player(player)
 		return
-	message = player.get_message()
+	try:
+		message = player.get_message()
+	except InvalidMessage as exc:
+		logging.warning("Player sent invalid message: %s", exc)
+		disconnect_player(player)
+		return
 	if message is None:
 		return
 	logging.debug("Received message: %s", message)
@@ -99,7 +110,7 @@ def receive_player_data(player):
 		player.maxhp = 1337
 		#player.health = 0.6
 		player.color = (0x40, 0, random.randint(0, 0xff))
-		player.post_message("loggedin", id=player.id, startmap=world)
+		player.post_message("loggedin", playerEntity=player, startmap=world)
 		player.state = player.State.ACTIVE
 		for plyr in players:
 			player.post_message("entity", entity=plyr)
@@ -162,9 +173,14 @@ def do_monster_actions():
 				player.post_message("entity", entity=monster)
 
 def accept_new_player():
-	logging.debug("Incoming connection")
 	newsock, remaddr = servsock.accept()
 	logging.info("Accepted connection from %s", remaddr)
+	newsock = ssl.wrap_socket(
+			newsock,
+			server_side=True,
+			certfile="cert.pem",
+			keyfile="privkey.pem",
+			ssl_version=ssl.PROTOCOL_TLSv1)
 	newplyr = Player(newsock)
 	players.append(newplyr)
 

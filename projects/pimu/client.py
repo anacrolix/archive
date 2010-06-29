@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import logging, operator, pdb, socket, string, sys
+import logging, operator, pdb, socket, ssl, string, sys
 import pygame
 from common import *
 
@@ -47,6 +47,9 @@ def get_option(optstr, default=None):
 	else:
 		return sys.argv[index + 1]
 
+def add_entity(entity):
+	entities[entity.id] = entity
+
 def main():
 	logging.basicConfig(level=logging.DEBUG)
 	logging.info("Pygame version: %s" % pygame.version.ver)
@@ -59,7 +62,13 @@ def main():
 	pygame.event.set_blocked([pygame.MOUSEMOTION, pygame.ACTIVEEVENT])
 	logging.info("Connecting")
 	gamehost = get_option("servhost", "localhost")
-	somsgbuf = SocketMessageBuffer(socket.create_connection((gamehost, 7172)))
+	gamesock = socket.create_connection((gamehost, 7172))
+	gamesock = ssl.wrap_socket(
+			gamesock,
+			cert_reqs=ssl.CERT_REQUIRED,
+			ca_certs="cert.pem",
+			ssl_version=ssl.PROTOCOL_TLSv1)
+	somsgbuf = SocketMessageBuffer(gamesock)
 	logging.info("Logging in")
 	somsgbuf.post_message("login", name=get_option("charname"))
 	while somsgbuf.pending_out():
@@ -71,9 +80,12 @@ def main():
 	logging.debug("First message: %s", message)
 	assert message.title == "loggedin"
 	#plyrent = message.kwdata["entity"]
-	playerid = message.kwdata["id"]
+	playerEntity = message.kwdata["playerEntity"]
+	playerid = playerEntity.id
 	mapdata = message.kwdata["startmap"]
+	global entities
 	entities = {}
+	add_entity(playerEntity)
 	chathist = []
 	curchat = u""
 	chatfont = pygame.font.SysFont("Arial", 12, bold=True)
@@ -118,7 +130,7 @@ def main():
 			logging.debug("Received message: %s", message)
 			if message.title == 'entity':
 				entity = message.kwdata["entity"]
-				entities[entity.id] = entity
+				add_entity(entity)
 			elif message.title == "chat":
 				chathist.append(message.pdata[0])
 			elif message.title == "remove_entity":
