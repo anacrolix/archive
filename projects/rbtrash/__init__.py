@@ -3,11 +3,18 @@ import rb, rhythmdb
 
 uiString = """
 <ui>
-	<popup name="RhythmboxIndicator">
+	<!-- this is for vanilla RB -->
+    <popup name="RhythmboxTrayPopup">
+		<placeholder name="PluginPlaceholder">
+			<menuitem name="TrashPlayingTrack" action="TrashPlayingTrack"/>
+		</placeholder>
+    </popup>
+	<!-- this is for Ubuntu -->
+    <popup name="RhythmboxIndicator">
 		<placeholder name="TrackControlPlaceholder" position="top">
 			<menuitem name="TrashPlayingTrack" action="TrashPlayingTrack"/>
 		</placeholder>
-	</popup>
+    </popup>
 </ui>
 """
 
