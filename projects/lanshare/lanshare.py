@@ -8,6 +8,7 @@ class Multiplexor(object):
 		self.channels = []
 
 	def add_channel(self, channel):
+		assert channel not in self.channels
 		self.channels.append(channel)
 
 	def remove_channel(self, channel):
@@ -27,18 +28,18 @@ class Multiplexor(object):
 			for chan in excchans:
 				chan.handle_except()
 			for chan in outchans:
-				chan.handle_write()
+				chan.do_write()
 			for chan in inchans:
-				chan.handle_read()
+				chan.do_read()
 
 class Channel(object):
 
 	def __init__(self, channel):
 		self.__channel = channel
+		#add_channel(self)
 
-	#def __del__(self):
-	#	log.debug("Closing channel %s", self)
-	#	self.__channel.close()
+	def __del__(self):
+		self.__channel.close()
 
 	@property
 	def channel(self):
@@ -59,11 +60,15 @@ class ServerPi(Channel):
 
 	def __init__(self, sock):
 		Channel.__init__(self, sock)
+		self.reset_all()
+		self.push_response(220, "Sup.")
+
+	def reset_all(self):
 		self.outbuf = ""
 		self.inbuf = ""
-		self.workdir = ""
+		self.workdir = "/"
 		self.type = "A"
-		self.push_response(220, "Sup.")
+		self.servdtp = None
 
 	def push_response(self, code, msg=None):
 		assert 100 <= code < 600, code
@@ -80,7 +85,7 @@ class ServerPi(Channel):
 	def need_read(self):
 		return True
 
-	def handle_write(self):
+	def do_write(self):
 		sendcnt = self.channel.send(self.outbuf)
 		self.outbuf = self.outbuf[sendcnt:]
 
@@ -88,7 +93,7 @@ class ServerPi(Channel):
 		self.channel.close()
 		remove_channel(self)
 
-	def handle_read(self):
+	def do_read(self):
 		data = self.channel.recv(0x100)
 		if not data:
 			self.handle_close()
@@ -107,51 +112,116 @@ class ServerPi(Channel):
 			self.inbuf = self.inbuf[index+len(self.ENDLINE):]
 			command = cmdline[:4].rstrip(" 1337\r\n").upper()
 			log.info("<== %r", cmdline)
-			log.debug("Command is %r", command)
+			#log.debug("Command is %r", command)
 			# if there are arguments, there'll be a space before them
 			argstr = cmdline[len(command)+1:]
 			try:
-				method = getattr(self, "interpret_" + command)
+				method = getattr(self, "ftp_" + command)
 			except AttributeError:
 				self.push_response(500, "Unknown command")
 			else:
 				method(argstr)
 
-	def interpret_USER(self, argstr):
+	def on_dtp_connect(self, sock):
+		self.servdtp = ServerDtp(sock)
+		add_channel(self.servdtp)
+
+	def quote_path(self, ftppath):
+		for c in self.ENDLINE:
+			assert c not in ftppath
+		return '"' + ftppath.replace('"', '""') + '"'
+
+	def ftp_USER(self, argstr):
 		self.username = argstr
 		self.push_response(230)
 
-	def interpret_SYST(self, argstr):
+	def ftp_SYST(self, argstr):
 		self.push_response(502, "Command not implemented")
 
-	def interpret_PWD(self, argstr):
-		pathname = self.workdir
-		pathname.replace('"', '""')
-		for c in self.ENDLINE:
-			assert c not in pathname
-		self.push_response(257, '"{0}" is the current directory'.format(pathname))
+	def ftp_PWD(self, argstr):
+		self.push_response(257, self.quote_path(self.workdir) + " is the current directory")
 
-	def interpret_TYPE(self, argstr):
+	def ftp_TYPE(self, argstr):
 		self.type = argstr
 		self.push_response(200, "Cool bananas")
 
-	def interpret_PASV(self, argstr):
-		import socket
-		dtsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		dtsock.bind((self.channel.getsockname()[0], 0))
-		sockname = dtsock.getsockname()
+	def ftp_PASV(self, argstr):
+		pasvdtp = PassiveDtp(self.channel.getsockname()[0], 0, self)
+		add_channel(pasvdtp)
+		sockname = pasvdtp.channel.getsockname()
 		hostpart = sockname[0].replace(".", ",")
 		servpart = "{0},{1}".format(sockname[1] / 256, sockname[1] % 256)
 		self.push_response(227, "Entering passive mode ({0},{1}).".format(hostpart, servpart))
-		add_channel(PassiveDtp(dtsock))
 
-	def interpret_RETR(self, argstr):
-		pass
+	#def ftp_RETR(self, argstr):
+	#	pass
 
-class PassiveDtp(Channel):
+	def is_retrievable(self, ftppath):
+		import os.path
+		return os.path.isfile(ftppath)
+
+	def ftp_SIZE(self, argstr):
+		import os.path
+		if self.is_retrievable(argstr):
+			self.push_response(213, str(os.path.getsize(argstr)))
+		else:
+			self.push_response(550, self.quote_path(argstr) + " is not retrievable")
+
+	def ftp_MDTM(self, argstr):
+		from os.path import isfile, getmtime
+		if self.is_retrievable(argstr):
+			self.push_response(213, str(os.path.getmtime(argstr)))
+		else:
+			self.push_response(550, self.quote_path(argstr) + " is not retrievable")
+
+	def ftp_RETR(self, argstr):
+		if not self.is_retrievable(argstr):
+			self.push_response(550, self.quote_path(argstr) + " is not retrievable")
+
+	def ftp_SYST(self, argstr):
+		self.push_response(215, "UNIX Type: L8")
+
+	def ftp_CWD(self, argstr):
+		import os.path
+		self.workdir = argstr
+		self.push_response(200, "directory changed to " + self.quote_path(self.workdir))
+
+class ServerDtp(Channel):
 
 	def __init__(self, sock):
 		Channel.__init__(self, sock)
+
+	def need_write(self):
+		return False
+
+	def need_read(self):
+		return False
+
+class PassiveDtp(Channel):
+
+	def __init__(self, host, serv, cmdchan):
+		import socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.bind((host, serv))
+		sock.listen(socket.SOMAXCONN)
+		log.info("Passive data channel listening on %s", sock.getsockname())
+		Channel.__init__(self, sock)
+		self.cmdchan = cmdchan
+
+	def need_write(self):
+		return False
+
+	def need_read(self):
+		return True
+
+	def do_read(self):
+		sock, addr = self.channel.accept()
+		log.info("Connection on passive data channel from %s", addr)
+		if addr[0] != self.cmdchan.channel.getsockname()[0]:
+			log.warning("Data channel remote host does not match command channel remote host")
+		self.channel.close()
+		remove_channel(self)
+		self.cmdchan.on_dtp_connect(sock)
 
 class FtpServer(Channel):
 
@@ -182,7 +252,7 @@ class FtpServer(Channel):
 	def need_read(self):
 		return True
 
-	def handle_read(self):
+	def do_read(self):
 		newsock, remaddr = self.channel.accept()
 		log.info("Connection from %s", newsock.getpeername())
 		add_channel(ServerPi(newsock))
