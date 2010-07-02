@@ -1,271 +1,189 @@
 #!/usr/bin/env python
 
-import logging as log
+import errno
+import os
+import pdb
+from pyftpdlib import ftpserver
+from pyftpdlib.ftpserver import AbstractedFS
+log = ftpserver.log
 
-class Multiplexor(object):
+__ver__ = "0.1.0"
+
+class InvalidPath(object):
+
+	pass
+
+class ShareRoot(object):
+
+	pass
+
+class LanshareFS(AbstractedFS):
+
+	shares = None # set this
 
 	def __init__(self):
-		self.channels = []
+		AbstractedFS.__init__(self)
+		# need to destroy root somehow, it's not used in this FS
 
-	def add_channel(self, channel):
-		assert channel not in self.channels
-		self.channels.append(channel)
+	def __log_original(self, before, after):
+		import inspect
+		log("%s.%s: %r->%r" % (
+				"ftpserver.AbstractedFS", inspect.stack()[1][3], before, after))
 
-	def remove_channel(self, channel):
-		self.channels.remove(channel)
+	def __log_override(self, before, after):
+		import inspect
+		log("%s.%s: %r->%r" % ("LanshareFS", inspect.stack()[1][3], before, after))
 
-	def serve_forever(self):
-		while True:
-			outchans = []
-			inchans = []
-			for chan in self.channels:
-				if chan.need_write():
-					outchans.append(chan)
-				if chan.need_read():
-					inchans.append(chan)
-			from select import select
-			inchans, outchans, excchans = select(inchans, outchans, self.channels)
-			for chan in excchans:
-				chan.handle_except()
-			for chan in outchans:
-				chan.do_write()
-			for chan in inchans:
-				chan.do_read()
+	def ftp2fs(self, ftppath):
+		#pdb.set_trace()
+		#before = ftppath
+		fullftp = self.ftpnorm(ftppath)
+		assert fullftp[0] == "/"
+		dirparts = fullftp.split("/")
+		assert not dirparts[0]
+		virtdir = dirparts[1]
+		if not virtdir:
+			return ShareRoot
+		try:
+			shrroot = self.shares[dirparts[1]]
+		except KeyError:
+			return InvalidPath
+		relvirt = "/".join(dirparts[2:])
+		if relvirt:
+			after = os.path.join(shrroot, relvirt)
+		else:
+			after = shrroot
+		return after
 
-class Channel(object):
+	def fs2ftp(self, fspath):
+		#pdb.set_trace()
+		if fspath in (InvalidPath, ShareRoot):
+			return "/"
+		oldroot = self.root
+		try:
+			ftppath = AbstractedFS.fs2ftp(self, fspath)
+			for virtdir, shrroot in self.shares.iteritems():
+				if ftppath.startswith(shrroot):
+					relvirt = ftppath[len(shrroot):]
+					relvirt = relvirt.lstrip("/")
+					ftppath = os.path.join(virtdir, relvirt)
+					if not ftppath.startswith("/"):
+						ftppath = "/" + ftppath
+					return ftppath
+			else:
+				return fspath
+		finally:
+			self.root = oldroot
 
-	def __init__(self, channel):
-		self.__channel = channel
-		#add_channel(self)
+	def validpath(self, path):
+		#pdb.set_trace()
+		if path is ShareRoot:
+			return True
+		if path is InvalidPath:
+			return False
+		oldroot = self.root
+		try:
+			for shrpath in self.shares.values():
+				self.root = shrpath
+				if AbstractedFS.validpath(self, path):
+					valid = True
+					break
+			else:
+				valid = False
+		finally:
+			self.root = oldroot
+		return valid
 
-	def __del__(self):
-		self.__channel.close()
+	def realpath(self, path):
+		#if path is ShareRoot:
+		#	return True
+		#else:
+		if path in (ShareRoot, InvalidPath):
+			return path
+		else:
+			return AbstractedFS.realpath(self, path)
 
-	@property
-	def channel(self):
-		return self.__channel
+	def isfile(self, path):
+		#pdb.set_trace()
+		if path is ShareRoot:
+			return False
+		else:
+			return AbstractedFS.isfile(self, path)
 
-	#def need_read(self):
-	#	raise NotImplementedError
+	def open(self, filename, mode):
+		if filename is ShareRoot:
+			raise IOError(errno.EISDIR, os.strerror(errno.EISDIR))
+		else:
+			return AbstractedFS.open(self, filename, mode)
 
-	#def need_write(self):
-	#	raise NotImplementedError
-
-	def fileno(self):
-		return self.__channel.fileno()
-
-class ServerPi(Channel):
-
-	ENDLINE = "\r\n"
-
-	def __init__(self, sock):
-		Channel.__init__(self, sock)
-		self.reset_all()
-		self.push_response(220, "Sup.")
-
-	def reset_all(self):
-		self.outbuf = ""
-		self.inbuf = ""
-		self.workdir = "/"
-		self.type = "A"
-		self.servdtp = None
-
-	def push_response(self, code, msg=None):
-		assert 100 <= code < 600, code
-		if msg is None:
-			msg = "No comment"
-		assert self.ENDLINE not in msg, msg
-		fullmsg = str(code) + " " + msg + self.ENDLINE
-		log.info("==> %r", fullmsg)
-		self.outbuf += fullmsg
-
-	def need_write(self):
-		return len(self.outbuf) > 0
-
-	def need_read(self):
-		return True
-
-	def do_write(self):
-		sendcnt = self.channel.send(self.outbuf)
-		self.outbuf = self.outbuf[sendcnt:]
-
-	def handle_close(self):
-		self.channel.close()
-		remove_channel(self)
-
-	def do_read(self):
-		data = self.channel.recv(0x100)
-		if not data:
-			self.handle_close()
+	def chdir(self, path):
+		if path is ShareRoot:
+			self.cwd = "/"
 			return
 		else:
-			self.inbuf += data
-		self.process_commands()
+			return AbstractedFS.chdir(self, path)
 
-	def process_commands(self):
-		while True:
-			try:
-				index = self.inbuf.index(self.ENDLINE)
-			except ValueError:
-				break
-			cmdline = self.inbuf[:index]
-			self.inbuf = self.inbuf[index+len(self.ENDLINE):]
-			command = cmdline[:4].rstrip(" 1337\r\n").upper()
-			log.info("<== %r", cmdline)
-			#log.debug("Command is %r", command)
-			# if there are arguments, there'll be a space before them
-			argstr = cmdline[len(command)+1:]
-			try:
-				method = getattr(self, "ftp_" + command)
-			except AttributeError:
-				self.push_response(500, "Unknown command")
-			else:
-				method(argstr)
-
-	def on_dtp_connect(self, sock):
-		self.servdtp = ServerDtp(sock)
-		add_channel(self.servdtp)
-
-	def quote_path(self, ftppath):
-		for c in self.ENDLINE:
-			assert c not in ftppath
-		return '"' + ftppath.replace('"', '""') + '"'
-
-	def ftp_USER(self, argstr):
-		self.username = argstr
-		self.push_response(230)
-
-	def ftp_SYST(self, argstr):
-		self.push_response(502, "Command not implemented")
-
-	def ftp_PWD(self, argstr):
-		self.push_response(257, self.quote_path(self.workdir) + " is the current directory")
-
-	def ftp_TYPE(self, argstr):
-		self.type = argstr
-		self.push_response(200, "Cool bananas")
-
-	def ftp_PASV(self, argstr):
-		pasvdtp = PassiveDtp(self.channel.getsockname()[0], 0, self)
-		add_channel(pasvdtp)
-		sockname = pasvdtp.channel.getsockname()
-		hostpart = sockname[0].replace(".", ",")
-		servpart = "{0},{1}".format(sockname[1] / 256, sockname[1] % 256)
-		self.push_response(227, "Entering passive mode ({0},{1}).".format(hostpart, servpart))
-
-	#def ftp_RETR(self, argstr):
-	#	pass
-
-	def is_retrievable(self, ftppath):
-		import os.path
-		return os.path.isfile(ftppath)
-
-	def ftp_SIZE(self, argstr):
-		import os.path
-		if self.is_retrievable(argstr):
-			self.push_response(213, str(os.path.getsize(argstr)))
+	def isdir(self, path):
+		if path is ShareRoot:
+			return True
 		else:
-			self.push_response(550, self.quote_path(argstr) + " is not retrievable")
+			return AbstractedFS.isdir(self, path)
 
-	def ftp_MDTM(self, argstr):
-		from os.path import isfile, getmtime
-		if self.is_retrievable(argstr):
-			self.push_response(213, str(os.path.getmtime(argstr)))
+	def listdir(self, path):
+		if path is ShareRoot:
+			return self.shares.keys()
 		else:
-			self.push_response(550, self.quote_path(argstr) + " is not retrievable")
+			return AbstractedFS.listdir(self, path)
 
-	def ftp_RETR(self, argstr):
-		if not self.is_retrievable(argstr):
-			self.push_response(550, self.quote_path(argstr) + " is not retrievable")
-
-	def ftp_SYST(self, argstr):
-		self.push_response(215, "UNIX Type: L8")
-
-	def ftp_CWD(self, argstr):
-		import os.path
-		self.workdir = argstr
-		self.push_response(200, "directory changed to " + self.quote_path(self.workdir))
-
-class ServerDtp(Channel):
-
-	def __init__(self, sock):
-		Channel.__init__(self, sock)
-
-	def need_write(self):
-		return False
-
-	def need_read(self):
-		return False
-
-class PassiveDtp(Channel):
-
-	def __init__(self, host, serv, cmdchan):
-		import socket
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		sock.bind((host, serv))
-		sock.listen(socket.SOMAXCONN)
-		log.info("Passive data channel listening on %s", sock.getsockname())
-		Channel.__init__(self, sock)
-		self.cmdchan = cmdchan
-
-	def need_write(self):
-		return False
-
-	def need_read(self):
-		return True
-
-	def do_read(self):
-		sock, addr = self.channel.accept()
-		log.info("Connection on passive data channel from %s", addr)
-		if addr[0] != self.cmdchan.channel.getsockname()[0]:
-			log.warning("Data channel remote host does not match command channel remote host")
-		self.channel.close()
-		remove_channel(self)
-		self.cmdchan.on_dtp_connect(sock)
-
-class FtpServer(Channel):
-
-	def __init__(self):
-		import socket
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		Channel.__init__(self, sock)
-		addr = ("", 1337)
-		try:
-			sock.bind(addr)
-		except socket.error as exc:
-			import errno
-			if exc.errno == errno.EADDRINUSE:
-				log.error("Unable to bind to %s", addr, exc_info=exc)
-				log.warning("Falling back to binding to any service")
-				#addr[1] = 0
-				sock.bind(addr[:1] + (0,))
-			else:
-				raise
-		sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		sock.listen(socket.SOMAXCONN)
-		log.info("Listening on %s", sock.getsockname())
-		#self.socket = sock
-
-	def need_write(self):
-		return False
-
-	def need_read(self):
-		return True
-
-	def do_read(self):
-		newsock, remaddr = self.channel.accept()
-		log.info("Connection from %s", newsock.getpeername())
-		add_channel(ServerPi(newsock))
+	def joinpath(self, head, tail):
+		if head is ShareRoot:
+			return self.shares[tail]
+		else:
+			return AbstractedFS.joinpath(self, head, tail)
 
 def main():
-	import sys
-	log.basicConfig(stream=sys.stdout, level=log.DEBUG)
-	multiplexor = Multiplexor()
-	global add_channel, remove_channel
-	add_channel = multiplexor.add_channel
-	remove_channel = multiplexor.remove_channel
-	add_channel(FtpServer())
-	multiplexor.serve_forever()
+	import ConfigParser as configparser
+	config = configparser.SafeConfigParser()
+	cfgpath = "lanshare.cfg"
+	sharesec = "shares"
+	config.read(cfgpath)
+	try:
+		config.add_section(sharesec)
+	except configparser.DuplicateSectionError:
+		pass
+	#global shares
+	shares = {}
+	import os.path
+	for name, value in config.items(sharesec):
+		#assert os.path.exists(value)
+		shares[name] = value
+
+	config.write(open(cfgpath, "w"))
+
+	from pyftpdlib import ftpserver
+	#from pyftpdlib.contrib.handlers import TLS_FTPHandler
+	authorizer = ftpserver.DummyAuthorizer()
+	authorizer.add_anonymous("/")
+	#handler = TLS_FTPHandler
+	handler = ftpserver.FTPHandler
+	handler.banner = "lanshare {0} ready".format(__ver__)
+	LanshareFS.shares = shares
+	handler.abstracted_fs = LanshareFS
+	#handler.tls_control_required = True
+	#handler.certfile = "wotevs.pem"
+	handler.authorizer = authorizer
+	server = ftpserver.FTPServer(("", 1337), handler)
+	#import Tkinter as tkinter
+
+	#tkroot = tkinter.Tk()
+	#sharelb = tkinter.Listbox(tkroot)
+	#sharelb.pack()
+	#closebtn = tkinter.Button(tkroot, text="Close", command=tkroot.quit())
+	#closebtn.pack()
+
+	#tkroot.mainloop()
+
+	server.serve_forever()
 
 if __name__ == "__main__":
 	main()

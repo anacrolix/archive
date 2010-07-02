@@ -115,7 +115,6 @@ Serving FTP on 127.0.0.1:21
 [anonymous]@127.0.0.1:2503 Disconnected.
 """
 
-
 import asyncore
 import asynchat
 import socket
@@ -131,6 +130,7 @@ import random
 import stat
 import heapq
 import optparse
+import pdb
 from tarfile import filemode as _filemode
 
 try:
@@ -1205,7 +1205,7 @@ class AbstractedFS:
     # --- Pathname / conversion utilities
 
     def ftpnorm(self, ftppath):
-        """Normalize a "virtual" ftp pathname (tipically the raw string
+        """Normalize a "virtual" ftp pathname (typically the raw string
         coming from client) depending on the current working directory.
 
         Example (having "/foo" as current working directory):
@@ -1213,7 +1213,7 @@ class AbstractedFS:
         '/foo/bar'
 
         Note: directory separators are system independent ("/").
-        Pathname returned is always absolutized.
+        Pathname returned is always absoluterized.
         """
         if os.path.isabs(ftppath):
             p = os.path.normpath(ftppath)
@@ -1235,7 +1235,7 @@ class AbstractedFS:
         return p
 
     def ftp2fs(self, ftppath):
-        """Translate a "virtual" ftp pathname (tipically the raw string
+        """Translate a "virtual" ftp pathname (typically the raw string
         coming from client) into equivalent absolute "real" filesystem
         pathname.
 
@@ -1302,6 +1302,9 @@ class AbstractedFS:
         if path[0:len(root)] == root:
             return True
         return False
+
+    def joinpath(self, head, tail):
+        return os.path.join(head, tail)
 
     # --- Wrapper methods around open() and tempfile.mkstemp
 
@@ -1500,7 +1503,7 @@ class AbstractedFS:
         else:
             timefunc = time.localtime
         for basename in listing:
-            file = os.path.join(basedir, basename)
+            file = self.joinpath(basedir, basename)
             try:
                 st = self.lstat(file)
             except os.error:
@@ -1567,7 +1570,7 @@ class AbstractedFS:
             permdir += 'p'
         type = size = perm = modify = create = unique = mode = uid = gid = ""
         for basename in listing:
-            file = os.path.join(basedir, basename)
+            file = self.joinpath(basedir, basename)
             try:
                 st = self.stat(file)
             except OSError:
@@ -1921,6 +1924,7 @@ class FTPHandler(asynchat.async_chat):
                         return
                     arg = self.fs.ftp2fs(arg or self.fs.cwd)
                 else:  # LIST, NLST, MLSD, MLST
+                    #pdb.set_trace()
                     arg = self.fs.ftp2fs(arg or self.fs.cwd)
 
                 if not self.fs.validpath(arg):
@@ -2820,6 +2824,7 @@ class FTPHandler(asynchat.async_chat):
 
     def ftp_CWD(self, path):
         """Change the current working directory."""
+        pdb.set_trace()
         line = self.fs.fs2ftp(path)
         try:
             self.run_as_current_user(self.fs.chdir, path)
