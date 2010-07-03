@@ -2824,7 +2824,7 @@ class FTPHandler(asynchat.async_chat):
 
     def ftp_CWD(self, path):
         """Change the current working directory."""
-        pdb.set_trace()
+        #pdb.set_trace()
         line = self.fs.fs2ftp(path)
         try:
             self.run_as_current_user(self.fs.chdir, path)
