@@ -344,6 +344,9 @@ class Error(Exception):
 class AuthorizerError(Error):
     """Base class for authorizer exceptions."""
 
+class InvalidPath(Error):
+    """Given FTP path not valid in the filesystem."""
+    pass
 
 # --- loggers
 
@@ -1909,28 +1912,29 @@ class FTPHandler(asynchat.async_chat):
             # for file-system related commands check whether real path
             # destination is valid
             if self.proto_cmds[cmd].check_path and (cmd != 'STOU'):
-                if cmd in ('CWD', 'XCWD'):
-                    arg = self.fs.ftp2fs(arg or '/')
-                elif cmd in ('CDUP', 'XCUP'):
-                    arg = self.fs.ftp2fs('..')
-                elif cmd == 'LIST':
-                    if arg.lower() in ('-a', '-l', '-al', '-la'):
-                        arg = self.fs.ftp2fs(self.fs.cwd)
-                    else:
+                try:
+                    if cmd in ('CWD', 'XCWD'):
+                        arg = self.fs.ftp2fs(arg or '/')
+                    elif cmd in ('CDUP', 'XCUP'):
+                        arg = self.fs.ftp2fs('..')
+                    elif cmd == 'LIST':
+                        if arg.lower() in ('-a', '-l', '-al', '-la'):
+                            arg = self.fs.ftp2fs(self.fs.cwd)
+                        else:
+                            arg = self.fs.ftp2fs(arg or self.fs.cwd)
+                    elif cmd == 'STAT':
+                        if glob.has_magic(arg):
+                            self.respond('550 Globbing not supported.')
+                            return
                         arg = self.fs.ftp2fs(arg or self.fs.cwd)
-                elif cmd == 'STAT':
-                    if glob.has_magic(arg):
-                        self.respond('550 Globbing not supported.')
-                        return
-                    arg = self.fs.ftp2fs(arg or self.fs.cwd)
-                else:  # LIST, NLST, MLSD, MLST
-                    #pdb.set_trace()
-                    arg = self.fs.ftp2fs(arg or self.fs.cwd)
-
-                if not self.fs.validpath(arg):
-                    line = self.fs.fs2ftp(arg)
-                    err = '"%s" points to a path which is outside ' \
-                          "the user's root directory" %line
+                    else:  # LIST, NLST, MLSD, MLST
+                        #pdb.set_trace()
+                        arg = self.fs.ftp2fs(arg or self.fs.cwd)
+                except InvalidPath as exc:
+                    #line = self.fs.fs2ftp(arg)
+                    #err = '"%s" points to a path which is outside ' \
+                    #      "the user's root directory" %line
+                    err = exc.message
                     self.respond("550 %s." %err)
                     self.log('FAIL %s "%s". %s.' %(cmd, line, err))
                     return

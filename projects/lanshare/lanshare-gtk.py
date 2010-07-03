@@ -15,8 +15,6 @@ class LanshareGtk(Lanshare):
 		Lanshare.__init__(self)
 
 		sharestore = gtk.ListStore(str, str)
-		for virtdir, shrroot in self.config.shares.iteritems():
-			sharestore.append((virtdir, shrroot))
 
 		shareview = gtk.TreeView(sharestore)
 		shareview.insert_column_with_attributes(
@@ -27,14 +25,13 @@ class LanshareGtk(Lanshare):
 		addshrbtn = gtk.Button("New Share", stock=gtk.STOCK_ADD)
 		addshrbtn.connect("clicked", self.add_share)
 
-		remshrbtn = gtk.Button(None, gtk.STOCK_REMOVE)
-		#addshrbtn.set_image(stock_image(gtk.STOCK_ADD))
-		#addshrbtn.set_image()
-		#addshrbtn.set_image(gtk.STOCK_ADD)
+		remshrbtn = gtk.Button("Remove Share", stock=gtk.STOCK_REMOVE)
+		remshrbtn.connect("clicked", self.remove_share)
 
 		sharebtns = gtk.VButtonBox()
 		sharebtns.add(addshrbtn)
 		sharebtns.add(remshrbtn)
+		sharebtns.set_layout(gtk.BUTTONBOX_START)
 
 		sharepage = gtk.HBox()
 		sharepage.add(shareview)
@@ -57,11 +54,21 @@ class LanshareGtk(Lanshare):
 		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		window.connect("destroy", self.destroy)
 		window.add(notebook)
+		window.set_title(self.__title__)
+		window.show_all()
 
 		from gobject import idle_add
 		idle_add(self.gui_idle)
 
-		window.show_all()
+		self.sharestore = sharestore
+		self.shareview = shareview
+
+		self.populate_shares()
+
+	def populate_shares(self):
+		self.sharestore.clear()
+		for virtdir, shrroot in self.config.shares.iteritems():
+			self.sharestore.append((virtdir, shrroot))
 
 	def add_share(self, button):
 		namelbl = gtk.Label("Share name:")
@@ -100,10 +107,18 @@ class LanshareGtk(Lanshare):
 		dialog.vbox.show_all()
 
 		response = dialog.run()
+		#pdb.set_trace()
 		if response == gtk.RESPONSE_OK:
 			shrroot = pathdlg.get_filename()
 			self.config.shares[entry.get_text()] = shrroot
+			self.populate_shares()
 		dialog.destroy()
+
+	def remove_share(self, widget=None):
+		store, rowpaths = self.shareview.get_selection().get_selected_rows()
+		for path in rowpaths:
+			del self.config.shares[store[path][0]]
+		self.populate_shares()
 
 	def gui_idle(self):
 		try:

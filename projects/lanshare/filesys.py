@@ -1,7 +1,5 @@
-from pyftpdlib.ftpserver import AbstractedFS, log
-
-class InvalidPath(object):
-	pass
+from pyftpdlib.ftpserver import AbstractedFS, log, InvalidPath
+import pdb
 
 class ShareRoot(object):
 	pass
@@ -35,14 +33,17 @@ class LanshareFS(AbstractedFS):
 		if not virtdir:
 			return ShareRoot
 		try:
-			shrroot = self.shares[dirparts[1]]
+			shrroot = self.shares[virtdir]
 		except KeyError:
-			return InvalidPath
+			raise InvalidPath('Share "{0}" does not exist'.format(virtdir))
 		relvirt = "/".join(dirparts[2:])
 		if relvirt:
 			after = os.path.join(shrroot, relvirt)
 		else:
 			after = shrroot
+
+		assert self.validpath(after), after
+
 		return after
 
 	def fs2ftp(self, fspath):
@@ -71,7 +72,8 @@ class LanshareFS(AbstractedFS):
 		if path is ShareRoot:
 			return True
 		if path is InvalidPath:
-			return False
+			# hrm what should happen here?
+			assert False, path
 		oldroot = self.root
 		try:
 			for shrpath in self.shares.values():

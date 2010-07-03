@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-__ver__ = "0.1.0"
-__pname__ = "LanShare"
-__author__ = "Matt Joiner <anacrolix@gmail.com>"
-
 class Lanshare(object):
+
+	__version__ = "0.1.0"
+	__program__ = "LanShare"
+	__title__ = "{0} v{1}".format(__program__, __version__)
+	__author__ = "Matt Joiner <anacrolix@gmail.com>"
 
 	def __init__(self):
 		object.__init__(self)
@@ -30,14 +31,14 @@ class Lanshare(object):
 			handler.certfile = "wotevs.pem"
 		else:
 			handler = ftpserver.FTPHandler
-		handler.banner = "LanShare {0} ready.".format(__ver__)
+		handler.banner = "{0} ready".format(self.__title__)
 		from filesys import LanshareFS
 		LanshareFS.shares = config.shares
 		handler.abstracted_fs = LanshareFS
 		authorizer = ftpserver.DummyAuthorizer()
 		authorizer.add_anonymous("/")
 		handler.authorizer = authorizer
-		self.server = ftpserver.FTPServer(("", 1337), handler)
+		self.server = ftpserver.FTPServer(("", options.port), handler)
 		self.config = config
 
 	def __call__(self):
