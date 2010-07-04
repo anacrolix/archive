@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
+import os
+if os.name == "nt":
+    os.environ["PATH"] += r";gtk\bin"
+import pdb
+
 import gtk
 from lanshare import Lanshare
-import pdb
 
 def stock_image(stock_id):
 	image = gtk.Image()

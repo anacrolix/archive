@@ -16,4 +16,4 @@ class Config(object):
 		for name, value in config.items(sharesec):
 			shares[name] = value
 		self.shares = shares
-		config.write(open(cfgpath, "w"))
+		config.write(open(cfgpath, "wb"))
