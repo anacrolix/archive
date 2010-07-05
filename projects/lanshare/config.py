@@ -47,7 +47,7 @@ class Config(object):
 			pass
 
 	def save(self):
-		self.__config.write(open(self.cfgpath, "w"))
+		self.__config.write(open(self.cfgpath, "wb"))
 
 	@property
 	def shares(self):

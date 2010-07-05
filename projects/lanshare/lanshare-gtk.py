@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import os
+if os.name == "nt":
+	os.environ["PATH"] += r";gtk\bin"
 import pdb
 import time
 
@@ -95,16 +98,19 @@ class LanshareGtk(Lanshare):
 
 	def browse_peer(self, url):
 		import subprocess
-		try:
-			subprocess.check_call(["xdg-open", url])
-		except subprocess.CalledProcessError as exc:
-			print exc
-		try:
-			subprocess.check_call(["nautilus", url])
-		finally:
-			pass
-		#except Exception as exc:
-		#	pdb.set_trace()
+		for args in [
+				["xdg-open", url],
+				["nautilus", url],
+				]:
+			try:
+				subprocess.check_call(*args)
+			except Exception as exc:
+				print exc
+			else:
+				return
+		else:
+			import webbrowser
+			webbrowser.open(url)
 
 	def peer_view_row_activated(self, view, path, column):
 		self.browse_peer(self.get_peer_url(view.get_model()[path]))
@@ -122,16 +128,18 @@ class LanshareGtk(Lanshare):
 
 	def peer_network_address_cell_data_func(self, column, cell, model, iter):
 		text = self.get_peer_url(model[iter])
-		print text
+		#print text
 		cell.set_property("text", text)
 		#cell.text =
 
 	def create_peer_socket(self):
 		import socket
-		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, True)
-		# TODO make this ipv4/6 transparent
-		sock.bind(("", self.port))
+        info = socket.getaddrinfo("", self.port, socktype=socket.SOCK_DGRAM)
+        for family, socktype, proto, canonname, sockaddr in info:
+            sock = socket.socket(family, socktype, proto)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, True)
+            sock.bind(sockaddr)
+            break
 
 		glib.io_add_watch(
 				sock,
@@ -184,7 +192,7 @@ class LanshareGtk(Lanshare):
 		self.populate_shares()
 
 	def peer_tick(self):
-		print "peer tick"
+		#print "peer tick"
 		self.send_peer_announce()
 		from time import time
 		delrefs = []
