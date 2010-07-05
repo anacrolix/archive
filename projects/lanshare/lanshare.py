@@ -12,8 +12,8 @@ class Lanshare(object):
 
 		from optparse import OptionParser
 		parser = OptionParser()
-		parser.add_option("--no-gui", default=False, action="store_true",
-				help="Don't load the GUI")
+		#parser.add_option("--no-gui", default=False, action="store_true",
+		#		help="Don't load the GUI")
 		parser.add_option("--secure", default=False, action="store_true",
 				help="Require explicit TLS on command and data connections")
 		parser.add_option("--port", default=1337, action="store", type="int",
@@ -38,8 +38,11 @@ class Lanshare(object):
 		authorizer = ftpserver.DummyAuthorizer()
 		authorizer.add_anonymous("/")
 		handler.authorizer = authorizer
-		self.server = ftpserver.FTPServer(("", options.port), handler)
+		server = ftpserver.FTPServer(("", options.port), handler)
+
+		self.server = server
 		self.config = config
+		self.port = options.port
 
 	def __call__(self):
 		self.server.serve_forever()
