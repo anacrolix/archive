@@ -415,9 +415,10 @@ class DummyAuthorizer:
         """
         if self.has_user(username):
             raise AuthorizerError('User "%s" already exists' %username)
-        if not os.path.isdir(homedir):
-            raise AuthorizerError('No such directory: "%s"' %homedir)
-        homedir = os.path.realpath(homedir)
+        if homedir is not None:
+            if not os.path.isdir(homedir):
+                raise AuthorizerError('No such directory: "%s"' %homedir)
+            homedir = os.path.realpath(homedir)
         self._check_permissions(username, perm)
         dic = {'pwd': str(password),
                'home': homedir,
@@ -504,7 +505,8 @@ class DummyAuthorizer:
         if path is None:
             return perm in self.user_table[username]['perm']
 
-        path = os.path.normcase(path)
+        if len(self.user_table[username]['operms']) > 0:
+            path = os.path.normcase(path)
         for dir in self.user_table[username]['operms'].keys():
             operm, recursive = self.user_table[username]['operms'][dir]
             if self._issubpath(path, dir):
@@ -566,7 +568,7 @@ class PassiveDTP(asyncore.dispatcher):
         """Initialize the passive data server.
 
          - (instance) cmd_channel: the command channel class instance.
-         - (bool) extmode: wheter use extended passive mode response type.
+         - (bool) extmode: whether to use extended passive mode response type.
         """
         asyncore.dispatcher.__init__(self)
         self.cmd_channel = cmd_channel
@@ -1179,7 +1181,7 @@ class BufferedIteratorProducer:
 
 # --- filesystem
 
-class AbstractedFS:
+class AbstractedFS(object):
     """A class used to interact with the file system, providing a
     cross-platform interface compatible with both Windows and
     UNIX style filesystems where all paths use "/" separator.
@@ -1199,11 +1201,22 @@ class AbstractedFS:
      - (str) rnfr: source file to be renamed.
     """
 
+    __slots__ = "__homedir", "cwd", "rnfr", "cmd_channel"
+
     def __init__(self):
-        self.root = None
+        object.__init__(self)
+        self.__homedir = None
         self.cwd = '/'
         self.rnfr = None
         self.cmd_channel = None  # XXX - temporary
+
+    @property
+    def root(self):
+        print "Deprecated use of root"
+        return self.__homedir
+
+    def set_home_dir(self, homedir):
+        self.__homedir = homedir
 
     # --- Pathname / conversion utilities
 
@@ -2791,7 +2804,7 @@ class FTPHandler(asynchat.async_chat):
             self.authenticated = True
             self.password = line
             self.attempted_logins = 0
-            self.fs.root = self.authorizer.get_home_dir(self.username)
+            self.fs.set_home_dir(self.authorizer.get_home_dir(self.username))
             self.fs.cmd_channel = self  # XXX - temporary
             self.log("User %s logged in." %self.username)
             self.on_login(self.username)

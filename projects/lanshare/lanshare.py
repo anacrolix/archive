@@ -2,7 +2,7 @@
 
 class Lanshare(object):
 
-	__version__ = "0.1.0"
+	__version__ = "0.1.0dev"
 	__program__ = "LanShare"
 	__title__ = "{0} v{1}".format(__program__, __version__)
 	__author__ = "Matt Joiner <anacrolix@gmail.com>"
@@ -12,14 +12,12 @@ class Lanshare(object):
 
 		from optparse import OptionParser
 		parser = OptionParser()
-		#parser.add_option("--no-gui", default=False, action="store_true",
-		#		help="Don't load the GUI")
 		parser.add_option("--secure", default=False, action="store_true",
 				help="Require explicit TLS on command and data connections")
 		parser.add_option("--port", default=1337, action="store", type="int",
 				help="Set the LanShare FTP port")
 		options, posargs = parser.parse_args()
-		print options, posargs
+		#print options, posargs
 
 		from config import Config
 		config = Config()
@@ -36,9 +34,11 @@ class Lanshare(object):
 		LanshareFS.shares = config.shares
 		handler.abstracted_fs = LanshareFS
 		authorizer = ftpserver.DummyAuthorizer()
-		authorizer.add_anonymous("/")
+		authorizer.add_anonymous(homedir=None)
 		handler.authorizer = authorizer
-		server = ftpserver.FTPServer(("", options.port), handler)
+		import socket
+		server = ftpserver.FTPServer(("0.0.0.0", options.port), handler)
+		print "FTP server listening on {0}".format(server.socket.getsockname())
 
 		self.server = server
 		self.config = config

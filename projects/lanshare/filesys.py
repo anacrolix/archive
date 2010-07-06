@@ -1,36 +1,43 @@
-from pyftpdlib.ftpserver import AbstractedFS, log, InvalidPath
 import pdb
+
+from pyftpdlib.ftpserver import AbstractedFS, log, InvalidPath
 
 class ShareRoot(object):
 	pass
 
 class LanshareFS(AbstractedFS):
 
+	__slots__ = []
+
 	shares = None # set this
 
 	def __init__(self):
 		AbstractedFS.__init__(self)
-		# need to destroy root somehow, it's not used in this FS
 
-	def __log_original(self, before, after):
-		import inspect
-		log("%s.%s: %r->%r" % (
-				"ftpserver.AbstractedFS", inspect.stack()[1][3], before, after))
+	# --- There is no home directory concept in this filesystem
 
-	def __log_override(self, before, after):
-		import inspect
-		log("%s.%s: %r->%r" % ("LanshareFS", inspect.stack()[1][3], before, after))
+	def set_home_dir(self, homedir):
+		assert homedir is None, homedir
+
+	@property
+	def root(self):
+		# make sure the root has not been set
+		origrv = AbstractedFS.root.fget(self)
+		assert origrv is None, origrv
+		assert False, "Don't call this"
+
+	# ---
 
 	def ftp2fs(self, ftppath):
-		#pdb.set_trace()
-		#before = ftppath
 		import os.path
 		fullftp = self.ftpnorm(ftppath)
-		assert fullftp[0] == "/"
+		assert fullftp[0] == "/", fullftp
 		dirparts = fullftp.split("/")
-		assert not dirparts[0]
+		# there should be a leading /
+		assert not dirparts[0], dirparts
 		virtdir = dirparts[1]
 		if not virtdir:
+			assert fullftp == "/", fullftp
 			return ShareRoot
 		try:
 			shrroot = self.shares[virtdir]
@@ -38,59 +45,33 @@ class LanshareFS(AbstractedFS):
 			raise InvalidPath('Share "{0}" does not exist'.format(virtdir))
 		relvirt = "/".join(dirparts[2:])
 		if relvirt:
-			after = os.path.join(shrroot, relvirt)
+			retval = os.path.join(shrroot, relvirt)
 		else:
-			after = shrroot
-
-		assert self.validpath(after), after
-
-		return after
+			retval = shrroot
+		retval = os.path.normpath(retval)
+		#assert self.validpath(retval), retval
+		return retval
 
 	def fs2ftp(self, fspath):
-		#pdb.set_trace()
 		import os.path
 		if fspath in (InvalidPath, ShareRoot):
 			return "/"
-		oldroot = self.root
-		try:
-			ftppath = AbstractedFS.fs2ftp(self, fspath)
-			for virtdir, shrroot in self.shares.iteritems():
-				if ftppath.startswith(shrroot):
-					relvirt = ftppath[len(shrroot):]
-					relvirt = relvirt.lstrip("/")
-					ftppath = os.path.join(virtdir, relvirt)
-					if not ftppath.startswith("/"):
-						ftppath = "/" + ftppath
-					return ftppath
-			else:
-				return fspath
-		finally:
-			self.root = oldroot
+		for virtdir, shrroot in self.shares.iteritems():
+			shrroot = os.path.normpath(shrroot)
+			if fspath.startswith(shrroot):
+				relvirt = fspath[len(shrroot):]
+				relvirt = relvirt.lstrip(os.sep)
+				relvirt = relvirt.replace(os.sep, "/")
+				ftppath = os.path.join("/" + virtdir, relvirt)
+				ftppath = ftppath.replace(os.sep, "/")
+				return ftppath
+		else:
+			assert False, fspath
 
 	def validpath(self, path):
-		#pdb.set_trace()
-		if path is ShareRoot:
-			return True
-		if path is InvalidPath:
-			# hrm what should happen here?
-			assert False, path
-		oldroot = self.root
-		try:
-			for shrpath in self.shares.values():
-				self.root = shrpath
-				if AbstractedFS.validpath(self, path):
-					valid = True
-					break
-			else:
-				valid = False
-		finally:
-			self.root = oldroot
-		return valid
+		assert False
 
 	def realpath(self, path):
-		#if path is ShareRoot:
-		#	return True
-		#else:
 		if path in (ShareRoot, InvalidPath):
 			return path
 		else:
