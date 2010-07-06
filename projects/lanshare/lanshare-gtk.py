@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 import os
-if os.name == "nt":
-    os.environ["PATH"] += os.pathsep + r"gtk\bin"
 import pdb
 import time
 
+if os.name == "nt":
+    # put possible local copy of gtk dlls on path
+    os.environ["PATH"] += os.pathsep + r"gtk\bin"
 import glib
 import gtk
 
@@ -17,6 +18,8 @@ def stock_image(stock_id):
     return image
 
 class LanshareGtk(Lanshare):
+
+    __slots__ = "peerstore", "sharestore", "shareview", "peersock"
 
     # remove peer if announce isn't received for this long
     peer_timeout = 3
@@ -60,7 +63,7 @@ class LanshareGtk(Lanshare):
                 -1, "Peer Name", gtk.CellRendererText(), text=0)
         peerview.insert_column_with_data_func(
                  -1, "Network Address", gtk.CellRendererText(),
-                 self.peer_network_address_cell_data_func)
+                 self.peer_view_network_address_cell_data_func)
         peerview.connect("row-activated", self.peer_view_row_activated)
 
         browse_peer_button = gtk.Button("Browse")
@@ -96,37 +99,48 @@ class LanshareGtk(Lanshare):
         self.sharestore = sharestore
         self.shareview = shareview
 
-    def browse_peer(self, url):
-        import subprocess
-        for args in [
-                ["xdg-open", url],
-                ["nautilus", url],
-                ]:
-            try:
-                subprocess.check_call(args)
-            except Exception as exc:
-                pass
-            else:
+    def browse_peer_by_url(self, url):
+        """Open the given peer URL with the most natural file manager for the
+        current platform that we can find"""
+        import os, subprocess
+        if os.name == "nt":
+            # this is how it's done programmatically? except that it won't invoke
+            # the default file manager (explorer) on winders
+            #ShellExecute(None, "explore", url, None, None, SW_SHOWNORMAL)
+
+            # invoke explorer directly. why does it return 1 on success?
+            if subprocess.call(["explorer", url]) == 1:
                 return
-        else:
-            import webbrowser
-            webbrowser.open(url)
+        # this goes through to gnome-open on gnome, neither of which automatically
+        # mount it, and complain that the address isn't available
+        subprocess.check_call(["xdg-open", url])
+
+        # explicitly invoking the file manager works as intended, as with the
+        # windows explorer
+        subprocess.check_call(["nautilus", url])
+
+        # fall back to using the preferred browser
+        import webbrowser
+        webbrowser.open(url)
 
     def peer_view_row_activated(self, view, path, column):
-        self.browse_peer(self.get_peer_url(view.get_model()[path]))
+        self.browse_peer_by_url(self.get_peer_url(view.get_model()[path]))
 
     def browse_peer_button_clicked(self, button, view):
         model, iter = view.get_selection().get_selected()
-        self.browse_peer(self.get_peer_url(model[iter]))
+        self.browse_peer_by_url(self.get_peer_url(model[iter]))
 
     def get_peer_url(self, peer_store_row):
+        """Return a complete URL from a given row in the peer view"""
         from urlparse import urlunsplit
+        # why must the network location be built manually? this will need to be
+        # modified if it is to support IPv6 addresses correctly
         return urlunsplit((
                 peer_store_row[4],
                 "{0}:{1}".format(peer_store_row[1], peer_store_row[2]),
                 "", "", ""))
 
-    def peer_network_address_cell_data_func(self, column, cell, model, iter):
+    def peer_view_network_address_cell_data_func(self, column, cell, model, iter):
         text = self.get_peer_url(model[iter])
         #print text
         cell.set_property("text", text)
@@ -150,9 +164,13 @@ class LanshareGtk(Lanshare):
 
     def send_peer_announce(self):
         import socket
-        self.peersock.sendto(
-                repr({"protocol": "ftp", "hostname": socket.gethostname()}),
-                ("255.255.255.255", self.port))
+        try:
+            self.peersock.sendto(
+                    repr({"protocol": "ftp", "hostname": socket.gethostname()}),
+                    ("255.255.255.255", self.port))
+        except socket.error as exc:
+            import traceback
+            traceback.print_exc()
 
     def peer_socket_event(self, source, condition):
         if condition & glib.IO_IN:
@@ -189,16 +207,20 @@ class LanshareGtk(Lanshare):
         self.populate_shares()
 
     def peer_tick(self):
-        #print "peer tick"
-        self.send_peer_announce()
-        from time import time
-        delrefs = []
-        for row in self.peerstore:
-            if time() >= row[3] + self.peer_timeout:
-                delrefs.append(gtk.TreeRowReference(row.model, row.path))
-        for ref in delrefs:
-            del self.peerstore[ref.get_path()]
-        return True
+        try:
+            self.send_peer_announce()
+            from time import time
+            delrefs = []
+            for row in self.peerstore:
+                if time() >= row[3] + self.peer_timeout:
+                    delrefs.append(gtk.TreeRowReference(row.model, row.path))
+            for ref in delrefs:
+                del self.peerstore[ref.get_path()]
+        except:
+            import traceback
+            traceback.print_exc()
+        finally:
+            return True
 
     def populate_shares(self):
         self.sharestore.clear()
