@@ -6,6 +6,8 @@ syntax: glob
 *.user
 
 syntax: regexp
-tibia/butox/cutil/(monoclk|getxwin|ptraceidle|readmem|xsendkey)
-projects/prolepsis/(members|stances)\.(bak|dat|dir)
+^tibia/butox/cutil/(monoclk|getxwin|ptraceidle|readmem|xsendkey)
+^projects/prolepsis/(members|stances)\.(bak|dat|dir)
 Debug/
+^projects/lanshare/gtk/
+^projects/lanshare/lanshare.cfg$
