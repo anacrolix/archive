@@ -22,9 +22,9 @@ class LanshareGtk(Lanshare):
     __slots__ = "peerstore", "sharestore", "shareview", "peersock"
 
     # remove peer if announce isn't received for this long
-    peer_timeout = 3
+    peer_timeout = 10
     # send out announces and check timeouts with this interval
-    peer_announce_interval = 1
+    peer_announce_interval = 3
 
     def create_gui(self):
         # store contains (virtual dir name, actual fs path)
@@ -72,6 +72,9 @@ class LanshareGtk(Lanshare):
 
         refresh_peers_button = gtk.Button("Refresh")
         refresh_peers_button.set_image(stock_image(gtk.STOCK_FIND))
+        refresh_peers_button.connect(
+                "clicked",
+                lambda button: self.send_peer_announce)
 
         peer_buttons = gtk.VButtonBox()
         peer_buttons.add(browse_peer_button)
@@ -232,10 +235,6 @@ class LanshareGtk(Lanshare):
 
         entry = gtk.Entry()
 
-        namebox = gtk.HBox(spacing=10)
-        namebox.pack_start(namelbl)
-        namebox.pack_start(entry)
-
         pathlbl = gtk.Label("Actual path:")
 
         pathdlg = gtk.FileChooserDialog(
@@ -248,9 +247,11 @@ class LanshareGtk(Lanshare):
 
         pathbtn = gtk.FileChooserButton(pathdlg)
 
-        pathbox = gtk.HBox(spacing=10)
-        pathbox.pack_start(pathlbl)
-        pathbox.pack_start(pathbtn)
+        table = gtk.Table(rows=2, columns=2)
+        table.attach(namelbl, 0, 1, 0, 1)
+        table.attach(entry, 1, 2, 0, 1)
+        table.attach(pathlbl, 0, 1, 1, 2)
+        table.attach(pathbtn, 1, 2, 1, 2)
 
         dialog = gtk.Dialog(
                 title="Create New Share",
@@ -259,16 +260,19 @@ class LanshareGtk(Lanshare):
                 buttons=(
                     gtk.STOCK_NEW, gtk.RESPONSE_OK,
                     gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
-        dialog.vbox.pack_start(namebox)
-        dialog.vbox.pack_start(pathbox)
+        dialog.set_default_response(gtk.RESPONSE_OK)
+        dialog.vbox.pack_start(table)
         dialog.vbox.show_all()
 
         response = dialog.run()
         #pdb.set_trace()
         if response == gtk.RESPONSE_OK:
             shrroot = pathdlg.get_filename()
-            self.config.shares[entry.get_text()] = shrroot
-            self.populate_shares()
+            virtdir = entry.get_text()
+            if shrroot and virtdir:
+                self.config.shares[virtdir] = shrroot
+                self.populate_shares()
+
         dialog.destroy()
 
     def remove_share(self, widget=None):

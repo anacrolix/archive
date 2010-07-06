@@ -40,7 +40,10 @@ class Config(object):
 	def __init__(self):
 		import ConfigParser as configparser
 		self.__config = configparser.SafeConfigParser()
-		self.__config.read(self.cfgpath)
+		try:
+			self.__config.read(self.cfgpath)
+		except configparser.ParsingError as exc:
+			print exc
 		try:
 			self.__config.add_section(self.sharesec)
 		except configparser.DuplicateSectionError:
