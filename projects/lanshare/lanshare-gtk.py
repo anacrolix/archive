@@ -116,11 +116,21 @@ class LanshareGtk(Lanshare):
                 return
         # this goes through to gnome-open on gnome, neither of which automatically
         # mount it, and complain that the address isn't available
-        subprocess.check_call(["xdg-open", url])
+        try:
+            subprocess.check_call(["xdg-open", url])
+        except subprocess.CalledProcessError as exc:
+            print exc
+        else:
+            return
 
         # explicitly invoking the file manager works as intended, as with the
         # windows explorer
-        subprocess.check_call(["nautilus", url])
+        try:
+            subprocess.check_call(["nautilus", url])
+        except subprocess.CalledProcessError as exc:
+            print exc
+        else:
+            return
 
         # fall back to using the preferred browser
         import webbrowser
