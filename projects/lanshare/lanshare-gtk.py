@@ -7,6 +7,8 @@ import time
 if os.name == "nt":
     # put possible local copy of gtk dlls on path
     os.environ["PATH"] += os.pathsep + r"gtk\bin"
+# having these libs explictly helps build standalone executables
+import gio
 import glib
 import gtk
 

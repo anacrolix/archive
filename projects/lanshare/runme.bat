@@ -1,1 +1,1 @@
-Python\Python.exe lanshare-gtk.py
+Python\Pythonw.exe lanshare-gtk.py

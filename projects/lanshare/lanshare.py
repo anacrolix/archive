@@ -2,7 +2,7 @@
 
 class Lanshare(object):
 
-    __version__ = "0.1.0dev"
+    __version__ = "0.2"
     __program__ = "Lanshare"
     __title__ = "{0} v{1}".format(__program__, __version__)
     __author__ = "Matt Joiner <anacrolix@gmail.com>"
