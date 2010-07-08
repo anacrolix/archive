@@ -260,6 +260,9 @@ class LanshareGtk(Lanshare):
         pathbtn = gtk.FileChooserButton(pathdlg)
 
         table = gtk.Table(rows=2, columns=2)
+        table.set_border_width(5)
+        table.set_col_spacings(5)
+        table.set_row_spacings(5)
         table.attach(namelbl, 0, 1, 0, 1)
         table.attach(entry, 1, 2, 0, 1)
         table.attach(pathlbl, 0, 1, 1, 2)
@@ -270,7 +273,7 @@ class LanshareGtk(Lanshare):
                 parent=None,
                 flags=gtk.DIALOG_MODAL|gtk.DIALOG_DESTROY_WITH_PARENT,
                 buttons=(
-                    gtk.STOCK_NEW, gtk.RESPONSE_OK,
+                    gtk.STOCK_OK, gtk.RESPONSE_OK,
                     gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
         dialog.set_default_response(gtk.RESPONSE_OK)
         dialog.vbox.pack_start(table)

@@ -9,5 +9,5 @@ syntax: regexp
 ^tibia/butox/cutil/(monoclk|getxwin|ptraceidle|readmem|xsendkey)
 ^projects/prolepsis/(members|stances)\.(bak|dat|dir)
 Debug/
-^projects/lanshare/((gtk|Python).*/|(lanshare|build)/|lanshare.cfg$)
+^projects/lanshare/((gtk|Python).*/|(lanshare|build|dist)/|lanshare.cfg$)
 ^projects/lanshare/lanshare.cfg$
