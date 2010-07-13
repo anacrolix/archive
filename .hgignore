@@ -11,3 +11,4 @@ syntax: regexp
 Debug/
 ^projects/lanshare/((gtk|Python).*/|(lanshare|build|dist)/|lanshare.cfg$)
 ^projects/lanshare/lanshare.cfg$
+^projects/pimu/(DLLs|Lib)/
