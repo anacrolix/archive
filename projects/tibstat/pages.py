@@ -378,25 +378,38 @@ def pz_locked(doc, pageContext):
     curtime = int(time.time())
     limits = (0, 30)
     #limits = (0, 200)
-    doc.write("Players sorted by descending protection zone lock time remaining. Also shown is their level, vocation, guild, and most recent victim.")
+    doc.add_tag("p", data="Players sorted by descending protection zone lock time remaining. Also shown is their level, vocation, guild, and most recent victim. Shown first are those that are still PZL'd. The second table contains those that should have lost their PZL by now.")
+    column_count = 6
+    if not world:
+        column_count += 1
     with stattab_table_tag(doc.open_tag):
-        with doc.open_tag("tr", inline=False):
-            if not world:
-                doc.add_tag("th", "World")
-            doc.add_tag("th", "PZ Lock End")
-            doc.add_tag("th", "Killer")
-            doc.add_tag("th", "Level")
-            doc.add_tag("th", "Vocation")
-            doc.add_tag("th", "Guild")
-            doc.add_tag("th", "Last Victim")
+        def add_header_row():
+            with doc.open_tag("tr", inline=False):
+                if not world:
+                    doc.add_tag("th", "World")
+                doc.add_tag("th", "PZ Lock End")
+                doc.add_tag("th", "Killer")
+                doc.add_tag("th", "Level")
+                doc.add_tag("th", "Vocation")
+                doc.add_tag("th", "Guild")
+                doc.add_tag("th", "Last Victim")
+        add_header_row()
         rowColor = stattab_row_class()
+        doing_still_pzlocked_rows = True
         for pzlock in dbiface.get_last_pzlocks(world, limits):
             killerInfo = dbiface.get_char(pzlock["killer"])
             #pdb.set_trace()
             pzEndStamp = dbiface.pz_end(pzlock)
+            if doing_still_pzlocked_rows:
+                if pzEndStamp < int(time.time()):
+                    doing_still_pzlocked_rows = False
+                    with doc.open_tag("tr"):
+                        with doc.open_tag("td", attrs={"colspan": column_count}):
+                            doc.add_tag("hr")
+                    add_header_row()
             if world is None or killerInfo["world"] == world:
                 rowAttrs = {"class": rowColor.next()}
-                if pzEndStamp < int(time.time()):
+                if not doing_still_pzlocked_rows:
                     rowAttrs["class"] += " greyed"
                 with doc.open_tag("tr", attrs=rowAttrs, inline=False):
                     assert killerInfo["name"] == pzlock["killer"]
