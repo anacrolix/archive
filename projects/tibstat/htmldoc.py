@@ -1,4 +1,4 @@
-def tag(name, data=None, attrs=None):
+def tag(name, data=None, attrs=None, close_now=False):
     retval = '<{0}'.format(name)
     if attrs is not None:
         for k, v in attrs.iteritems():
@@ -6,8 +6,13 @@ def tag(name, data=None, attrs=None):
                 retval += ' {0}="{1}"'.format(k, v)
             else:
                 retval += ' ' + k
-    retval += '>'
-    if data is not None:
+    if data is None:
+        if close_now:
+            retval += '/>'
+        else:
+            retval += '>'
+    else:
+        retval += '>'
         retval += str(data)
         retval += '</{0}>'.format(name)
     return retval
@@ -24,12 +29,12 @@ class HtmlDocument(object):
     def newline(self):
         self.write('\n')
         self.indent()
-    def add_tag(self, name, data=None, attrs=None, inline=True):
+    def add_tag(self, name, data=None, attrs=None, inline=True, close_now=True):
         if not inline and len(self.tagStack) > 0:
             self.newline()
-        self.write(tag(name, data, attrs))
+        self.write(tag(name, data, attrs, close_now=close_now))
     def open_tag(self, name, attrs=None, inline=True):
-        self.add_tag(name, attrs=attrs, inline=inline)
+        self.add_tag(name, attrs=attrs, inline=inline, close_now=False)
         self.tagStack.append(name)
         #if alone:
         #    self.newline()
