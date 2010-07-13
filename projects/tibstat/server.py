@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import BaseHTTPServer, sys
+import BaseHTTPServer
+import logging
+import optparse
+import sys
 
 import pages
 
@@ -18,14 +21,19 @@ class TibstatsHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def process_request(self):
         pages.handle_http_request(self)
 
-def main(
-        server_class=BaseHTTPServer.HTTPServer,
-        handler_class=TibstatsHTTPRequestHandler):
-    try:
-        port = int(sys.argv[sys.argv.index("-p") + 1])
-    except ValueError:
-        port = 80
-    server_address = ('', port)
+    # maybe want to hook the internal request logging mechanism?
+    #def log_message(self, format, *posargs):
+    #    logging.info(format, *posargs)
+
+def main():
+    parser = optparse.OptionParser()
+    parser.add_option("-p", "--port", type="int", default=17091)
+    opts, args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG)
+    server_class = BaseHTTPServer.HTTPServer
+    handler_class = TibstatsHTTPRequestHandler
+    server_address = ("", opts.port)
+    logging.info("Starting server on %s", server_address)
     httpd = server_class(server_address, handler_class)
     httpd.serve_forever()
 
