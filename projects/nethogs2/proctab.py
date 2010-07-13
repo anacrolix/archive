@@ -1,3 +1,4 @@
+import errno
 from common import *
 
 Connection = collections.namedtuple("Connection", ("local", "remote", "family", "protocol"))
@@ -32,7 +33,8 @@ def map_sockino_to_procinfo():
             try:
                 fdlist = os.listdir(os.path.join("/proc", procdir, "fd"))
             except OSError as e:
-                if e.errno != errno.ENOENT:
+                from errno import ENOENT
+                if e.errno != ENOENT:
                     raise
             else:
                 procinfo = None
@@ -67,12 +69,18 @@ def _parse_socket_table(filename, family):
 
     retval = []
     # 1 connection per line, the first contains the headers
-    for l in itertools.islice(iter(open(filename)), 1, None):
-        cols = _SOCKET_TABLE_LINE_DELIMITER.split(l.strip())
-        endps = (make_endpoint(cols[1:3]), make_endpoint(cols[3:5]))
-        inode = int(cols[13])
-        retval.append(endps + (inode,))
-        #yield endps + (inode,)
+    try:
+	connfile = open(filename)
+    except IOError as exc:
+	if exc.errno != errno.ENOENT:
+	    raise
+    else:
+	for l in itertools.islice(iter(open(filename)), 1, None):
+	    cols = _SOCKET_TABLE_LINE_DELIMITER.split(l.strip())
+	    endps = (make_endpoint(cols[1:3]), make_endpoint(cols[3:5]))
+	    inode = int(cols[13])
+	    retval.append(endps + (inode,))
+	    #yield endps + (inode,)
     return retval
 
 def map_netconn_to_inode():

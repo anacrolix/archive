@@ -171,7 +171,8 @@ def dispatch_traffic_per_process_per_epoch(devcaps, proctable, logger):
         logger.debug("Packet analysis returned: %s, length=%d" % (pktendps, pktlen))
         outproc, inproc = packet_endpoints_to_endpoint_process_info(
                 pktendps, proctable, devcap.addresses, logger)
-        assert outproc != None or inproc != None
+	if outproc != None or inproc != None:
+	    logger.warning("Unknown traffic: %s", pktendps)
         for procinfo, trafdir in ((outproc, 'out'), (inproc, 'in')):
             if procinfo == None: # the packet has no local endpoint in this direction
                 continue
@@ -185,9 +186,15 @@ def dispatch_traffic_per_process_per_epoch(devcaps, proctable, logger):
 def redraw_screen(win, trafinfo):
     win.clear()
     win.addstr(0, 0, "%s v. %s" % (PROGNAME, VERSION))
-    # cols determination could be broken out here, to allow dynamically resizing columns
-    COLS = ("pid", 5), ("user", 8), ("program", 33), ("dev", 7), ("sent", 11), ("received", 11)
-    LINEFMT = " ".join(["{{{0}:{1}.{1}}}".format(colhdr, width) for colhdr, width in COLS])
+    # col sizes could be done dynamically based on actual content?
+    # total width is len(COLS) - 1 + sum(col widths)
+    COLS =  [("pid", 5),
+	    ("user", 8),
+	    ("program", win.getmaxyx()[1] - 47),
+	    ("dev", 7),
+	    ("sent", 11),
+	    ("received", 11)]
+    LINEFMT = "|".join(["{{{0}:{1}.{1}}}".format(colhdr, width) for colhdr, width in COLS])
     win.addstr(2, 0, LINEFMT.format(**dict([(a[0], a[0].upper()) for a in COLS])), curses.A_REVERSE)
     def keyfunc(x):
         """Sort by the sum of incoming and outgoing traffic"""
@@ -334,9 +341,6 @@ class Nethogs2(object):
         if self.should_redraw(updstart):
             self.redraw_screen(updstart)
 
-def unittests():
-    pass
-
 def main():
     # parse options
     parser = optparse.OptionParser(version=VERSION)
@@ -344,7 +348,6 @@ def main():
     parser.add_option("-d", "--dispatch", help="seconds between packet dispatches and proc polling", type='float')
     parser.add_option("-r", "--refresh", help="time between display updates in seconds", type='int')
     parser.add_option("-s", "--smoothing", help="average the traffic over this many preceding seconds", type='int')
-    parser.add_option("--unittests", help="run the tests", action='store_true')
     parser.add_option("--log-conffile", help="filename of a python logging configuration file", type='string')
     parser.add_option("--log-level", help="logging level for root logger", type='string')
     parser.set_defaults(dispatch=0.25, refresh=3, smoothing=3, runtests=False)
@@ -364,9 +367,7 @@ def main():
         import logging.config
         logging.config.fileConfig(options.log_conffile)
 
-    if options.unittests:
-        unittests()
-    else:
+    if True:
         if len(posargs) == 0:
             print "No device specified, defaulting to eth0"
         Nethogs2(

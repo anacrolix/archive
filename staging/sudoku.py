@@ -16,7 +16,7 @@ def domain(sudoku, index):
 #def domain(*args):
 #    return filter(None, _domain(*args))
 
-def solve(sudoku):
+def solve(sudoku, callback=None):
     for index, value in enumerate(sudoku):
         assert 1 <= value <= 9 or value is None, value
         if value:
@@ -26,8 +26,8 @@ def solve(sudoku):
                 continue
             solution = Sudoku(sudoku[:])
             solution[index] = trial
-            print
-            print solution
+            if not callback is None:
+                callback(solution)
             solution = solve(solution)
             if solution:
                 return solution
@@ -129,7 +129,10 @@ def main():
             line = line.rstrip("\n")
             assert len(input) <= 9 or not line, "Too many rows given!"
             input.append(line)
-        print Sudoku(input).find_solution()
+        # input is now a list of strings
+        solution = Sudoku(input).find_solution()
+        print
+        print solution
 
 if __name__ == "__main__":
     main()
