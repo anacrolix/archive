@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+
+import os.path
+import pdb
+from errno import *
+from stat import *
+
+import fuse
+
+import clfs
+from clfs import ClfsError
+
+
+fuse.fuse_python_api = (0, 2)
+
+
+class FuseClfs(fuse.Fuse):
+
+    def opendir(self, path):
+        return 0
+
+    def readdir(self, path, offset, handle=None):
+        #pdb.set_trace()
+        yield fuse.Direntry(".")
+        yield fuse.Direntry("..")
+        parent_dirent = self.fs.get_dir_entry(path)
+        for dirent in self.fs.read_directory(parent_dirent):
+            yield fuse.Direntry(dirent["name"].rstrip("\0"))
+
+    def getattr(self, path):
+        #pdb.set_trace()
+        try:
+            dirent = self.fs.get_dir_entry(path)
+        except ClfsError as error:
+            return -error.errno
+        mode = {
+                clfs.TYPE_DIRECTORY: S_IFDIR,
+                clfs.TYPE_REGULAR_FILE: S_IFREG,
+            }[dirent["type"]]
+        return fuse.Stat(st_mode=mode|0777, st_nlink=1)
+
+    def mkdir(self, path, mode):
+        return self.mknod(path, mode | S_IFDIR, 0)
+
+    def main(self, *pargs, **kwargs):
+        assert not hasattr(self, "fs")
+        try:
+            self.fs = clfs.Clfs(self.cmdline[1][0])
+        except:
+            pass
+        fuse.Fuse.main(self, *pargs, **kwargs)
+
+    def statfs(self):
+        blocks = free = 0
+        for cn in self.fs.iter_allocation_table():
+            blocks += 1
+            if cn == clfs.CLUSTER_FREE:
+                free += 1
+        return fuse.StatVfs(
+                f_bsize=self.fs.cluster_size,
+                f_namemax=int(dict(clfs.DirEntry._fields_)["name"].strip("s")),
+                f_blocks=blocks,
+                f_bfree=free,
+                f_bavail=free)
+
+    #def create(self, path, mode, rdev):
+    #    return -EOPNOTSUPP
+
+    def mknod(self, path, mode, rdev):
+        if S_ISREG(mode):
+            type = clfs.TYPE_REGULAR_FILE
+        elif S_ISDIR(mode):
+            type = clfs.TYPE_DIRECTORY
+        else:
+            return -EPERM
+        assert rdev == 0, rdev
+        self.fs.create_node(path, type)
+        #return 0
+
+def main():
+    server = FuseClfs()
+    server.parse(errex=1)
+    #server.cmdline
+    server.multithreaded = False
+    server.main()
+
+if __name__ == '__main__':
+    main()
