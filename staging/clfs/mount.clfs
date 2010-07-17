@@ -91,7 +91,8 @@ class FuseClfs(fuse.Fuse):
         #pdb.set_trace()
         bytes_written = self.fs.write_inode_data(dirent["inode"], offset, buf)
         assert bytes_written == len(buf), bytes_written
-        return bytes_written
+        # stupid python-fuse requires int, long generates EINVAL
+        return int(bytes_written)
 
     def read(self, path, size, offset, fh=None):
         dirent = self.fs.get_dir_entry(path)
@@ -107,11 +108,11 @@ class FuseClfs(fuse.Fuse):
         self.fs.truncate_file(dirent["inode"], size)
         return 0
 
-    def utime(self, times):
-        return utimens(times)
+    #def utime(self, times):
+        #return utimens(times)
 
-    def utimens(self, times):
-        return 0
+    #def utimens(self, times):
+        #return 0
 
     #def chmod(self, path, mode):
         #return 0

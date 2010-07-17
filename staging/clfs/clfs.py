@@ -348,7 +348,7 @@ class Clfs(object):
                     chain_size - self.cluster_size,
                     read_offset - self.cluster_size,
                     read_size)
-        cluster_read_size = min(read_size, self.cluster_size - read_offset)
+        cluster_read_size = min(read_size, self.cluster_size - read_offset, chain_size)
         buffer = self.read_cluster(first_cluster, read_offset, cluster_read_size)
         assert len(buffer) == cluster_read_size
         return buffer + self.read_from_chain(
