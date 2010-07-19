@@ -1,38 +1,46 @@
+from __future__ import division
+
 from errno import *
+from stat import *
+from collections import namedtuple
 from os import strerror
-import collections
-import itertools
+from time import time
 import logging
 import os
 import pdb
 import pprint
 import struct
 
-CLFS_NAMEMAX = 64
+CLFS_NAMEMAX = 124
 
-TYPE_DIRECTORY = 1
-TYPE_REGULAR_FILE = 2
+#TYPE_DIRECTORY = 1
+#TYPE_REGULAR_FILE = 2
 
-CLUSTER_FREE =          0
-CLUSTER_END_OF_CHAIN =  0xffffffff
-CLUSTER_ATAB_PADDING =  0xfffffffe
+ROOT_DIRENT_RAW_OFFSET = 256
+
+clno_t = "I"
+
+CLUSTER_VALUE_MAX = 0xffffffff
+CLUSTER_FREE = 0
+CLUSTER_END_OF_CHAIN = -1 & CLUSTER_VALUE_MAX
+CLUSTER_ATAB_PADDING = -2 & CLUSTER_VALUE_MAX
+
 
 class classproperty(property):
-
-    #def __init__(self, *propfuncs):
-    #    property.__init__(self, *map(classmethod, propfuncs))
+    """A normal property requires an instance, this one passes the owner (class) as the instance."""
 
     def __get__(self, instance, owner):
-        #assert instance == None, instance
         return property.__get__(self, owner)
 
+
 def ClfsStructField(*args):
+    """Returns a named tuple used for handling of field operations"""
     a = list(args)
     if len(a) < 3:
         a.append(None)
     else:
-        assert a[2] != None
-    return collections.namedtuple(
+        assert a[2] != None, "None is reserved for indicating uninitialized fields"
+    return namedtuple(
             "ClfsStructField",
             ("name", "format", "initval")
         )(*a)
@@ -43,6 +51,7 @@ class ClfsStructType(type):
     # this is done in the new function so that changes to attrs
     # are made before class instantiation, and not hacked on later
     def __new__(mcs, name, bases, attrs):
+        """Process _fields_ and finalize the fields attribute for the class"""
         fields = ()
         # tried this using itertool chaining, blegh...
         def all_fields():
@@ -60,10 +69,11 @@ class ClfsStructType(type):
         #attrs["_fields_"] = dict(attrs["_fields_"] + bases[0]._fields_)
         return type.__new__(mcs, name, bases, attrs)
 
+
 class ClfsStruct(object):
 
-    __metaclass__ = ClfsStructType
-    _fields_ = ()
+    __metaclass__ = ClfsStructType # for the _fields_ processing
+    _fields_ = () # for issubclass based processing
 
     def __init__(self, **initvals):
         self.__values = {}
@@ -87,31 +97,25 @@ class ClfsStruct(object):
         self.__check_field(name)
         self.__values[name] = value
 
+    #def set(self, **kwargs):
+        #for key, value in kwargs.iteritems():
+            #self[key] = value
+
     @classmethod
     def from_fileobj(class_, fileobj):
+        """Unpacks a new instance of this struct from a file"""
         return class_.unpack(fileobj.read(class_.size))
-
-    #@classproperty
-    #def __fields(self):
-    #    return self.__fields
-        #ClfsStructField = collections.namedtuple(
-                #"ClfsStructField",
-                #("name", "format", "initval"))
-        #for f in self._fields_:
-            #f = list(f)
-            #if len(f) < 3:
-                #f.append(None)
-            #yield ClfsStructField(*f)
 
     @classmethod
     def unpack(class_, buffer):
+        """Unpacks the buffer according to this structs format and returns a new instance"""
         instance = class_()
         offset = 0
         for field in instance.fields:
             #assert field.name in instance.__values
             unpacked = struct.unpack_from(field.format, buffer, offset)
-            assert len(unpacked) == 1
-            instance[field.name] = unpacked[0]
+            if len(unpacked):
+                instance[field.name], = unpacked
             #instance.__values[field.name] = unpacked[0]
             offset += struct.calcsize(field.format)
         assert offset == len(buffer)
@@ -120,10 +124,12 @@ class ClfsStruct(object):
     def pack(self):
         buffer = ""
         for field in self.fields:
-            assert field.name in self.__values, "Field %r is uninitialized" % (field.name,)
-            value = self.__values[field.name]
             try:
-                buffer += struct.pack(field.format, value)
+                value = (self.__values[field.name],)
+            except KeyError:
+                value = ()
+            try:
+                buffer += struct.pack(field.format, *value)
             except struct.error as exc:
                 raise struct.error("Error packing %r into %s.%s, %s"
                         % (value, self.__class__.__name__, field.name, exc.message))
@@ -149,17 +155,35 @@ class DirEntry(ClfsStruct):
 
     _fields_ = (
             ("name", "{0}s".format(CLFS_NAMEMAX)),
-            ("inode", "I"),)
+            ("ino", "I"),)
 
-#assert DirEntry.size == 128, DirEntry.size
+assert DirEntry.size == 128, DirEntry.size
 
 
 class Inode(ClfsStruct):
 
     _fields_ = (
-            ("type", "B"),
+            ("mode", "I"),
+            ("__pad0", "4x"),
             ("size", "Q"),
-            ("links", "I"),)
+            ("nlink", "I"),
+            ("uid", "I"),
+            ("gid", "I"),
+            ("rdev", "Q"),
+            ("atime", "I"),
+            ("atimens", "I"),
+            ("mtime", "I"),
+            ("mtimens", "I"),
+            ("ctime", "I"),
+            ("ctimens", "I"),
+            ("__pad1", "68x"),)
+
+    def get_st_times(self):
+        return dict((
+                    ("st_" + a, self[a] + self[a + "ns"] / (10 ** 9))
+                    for a in (b + "time" for b in "amc")))
+
+assert Inode.size == 128, Inode.size
 
 
 class BootRecord(ClfsStruct):
@@ -172,7 +196,7 @@ class BootRecord(ClfsStruct):
             ("atabclrs", "I"),
             ("dataclrs", "I"),)
 
-assert BootRecord.size <= 256
+assert BootRecord.size <= 256, "This will clobber the root directory entry"
 
 
 class ClfsError(OSError):
@@ -181,15 +205,14 @@ class ClfsError(OSError):
         OSError.__init__(self, errno, strerror(errno))
 
 
+def time_as_posix_spec(time):
+    return int(time), int((time % 1) * (10 ** 9))
+
+
 class Clfs(object):
 
-    def __init__(self, path=None, fileobj=None):
-        assert bool(path) ^ bool(fileobj)
-        if path:
-            self.f = open(path, "r+b")
-        else:
-            self.f = fileobj
-        self.f.seek(0)
+    def __init__(self, path):
+        self.f = open(path, "r+b")
         br = BootRecord.from_fileobj(self.f)
         assert br["ident"].rstrip("\0") == "clfs", repr(br["ident"])
         assert br["version"] == 1
@@ -197,10 +220,20 @@ class Clfs(object):
         self.master_region_cluster_count = br["mstrclrs"]
         self.allocation_table_cluster_count = br["atabclrs"]
         self.data_region_cluster_count = br["dataclrs"]
-        self.filesystem_cluster_count = \
-                self.master_region_cluster_count + \
+
+    # --- geometry
+
+    @property
+    def filesystem_cluster_count(self):
+        return  self.master_region_cluster_count + \
                 self.allocation_table_cluster_count + \
                 self.data_region_cluster_count
+
+    @property
+    def clno_count_per_atab_cluster(self):
+        return self.cluster_size // struct.calcsize(clno_t)
+
+    # --- device functions
 
     def safe_seek(self, offset, whence=os.SEEK_SET):
         max_offset = self.filesystem_cluster_count * self.cluster_size
@@ -209,6 +242,11 @@ class Clfs(object):
             assert offset < max_offset
         self.f.seek(offset)
         assert self.f.tell() < max_offset
+
+    def seek_root_dirent(self):
+        self.seek_cluster(0, ROOT_DIRENT_RAW_OFFSET)
+
+    # --- cluster functions
 
     def seek_cluster(self, cluster, offset=0):
         assert cluster < self.filesystem_cluster_count, cluster
@@ -232,10 +270,58 @@ class Clfs(object):
         self.f.write(buffer)
         self.f.flush()
 
+    # --- allocation table functions
+
+    @property
+    def first_data_region_cluster_number(self):
+        return  self.master_region_cluster_count + \
+                self.allocation_table_cluster_count
+
+    def valid_data_region_cluster_number(self, clno):
+        return  self.first_data_region_cluster_number \
+                <= clno \
+                < self.filesystem_cluster_count
+
     def next_cluster(self, clno):
         self.seek_cluster_number(clno)
         return struct.unpack("I", self.f.read(4))[0]
     next_clno = next_cluster
+
+    def iter_allocation_table(self):
+        self.seek_cluster(self.master_region_cluster_count)
+        for index in xrange(self.data_region_cluster_count):
+            yield struct.unpack("I", self.f.read(4))[0]
+
+    def claim_free_cluster(self):
+        self.seek_cluster(self.master_region_cluster_count)
+        for index in xrange(self.data_region_cluster_count):
+            cluster = struct.unpack("I", self.f.read(4))[0]
+            if cluster == CLUSTER_FREE:
+                self.f.seek(-4, os.SEEK_CUR)
+                self.f.write(struct.pack("I", CLUSTER_END_OF_CHAIN))
+                return index + self.master_region_cluster_count + self.allocation_table_cluster_count
+        else:
+            assert False, "Filesystem is full?"
+
+    def seek_cluster_number(self, clno):
+        assert self.valid_data_region_cluster_number(clno), clno
+        self.safe_seek(self.cluster_size * self.master_region_cluster_count + 4 * (clno - self.first_data_region_cluster_number))
+
+    def set_cluster_number(self, clno, next):
+        self.seek_cluster_number(clno)
+        logging.debug("Setting cluster number %i->%i", clno, next)
+        self.f.write(struct.pack("I", next))
+
+    def clear_atab(self):
+        self.seek_cluster(self.master_region_cluster_count)
+        # set all clnos as free
+        for index in xrange(self.data_region_cluster_count):
+            self.f.write(struct.pack(clno_t, CLUSTER_FREE))
+        # set the overhang as padding
+        for index in xrange(self.clno_count_per_atab_cluster - (self.data_region_cluster_count % self.clno_count_per_atab_cluster)):
+            self.f.write(struct.pack(clno_t, CLUSTER_ATAB_PADDING))
+        assert self.f.tell() == self.cluster_size * (
+            self.master_region_cluster_count + self.allocation_table_cluster_count)
 
     def get_root_dir_entry(self):
         self.seek_cluster(0, 256)
@@ -249,7 +335,7 @@ class Clfs(object):
 
     def read_directory(self, inode):
         inode_struct = self.get_inode_struct(inode)
-        if inode_struct["type"] != TYPE_DIRECTORY:
+        if not S_ISDIR(inode_struct["mode"]):
             raise ClfsError(ENOTDIR)
         offset = 0
         while offset < inode_struct["size"]:
@@ -298,46 +384,14 @@ class Clfs(object):
                 cur_dirent = self.get_root_dir_entry()
             else:
                # pdb.set_trace()
-                for dirent in self.read_directory(cur_dirent["inode"]):
+                for dirent in self.read_directory(cur_dirent["ino"]):
                     if dirent["name"].rstrip("\0") == name:
                         cur_dirent = dirent
                         break
                 else:
                     raise ClfsError(ENOENT)
         return cur_dirent
-
-    def iter_allocation_table(self):
-        self.seek_cluster(self.master_region_cluster_count)
-        for index in xrange(self.data_region_cluster_count):
-            yield struct.unpack("I", self.f.read(4))[0]
-
-    def claim_free_cluster(self):
-        self.seek_cluster(self.master_region_cluster_count)
-        for index in xrange(self.data_region_cluster_count):
-            cluster = struct.unpack("I", self.f.read(4))[0]
-            if cluster == CLUSTER_FREE:
-                self.f.seek(-4, os.SEEK_CUR)
-                self.f.write(struct.pack("I", CLUSTER_END_OF_CHAIN))
-                return index + self.master_region_cluster_count + self.allocation_table_cluster_count
-        else:
-            assert False, "Filesystem is full?"
-
-    def first_data_region_cluster_number(self):
-        return self.master_region_cluster_count + self.allocation_table_cluster_count
-
-    def valid_data_region_cluster_number(self, clno):
-        return  self.first_data_region_cluster_number() \
-                <= clno \
-                < self.filesystem_cluster_count
-
-    def seek_cluster_number(self, clno):
-        assert self.valid_data_region_cluster_number(clno), clno
-        self.safe_seek(self.cluster_size * self.master_region_cluster_count + 4 * (clno - self.first_data_region_cluster_number()))
-
-    def set_cluster_number(self, clno, value):
-        self.seek_cluster_number(clno)
-        logging.debug("Setting cluster number %i->%i", clno, value)
-        self.f.write(struct.pack("I", value))
+    dirent_for_path = get_dir_entry
 
     def read_from_chain(self, first_cluster, chain_size, read_offset, read_size):
         if chain_size <= 0:
@@ -414,16 +468,11 @@ class Clfs(object):
             offset += update_dirent.size
         assert offset == parent_dirent["size"]
 
-    #def write(self, path, buf, offset):
-
-    #def create_inode(self):
-    #    pass
-
-    def write_inode_data(self, inode, offset, buffer):
-        inode_struct = self.get_inode_struct(inode)
+    def write_inode_data(self, ino, offset, buffer):
+        inode_struct = self.get_inode_struct(ino)
         data_offset = inode_struct.size
         write_size, new_size = self.write_to_chain(
-                inode,
+                ino,
                 inode_struct["size"] + data_offset,
                 offset + data_offset,
                 buffer)
@@ -435,8 +484,8 @@ class Clfs(object):
         inode_struct["size"] = new_size - data_offset
         #pdb.set_trace()
         assert (inode_struct.size, new_size) == self.write_to_chain(
-                inode, new_size, 0, inode_struct.pack())
-        assert self.get_inode_struct(inode)["size"] == new_size - data_offset
+                ino, new_size, 0, inode_struct.pack())
+        assert self.get_inode_struct(ino)["size"] == new_size - data_offset
         return write_size
 
     def read_inode_data(self, inode, offset, size):
@@ -448,34 +497,62 @@ class Clfs(object):
                 offset + data_offset,
                 size)
 
-    def create_node(self, path, type):
+    #def create_root_directory
+
+    def create_node(self, path, mode):
+        """Create an allocate a new inode, update relevant structures elsewhere"""
+
         node_dirname, node_basename = os.path.split(path)
         parent_dirname, parent_basename = os.path.split(node_dirname)
-        parent_dirent = self.get_dir_entry(node_dirname)
-        parent_inode_struct = self.get_inode_struct(parent_dirent["inode"])
-        for dirent in self.read_directory(parent_dirent["inode"]):
-            if dirent["name"].rstrip("\0") == node_basename:
-                raise ClfsError(EEXIST)
-        new_dirent = DirEntry(name=node_basename, inode=self.claim_free_cluster())
-        # write the new dirent at the end of the parent directory
-        assert new_dirent.size == self.write_inode_data(
-                parent_dirent["inode"],
-                parent_inode_struct["size"],
-                new_dirent.pack(),)
-        # initialize the new inode
-        #pdb.set_trace()
-        new_inode = Inode(type=type, size=0)
-        if type == TYPE_DIRECTORY:
-            new_inode["links"] = 2
-        elif type == TYPE_REGULAR_FILE:
-            new_inode["links"] = 1
+
+        create_rootdir = bool(
+                (not node_basename) and
+                (node_dirname == parent_dirname == "/"))
+        if create_rootdir:
+            assert S_ISDIR(mode)
+
+        new_inode = Inode(size=0, uid=0, gid=0, rdev=0, mode=mode)
+        sec, nsec = time_as_posix_spec(time())
+        for field_name in ("atime", "mtime", "ctime"):
+            new_inode[field_name] = sec
+        for field_name in ("atimens", "mtimens", "ctimens"):
+            new_inode[field_name] = nsec
+        del sec, nsec
+        if S_ISDIR(mode):
+            new_inode["nlink"] = 2
+        else:
+            new_inode["nlink"] = 1
+
+        new_dirent = DirEntry(ino=self.claim_free_cluster())
+        if create_rootdir:
+            new_dirent["name"] = "/"
+            assert new_dirent["ino"] == self.first_data_region_cluster_number, new_dirent["ino"]
+        else:
+            parent_ino = self.dirent_for_path(node_dirname)["ino"]
+            for sibling_dirent in self.read_directory(parent_ino):
+                if sibling_dirent["name"] == node_basename:
+                    raise ClfsError(EEXIST)
+            else:
+                new_dirent["name"] = node_basename
+
+        # write inode
         assert (new_inode.size, new_inode.size) == self.write_to_chain(
-                new_dirent["inode"], 0, 0, new_inode.pack())
+                cluster=new_dirent["ino"],
+                size=0,
+                offset=0,
+                buffer=new_inode.pack())
 
-def create_filesystem(device_path):
-    device_file = open(device_path, "r+b")
-    device_size = os.fstat(device_file.fileno()).st_size
+        # write the new dirent at the end of the parent directory
+        if create_rootdir:
+            self.seek_root_dirent()
+            self.f.write(new_dirent.pack())
+        else:
+            assert new_dirent.size == self.write_inode_data(
+                    ino=parent_ino,
+                    offset=self.get_inode_struct(parent_ino)["size"], # at the end
+                    buffer=new_dirent.pack(),)
 
+def generate_bootrecord(device_size):
     # some basic geometry
     cluster_size = 512
     cluster_number_bits = 32
@@ -513,9 +590,6 @@ def create_filesystem(device_path):
     assert filesystem_cluster_count == device_cluster_count, \
         (filesystem_cluster_count, device_cluster_count)
 
-    # write the boot record
-    f = device_file
-    f.seek(0)
     br = BootRecord()
     br["clrsize"] = cluster_size
     br["mstrclrs"] = master_region_cluster_count
@@ -523,23 +597,17 @@ def create_filesystem(device_path):
     br["dataclrs"] = data_region_cluster_count
     br["ident"] = "clfs"
     br["version"] = 1
+    return br
+
+def create_filesystem(path):
+    # create and write boot record
+    f = open(path, "r+b")
+    br = generate_bootrecord(os.fstat(f.fileno()).st_size)
+    f.seek(0)
     assert br.size <= 256
     f.write(br.pack())
+    f.close()
 
-    # write allocation table
-    f.seek(cluster_size * master_region_cluster_count)
-    for index in xrange(data_region_cluster_count):
-        f.write(struct.pack("I", CLUSTER_FREE))
-    for index in xrange(cluster_numbers_per_allocation_table_cluster
-            - (data_region_cluster_count
-                % cluster_numbers_per_allocation_table_cluster)):
-        f.write(struct.pack("I", CLUSTER_ATAB_PADDING))
-    assert f.tell() == cluster_size * (master_region_cluster_count + allocation_table_cluster_count)
-
-    fs = Clfs(fileobj=f)
-    del f
-    rd = DirEntry(name="/", inode=fs.claim_free_cluster())
-    fs.update_dir_entry(None, rd)
-    rn = Inode(type=TYPE_DIRECTORY, size=0, links=2)
-    fs.write_cluster(rd["inode"], 0, rn.pack())
-
+    fs = Clfs(path)
+    fs.clear_atab()
+    fs.create_node(path="/", mode=S_IFDIR|0755)

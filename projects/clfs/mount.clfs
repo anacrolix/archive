@@ -11,19 +11,23 @@ from fuse import FUSE, Operations, LoggingMixIn
 from clfs import Clfs, ClfsError
 import clfs
 
+
 class FuseClfs(
             #LoggingMixIn,
             Operations,
         ):
 
     def __call__(self, op, path, *args):
+        # this code is based on fuse.LoggingMixIn.__call__
         logger = logging.getLogger("fusepy")
         logger.debug("-> %s %s %r", op, path, args)
         #print '->', op, path, repr(args)
-        ret = '[Unknown Error]'
+        # perhaps this should be "[Unhandled exception]"
+        ret = '[Unhandled Exception]'
         try:
             ret = getattr(self, op)(path, *args)
             return ret
+        # this catches ClfsError as its derived from OSError
         except OSError, e:
             ret = str(e)
             raise
@@ -37,28 +41,28 @@ class FuseClfs(
 
     create = None
 
-    def readdir(self, path, offset, handle=None):
+    def _readdir(self, path, offset, handle=None):
         yield "."
         yield ".."
         parent_dirent = self.fs.get_dir_entry(path)
-        for dirent in self.fs.read_directory(parent_dirent["inode"]):
+        for dirent in self.fs.read_directory(parent_dirent["ino"]):
             yield (
                 dirent["name"].rstrip("\0"),
-                dict(st_inode=dirent["inode"]),
+                dict(st_inode=dirent["ino"]),
                 0)
+
+    def readdir(self, *args, **kwargs):
+        return tuple(self._readdir(*args, **kwargs))
 
     def getattr(self, path, fh=None):
         assert fh is None, fh
         dirent = self.fs.get_dir_entry(path)
-        inode = self.fs.get_inode_struct(dirent["inode"])
-        mode = {
-                clfs.TYPE_DIRECTORY: S_IFDIR,
-                clfs.TYPE_REGULAR_FILE: S_IFREG,
-            }[inode["type"]]
+        inode = self.fs.get_inode_struct(dirent["ino"])
         return dict(
-                st_mode=mode|0007,
-                st_nlink=inode["links"],
-                st_size=inode["size"])
+                st_mode=inode["mode"],
+                st_nlink=inode["nlink"],
+                st_size=inode["size"],
+                **inode.get_st_times())
 
     def mkdir(self, path, mode):
         return self.mknod(path, mode | S_IFDIR, 0)
@@ -85,20 +89,11 @@ class FuseClfs(
                 f_bavail=free)
 
     def mknod(self, path, mode, rdev):
-        if S_ISREG(mode):
-            type = clfs.TYPE_REGULAR_FILE
-        elif S_ISDIR(mode):
-            type = clfs.TYPE_DIRECTORY
-        else:
-            return -EPERM
-        assert rdev == 0, rdev
-        self.fs.create_node(path, type)
-        #return 0
+        self.fs.create_node(path, mode)
 
     def write(self, path, buf, offset, fh=None):
         dirent = self.fs.get_dir_entry(path)
-        #pdb.set_trace()
-        bytes_written = self.fs.write_inode_data(dirent["inode"], offset, buf)
+        bytes_written = self.fs.write_inode_data(dirent["ino"], offset, buf)
         assert bytes_written == len(buf), bytes_written
         # stupid python-fuse requires int, long generates EINVAL
         return int(bytes_written)
@@ -109,17 +104,12 @@ class FuseClfs(
 
     def truncate(self, path, size):
         dirent = self.fs.get_dir_entry(path)
-        self.fs.truncate_file(dirent["inode"], size)
-        return 0
-
-    #def utimens(self, path, atime, mtime):
-        #logging.debug("Fuse utimens(%r, %r, %r)", path, atime, mtime)
-        #return 0
+        self.fs.truncate_file(dirent["ino"], size)
 
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    FUSE(FuseClfs(argv[1]), argv[2], debug=True, nothreads=True)
+    FUSE(FuseClfs(argv[1]), argv[2], foreground=True, nothreads=True)
 
 if __name__ == '__main__':
     main()
