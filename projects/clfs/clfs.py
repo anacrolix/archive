@@ -1,3 +1,5 @@
+from errno import *
+from os import strerror
 import collections
 import itertools
 import logging
@@ -5,7 +7,6 @@ import os
 import pdb
 import pprint
 import struct
-from errno import *
 
 CLFS_NAMEMAX = 64
 
@@ -174,10 +175,10 @@ class BootRecord(ClfsStruct):
 assert BootRecord.size <= 256
 
 
-class ClfsError(Exception):
+class ClfsError(OSError):
 
     def __init__(self, errno):
-        self.errno = errno
+        OSError.__init__(self, errno, strerror(errno))
 
 
 class Clfs(object):
@@ -448,7 +449,6 @@ class Clfs(object):
                 size)
 
     def create_node(self, path, type):
-        #pdb.set_trace()
         node_dirname, node_basename = os.path.split(path)
         parent_dirname, parent_basename = os.path.split(node_dirname)
         parent_dirent = self.get_dir_entry(node_dirname)
@@ -464,7 +464,11 @@ class Clfs(object):
                 new_dirent.pack(),)
         # initialize the new inode
         #pdb.set_trace()
-        new_inode = Inode(type=type, size=0, links=1)
+        new_inode = Inode(type=type, size=0)
+        if type == TYPE_DIRECTORY:
+            new_inode["links"] = 2
+        elif type == TYPE_REGULAR_FILE:
+            new_inode["links"] = 1
         assert (new_inode.size, new_inode.size) == self.write_to_chain(
                 new_dirent["inode"], 0, 0, new_inode.pack())
 
@@ -536,6 +540,6 @@ def create_filesystem(device_path):
     del f
     rd = DirEntry(name="/", inode=fs.claim_free_cluster())
     fs.update_dir_entry(None, rd)
-    rn = Inode(type=TYPE_DIRECTORY, size=0, links=0)
+    rn = Inode(type=TYPE_DIRECTORY, size=0, links=2)
     fs.write_cluster(rd["inode"], 0, rn.pack())
 

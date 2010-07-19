@@ -1,49 +1,61 @@
 #!/usr/bin/env python
 
-import logging
-import os.path
-import pdb
 from errno import *
 from stat import *
+from os import strerror
+from sys import argv
+import logging
+import os.path
 
-import fuse
-
+from fuse import FUSE, Operations, LoggingMixIn
+from clfs import Clfs, ClfsError
 import clfs
-from clfs import ClfsError
 
+class FuseClfs(
+            #LoggingMixIn,
+            Operations,
+        ):
 
-fuse.fuse_python_api = (0, 2)
+    def __call__(self, op, path, *args):
+        logger = logging.getLogger("fusepy")
+        logger.debug("-> %s %s %r", op, path, args)
+        #print '->', op, path, repr(args)
+        ret = '[Unknown Error]'
+        try:
+            ret = getattr(self, op)(path, *args)
+            return ret
+        except OSError, e:
+            ret = str(e)
+            raise
+        finally:
+            #print '<-', op, repr(ret)
+            logger.debug("<- %s %r", op, ret)
 
+    def __init__(self, device):
+        #self.log =
+        self.fs = Clfs(device)
 
-class FuseClfs(fuse.Fuse):
-
-    def opendir(self, path):
-        return 0
-
-    def open(self, path, flags):
-        return 0
+    create = None
 
     def readdir(self, path, offset, handle=None):
-        yield fuse.Direntry(".")
-        yield fuse.Direntry("..")
+        yield "."
+        yield ".."
         parent_dirent = self.fs.get_dir_entry(path)
         for dirent in self.fs.read_directory(parent_dirent["inode"]):
-            yield fuse.Direntry(
-                    name=dirent["name"].rstrip("\0"),
-                    ino=dirent["inode"],)
+            yield (
+                dirent["name"].rstrip("\0"),
+                dict(st_inode=dirent["inode"]),
+                0)
 
-    def getattr(self, path):
-        #pdb.set_trace()
-        try:
-            dirent = self.fs.get_dir_entry(path)
-        except ClfsError as error:
-            return -error.errno
+    def getattr(self, path, fh=None):
+        assert fh is None, fh
+        dirent = self.fs.get_dir_entry(path)
         inode = self.fs.get_inode_struct(dirent["inode"])
         mode = {
                 clfs.TYPE_DIRECTORY: S_IFDIR,
                 clfs.TYPE_REGULAR_FILE: S_IFREG,
             }[inode["type"]]
-        return fuse.Stat(
+        return dict(
                 st_mode=mode|0007,
                 st_nlink=inode["links"],
                 st_size=inode["size"])
@@ -72,9 +84,6 @@ class FuseClfs(fuse.Fuse):
                 f_bfree=free,
                 f_bavail=free)
 
-    #def create(self, path, mode, rdev):
-    #    return -EOPNOTSUPP
-
     def mknod(self, path, mode, rdev):
         if S_ISREG(mode):
             type = clfs.TYPE_REGULAR_FILE
@@ -98,42 +107,19 @@ class FuseClfs(fuse.Fuse):
         dirent = self.fs.get_dir_entry(path)
         return self.fs.read_inode_data(dirent["inode"], offset, size)
 
-    #def ftruncate(self, path, size, fh):
-    #    dirent = self.fs.get_dir_entry(path)
-    #    self.fs.truncate_file(dirent)
-    #    return 0
-
     def truncate(self, path, size):
         dirent = self.fs.get_dir_entry(path)
         self.fs.truncate_file(dirent["inode"], size)
         return 0
 
-    #def utime(self, times):
-        #return utimens(times)
-
-    #def utimens(self, times):
+    #def utimens(self, path, atime, mtime):
+        #logging.debug("Fuse utimens(%r, %r, %r)", path, atime, mtime)
         #return 0
 
-    #def chmod(self, path, mode):
-        #return 0
-
-    #def chown(self, path, uid, gid):
-        #return 0
-
-    def flush(self, path, fh=None):
-        self.fs.f.flush()
-
-    def access(self, path, flags):
-        return 0
-    #
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    server = FuseClfs()
-    server.parse(errex=1)
-    #server.cmdline
-    server.multithreaded = False
-    server.main()
+    FUSE(FuseClfs(argv[1]), argv[2], debug=True, nothreads=True)
 
 if __name__ == '__main__':
     main()
