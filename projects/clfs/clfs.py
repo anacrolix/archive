@@ -6,6 +6,8 @@ from collections import namedtuple
 from os import strerror
 from time import time
 import logging
+logger = logging.getLogger("clfs")
+del logging
 import os
 import pdb
 import pprint
@@ -183,6 +185,14 @@ class Inode(ClfsStruct):
                     ("st_" + a, self[a] + self[a + "ns"] / (10 ** 9))
                     for a in (b + "time" for b in "amc")))
 
+    def mark_posix_change(self):
+        time_parts = time_as_posix_spec()
+        for time_char in "mc":
+            self[time_char + "time"] = time_parts[0]
+            self[time_char + "timens"] = time_parts[1]
+        # remove suid and sgid bits?
+
+
 assert Inode.size == 128, Inode.size
 
 
@@ -194,9 +204,11 @@ class BootRecord(ClfsStruct):
             ("clrsize", "I"),
             ("mstrclrs", "I"),
             ("atabclrs", "I"),
-            ("dataclrs", "I"),)
+            ("dataclrs", "I"),
+            ("__pad0", "228x"),
+        )
 
-assert BootRecord.size <= 256, "This will clobber the root directory entry"
+assert BootRecord.size == 256
 
 
 class ClfsError(OSError):
@@ -258,14 +270,14 @@ class Clfs(object):
         self.seek_cluster(cluster, offset)
         assert size + offset <= self.cluster_size
         assert self.f.tell() == cluster * self.cluster_size + offset
-        logging.debug("Reading %i:[%i,%i), %i bytes", cluster, offset, offset + size, size)
+        logger.debug("Reading %i:[%i,%i), %i bytes", cluster, offset, offset + size, size)
         return self.f.read(size)
 
     def write_cluster(self, cluster, offset, buffer):
         self.seek_cluster(cluster, offset)
         assert offset + len(buffer) <= self.cluster_size
         assert self.f.tell() == cluster * self.cluster_size + offset
-        logging.debug("Writing %i:[%i,%i), %i bytes",
+        logger.debug("Writing %i:[%i,%i), %i bytes",
                 cluster, offset, offset + len(buffer), len(buffer))
         self.f.write(buffer)
         self.f.flush()
@@ -282,10 +294,11 @@ class Clfs(object):
                 <= clno \
                 < self.filesystem_cluster_count
 
-    def next_cluster(self, clno):
+    def clno_get_next(self, clno):
         self.seek_cluster_number(clno)
         return struct.unpack("I", self.f.read(4))[0]
-    next_clno = next_cluster
+    next_clno = clno_get_next
+    next_cluster = clno_get_next
 
     def iter_allocation_table(self):
         self.seek_cluster(self.master_region_cluster_count)
@@ -309,7 +322,7 @@ class Clfs(object):
 
     def set_cluster_number(self, clno, next):
         self.seek_cluster_number(clno)
-        logging.debug("Setting cluster number %i->%i", clno, next)
+        logger.debug("Setting cluster number %i->%i", clno, next)
         self.f.write(struct.pack("I", next))
 
     def clear_atab(self):
@@ -323,15 +336,21 @@ class Clfs(object):
         assert self.f.tell() == self.cluster_size * (
             self.master_region_cluster_count + self.allocation_table_cluster_count)
 
-    def get_root_dir_entry(self):
+    def dirent_remove(self, ino, offset):
+        inode = self.inode_read(ino)
+        dirent = DirEntry(name="", ino=CLUSTER_FREE)
+        self.node_data_write(ino, offset, dirent.pack())
+
+    def dirent_root(self):
         self.seek_cluster(0, 256)
         root_dirent = DirEntry.from_fileobj(self.f)
         assert root_dirent["name"].rstrip("\0") == "/"
         return root_dirent
+    get_root_dir_entry = dirent_root
 
-    def get_inode_struct(self, inode):
-        inode_struct = Inode.unpack(self.read_cluster(inode, 0, Inode.size))
-        return inode_struct
+    def inode_read(self, ino):
+        return Inode.unpack(self.read_cluster(ino, 0, Inode.size))
+    get_inode_struct = inode_read
 
     def read_directory(self, inode):
         inode_struct = self.get_inode_struct(inode)
@@ -347,25 +366,28 @@ class Clfs(object):
                 yield dirent
             offset += dirent.size
 
-    def truncate_chain(self, clno, size):
+    def chain_shorten(self, clno, size):
         if clno == CLUSTER_END_OF_CHAIN:
             if size > 0:
-                logging.warning("Chain ends prematurely, expected %i more bytes", size)
-            return
-        self.truncate_chain(self.next_clno(clno), size - self.cluster_size)
-        if size <= 0:
-            self.set_cluster_number(clno, CLUSTER_FREE)
-        elif 0 < size <= self.cluster_size:
-            self.set_cluster_number(clno, CLUSTER_END_OF_CHAIN)
+                logger.error("Chain ends prematurely, expected %i more bytes", size)
+        elif clno == CLUSTER_FREE:
+            logger.error("Chain derails into free cluster")
         else:
-            return
+            self.chain_shorten(self.next_clno(clno), size - self.cluster_size)
+            if size <= 0:
+                self.set_cluster_number(clno, CLUSTER_FREE)
+            elif 0 < size <= self.cluster_size:
+                self.set_cluster_number(clno, CLUSTER_END_OF_CHAIN)
+            else:
+                return
+    truncate_chain = chain_shorten
 
-    def truncate_file(self, ino, size):
+    def node_data_truncate(self, ino, size):
         inode = self.get_inode_struct(ino)
-        if inode["type"] == TYPE_DIRECTORY:
+        if S_ISDIR(inode["mode"]):
             raise ClfsError(EISDIR)
-        elif inode["type"] != TYPE_REGULAR_FILE:
-            raise ClfsError(EINVAL)
+        else: # what about non regular file types?
+            pass
         if size == inode["size"]:
             return
         elif size > inode["size"]:
@@ -377,13 +399,72 @@ class Clfs(object):
         inode["size"] = size
         self.write_to_chain(ino, inode.size, 0, inode.pack())
         assert self.get_inode_struct(ino)["size"] == size
+    truncate_file = node_data_truncate
 
-    def get_dir_entry(self, path):
+    def os_chmod(self, path, mode):
+        logger.debug("os_chmod(%r, %o)", path, mode)
+        ino = self.ino_from_path(path)
+        inode = self.inode_read(ino)
+        assert S_IFMT(mode) == S_IFMT(inode["mode"]), mode
+        inode["mode"] = mode
+        self.inode_write(ino, inode)
+
+    def os_chown(self, path, uid, gid):
+        ino = self.ino_from_path(path)
+        inode = self.inode_read(ino)
+        inode["uid"] = uid
+        inode["gid"] = gid
+        self.inode_write(ino, inode)
+
+    def os_truncate(self, path, size):
+        self.node_data_truncate(self.get_dir_entry(path)["ino"], size)
+
+    def os_unlink(self, path):
+        dirpath, name = os.path.split(path)
+        dirino = self.ino_from_path(dirpath)
+        offset, dirent = self._scandir(dirino, name)
+        self.node_unlink(dirent["ino"])
+        self.dirent_remove(dirino, offset)
+
+    def node_unlink(self, ino):
+        inode = self.inode_read(ino)
+        inode["nlink"] -= 1
+        if inode["nlink"] > 0:
+            return
+        if inode["nlink"] < 0:
+            logger.error("Inode %i has %i links", inode["nlink"])
+        self.chain_shorten(ino, 0)
+        assert self.clno_get_next(ino) == CLUSTER_FREE
+
+    def _scandir(self, ino, name):
+        for offset, dirent in self._readdir(ino):
+            if dirent["name"].rstrip("\0") == name:
+                return offset, dirent
+        else:
+            raise ClfsError(ENOENT)
+
+    def _readdir(self, ino):
+        inode = self.inode_read(ino)
+        if not S_ISDIR(inode["mode"]):
+            raise ClfsError(ENOTDIR)
+        offset = 0
+        while offset < inode["size"]:
+            dirent = DirEntry.unpack(self.node_data_read(
+                    ino,
+                    offset,
+                    DirEntry.size))
+            if dirent["name"].rstrip("\0"):
+                yield offset, dirent
+            offset += dirent.size
+
+    #def dir_find_name(self, ino, name):
+
+
+    def dirent_from_path(self, path):
         for name in path.split("/"):
             if not name:
-                cur_dirent = self.get_root_dir_entry()
+                cur_dirent = self.dirent_root()
             else:
-               # pdb.set_trace()
                 for dirent in self.read_directory(cur_dirent["ino"]):
                     if dirent["name"].rstrip("\0") == name:
                         cur_dirent = dirent
@@ -391,13 +472,17 @@ class Clfs(object):
                 else:
                     raise ClfsError(ENOENT)
         return cur_dirent
+    get_dir_entry = dirent_from_path
     dirent_for_path = get_dir_entry
+
+    def ino_from_path(self, path):
+        return self.dirent_from_path(path)["ino"]
 
     def read_from_chain(self, first_cluster, chain_size, read_offset, read_size):
         if chain_size <= 0:
             return ""
         #assert read_offset + read_size <= chain_size, (read_offset, read_size, chain_size)
-        if read_offset > self.cluster_size:
+        if read_offset >= self.cluster_size:
             return self.read_from_chain(
                     self.next_cluster(first_cluster),
                     chain_size - self.cluster_size,
@@ -468,7 +553,7 @@ class Clfs(object):
             offset += update_dirent.size
         assert offset == parent_dirent["size"]
 
-    def write_inode_data(self, ino, offset, buffer):
+    def node_data_write(self, ino, offset, buffer):
         inode_struct = self.get_inode_struct(ino)
         data_offset = inode_struct.size
         write_size, new_size = self.write_to_chain(
@@ -487,8 +572,9 @@ class Clfs(object):
                 ino, new_size, 0, inode_struct.pack())
         assert self.get_inode_struct(ino)["size"] == new_size - data_offset
         return write_size
+    write_inode_data = node_data_write
 
-    def read_inode_data(self, inode, offset, size):
+    def node_data_read(self, inode, offset, size):
         inode_struct = self.get_inode_struct(inode)
         data_offset = inode_struct.size
         return self.read_from_chain(
@@ -496,10 +582,25 @@ class Clfs(object):
                 inode_struct["size"] + data_offset,
                 offset + data_offset,
                 size)
+    read_node_data = node_data_read
+    read_inode_data = read_node_data
 
     #def create_root_directory
 
-    def create_node(self, path, mode):
+    def inode_write(self, ino, inode):
+        assert (inode.size, inode.size) == self.write_to_chain(
+                cluster=ino,
+                size=0,
+                offset=0,
+                buffer=inode.pack())
+
+    def node_touch(self, ino, times):
+        inode = self.get_inode_struct(ino)
+        inode["atime"], inode["atimens"] = time_as_posix_spec(times[0])
+        inode["mtime"], inode["mtimens"] = time_as_posix_spec(times[1])
+        self.inode_write(ino, inode)
+
+    def node_create(self, path, mode, uid, gid, rdev=0):
         """Create an allocate a new inode, update relevant structures elsewhere"""
 
         node_dirname, node_basename = os.path.split(path)
@@ -511,7 +612,7 @@ class Clfs(object):
         if create_rootdir:
             assert S_ISDIR(mode)
 
-        new_inode = Inode(size=0, uid=0, gid=0, rdev=0, mode=mode)
+        new_inode = Inode(size=0, uid=uid, gid=gid, rdev=rdev, mode=mode)
         sec, nsec = time_as_posix_spec(time())
         for field_name in ("atime", "mtime", "ctime"):
             new_inode[field_name] = sec
@@ -551,11 +652,12 @@ class Clfs(object):
                     ino=parent_ino,
                     offset=self.get_inode_struct(parent_ino)["size"], # at the end
                     buffer=new_dirent.pack(),)
+    create_node = node_create
 
 def generate_bootrecord(device_size):
     # some basic geometry
     cluster_size = 512
-    cluster_number_bits = 32
+    cluster_number_bits = 8 * struct.calcsize(clno_t)
     device_cluster_count = device_size // cluster_size
 
     # determine region allocations
@@ -610,4 +712,4 @@ def create_filesystem(path):
 
     fs = Clfs(path)
     fs.clear_atab()
-    fs.create_node(path="/", mode=S_IFDIR|0755)
+    fs.create_node(path="/", mode=S_IFDIR|0777, uid=0, gid=0)

@@ -7,9 +7,12 @@ from sys import argv
 import logging
 import os.path
 
-from fuse import FUSE, Operations, LoggingMixIn
+from fuse import FUSE, Operations, LoggingMixIn, fuse_get_context
 from clfs import Clfs, ClfsError
 import clfs
+
+
+logger = logging.getLogger("fuseclfs")
 
 
 class FuseClfs(
@@ -20,7 +23,7 @@ class FuseClfs(
     def __call__(self, op, path, *args):
         # this code is based on fuse.LoggingMixIn.__call__
         logger = logging.getLogger("fusepy")
-        logger.debug("-> %s %s %r", op, path, args)
+        logger.debug("%s<-%r", op, (path,) + args)
         #print '->', op, path, repr(args)
         # perhaps this should be "[Unhandled exception]"
         ret = '[Unhandled Exception]'
@@ -33,13 +36,16 @@ class FuseClfs(
             raise
         finally:
             #print '<-', op, repr(ret)
-            logger.debug("<- %s %r", op, ret)
+            logger.debug("%s->%r", op, ret)
 
     def __init__(self, device):
         #self.log =
         self.fs = Clfs(device)
 
     create = None
+    access = None # default_permission is used
+    open = None
+    flush = None
 
     def _readdir(self, path, offset, handle=None):
         yield "."
@@ -54,6 +60,9 @@ class FuseClfs(
     def readdir(self, *args, **kwargs):
         return tuple(self._readdir(*args, **kwargs))
 
+    def utimens(self, path, times):
+        self.fs.node_touch(self.fs.get_dir_entry(path)["ino"], times)
+
     def getattr(self, path, fh=None):
         assert fh is None, fh
         dirent = self.fs.get_dir_entry(path)
@@ -62,6 +71,9 @@ class FuseClfs(
                 st_mode=inode["mode"],
                 st_nlink=inode["nlink"],
                 st_size=inode["size"],
+                st_uid=inode["uid"],
+                st_gid=inode["gid"],
+                st_rdev=inode["rdev"],
                 **inode.get_st_times())
 
     def mkdir(self, path, mode):
@@ -89,7 +101,11 @@ class FuseClfs(
                 f_bavail=free)
 
     def mknod(self, path, mode, rdev):
-        self.fs.create_node(path, mode)
+        logger.debug("mknod<-(%r, %o, %x)", path, mode, rdev)
+        uid, gid = fuse_get_context()[:2]
+        ret = self.fs.create_node(path, mode, uid, gid, rdev)
+        logger.debug("mknod->%r", ret)
+        return ret
 
     def write(self, path, buf, offset, fh=None):
         dirent = self.fs.get_dir_entry(path)
@@ -100,16 +116,31 @@ class FuseClfs(
 
     def read(self, path, size, offset, fh=None):
         dirent = self.fs.get_dir_entry(path)
-        return self.fs.read_inode_data(dirent["inode"], offset, size)
+        return self.fs.read_node_data(dirent["ino"], offset, size)
 
     def truncate(self, path, size):
-        dirent = self.fs.get_dir_entry(path)
-        self.fs.truncate_file(dirent["ino"], size)
+        self.fs.os_truncate(path, size)
 
+    def chown(self, path, uid, gid):
+        self.fs.os_chown(path, uid, gid)
+
+    def chmod(self, path, mode):
+        self.fs.os_chmod(path, mode)
+
+    def unlink(self, path):
+        self.fs.os_unlink(path)
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    FUSE(FuseClfs(argv[1]), argv[2], foreground=True, nothreads=True)
+    FUSE(
+            FuseClfs(argv[1]), # fs(devpath)
+            argv[2], # mountpoint
+            foreground=True, # debug hooks provided by fusepy
+            nothreads=True, # no locking in the filesystem yet
+            default_permissions=True, # let the kernel handle perm checks
+            fsname="clfs",
+            #allow_other=True, # use this when running as root
+        )
 
 if __name__ == '__main__':
     main()
