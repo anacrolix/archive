@@ -320,10 +320,11 @@ class Clfs(object):
         assert self.valid_data_region_cluster_number(clno), clno
         self.safe_seek(self.cluster_size * self.master_region_cluster_count + 4 * (clno - self.first_data_region_cluster_number))
 
-    def set_cluster_number(self, clno, next):
+    def clno_set_next(self, clno, next):
         self.seek_cluster_number(clno)
         logger.debug("Setting cluster number %i->%i", clno, next)
         self.f.write(struct.pack("I", next))
+    set_cluster_number = clno_set_next
 
     def clear_atab(self):
         self.seek_cluster(self.master_region_cluster_count)
@@ -340,6 +341,9 @@ class Clfs(object):
         inode = self.inode_read(ino)
         dirent = DirEntry(name="", ino=CLUSTER_FREE)
         self.node_data_write(ino, offset, dirent.pack())
+        inode["nlink"] -= 1
+        inode.mark_posix_update()
+        self.inode_write(ino, inode)
 
     def dirent_root(self):
         self.seek_cluster(0, 256)
@@ -367,23 +371,27 @@ class Clfs(object):
             offset += dirent.size
 
     def chain_shorten(self, clno, size):
-        if clno == CLUSTER_END_OF_CHAIN:
-            if size > 0:
-                logger.error("Chain ends prematurely, expected %i more bytes", size)
-        elif clno == CLUSTER_FREE:
-            logger.error("Chain derails into free cluster")
-        else:
-            self.chain_shorten(self.next_clno(clno), size - self.cluster_size)
-            if size <= 0:
-                self.set_cluster_number(clno, CLUSTER_FREE)
+        while True:
+            next = self.clno_get_next(clno)
+            if next is CLUSTER_FREE:
+                logger.error("Chain contains unallocated cluster %i", clno)
+            if size > self.cluster_size:
+                if next is CLUSTER_END_OF_CHAIN:
+                    logger.error("Chain ends prematurely, expected %i more bytes", size)
+                    break
             elif 0 < size <= self.cluster_size:
-                self.set_cluster_number(clno, CLUSTER_END_OF_CHAIN)
-            else:
-                return
-    truncate_chain = chain_shorten
+                self.clno_set_next(clno, CLUSTER_END_OF_CHAIN)
+                logger.debug("Marking cluster %i as end of chain", clno)
+            elif next is not CLUSTER_FREE:
+                self.clno_set_next(clno, CLUSTER_FREE)
+                logger.debug("Freeing cluster %i", clno)
+            if next in (CLUSTER_FREE, CLUSTER_END_OF_CHAIN):
+                break
+            clno = next
+            size -= self.cluster_size
 
     def node_data_truncate(self, ino, size):
-        inode = self.get_inode_struct(ino)
+        inode = self.inode_read(ino)
         if S_ISDIR(inode["mode"]):
             raise ClfsError(EISDIR)
         else: # what about non regular file types?
@@ -391,14 +399,12 @@ class Clfs(object):
         if size == inode["size"]:
             return
         elif size > inode["size"]:
-            self.write_inode_data(ino, inode["size"], "\0" * size - inode["size"])
-            del inode
+            self.node_data_write(ino, inode["size"], "\0" * (size - inode["size"]))
         elif size < inode["size"]:
-            #pdb.set_trace()
-            self.truncate_chain(ino, size + inode.size)
+            self.chain_shorten(ino, size + inode.size)
         inode["size"] = size
-        self.write_to_chain(ino, inode.size, 0, inode.pack())
-        assert self.get_inode_struct(ino)["size"] == size
+        self.inode_write(ino, inode)
+        assert self.inode_read(ino)["size"] == size
     truncate_file = node_data_truncate
 
     def os_chmod(self, path, mode):
@@ -416,17 +422,36 @@ class Clfs(object):
         inode["gid"] = gid
         self.inode_write(ino, inode)
 
+    def os_rmdir(self, path):
+        dirpath, name = os.path.split(path)
+        dirino = self.ino_from_path(dirpath)
+        offset, dirent = self._scandir(dirino, name)
+        self._rmdir(dirent["ino"])
+        self.dirent_remove(dirino, offset)
+
     def os_truncate(self, path, size):
-        self.node_data_truncate(self.get_dir_entry(path)["ino"], size)
+        self.node_data_truncate(self.ino_from_path(path), size)
 
     def os_unlink(self, path):
         dirpath, name = os.path.split(path)
         dirino = self.ino_from_path(dirpath)
         offset, dirent = self._scandir(dirino, name)
-        self.node_unlink(dirent["ino"])
+        self._unlink(dirent["ino"])
         self.dirent_remove(dirino, offset)
 
-    def node_unlink(self, ino):
+    def _rmdir(self, ino):
+        inode = self.inode_read(ino)
+        if not S_ISDIR(inode["mode"]):
+            raise ClfsError(ENOTDIR)
+        if inode["nlink"] > 2:
+            raise ClfsError(ENOTEMPTY)
+        if inode["nlink"] < 2:
+            logger.error(
+                    "Directory inode %i has invalid link count %i",
+                    ino, inode["nlink"])
+        self.chain_shorten(ino, 0)
+
+    def _unlink(self, ino):
         inode = self.inode_read(ino)
         inode["nlink"] -= 1
         if inode["nlink"] > 0:

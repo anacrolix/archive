@@ -19,6 +19,7 @@ from ctypes.util import find_library
 from errno import *
 from functools import partial
 from os import strerror
+from pdb import post_mortem, set_trace
 from platform import machine, system
 from stat import S_IFDIR
 from traceback import print_exc
@@ -302,6 +303,7 @@ class FUSE(object):
             return -(e.errno or EFAULT)
         except:
             print_exc()
+            post_mortem()
             return -EFAULT
 
     def getattr(self, path, buf):
@@ -374,8 +376,7 @@ class FUSE(object):
         stv = buf.contents
         attrs = self.operations('statfs', path)
         for key, val in attrs.items():
-            if hasattr(stv, key):
-                setattr(stv, key, val)
+            setattr(stv, key, val)
         return 0
 
     def flush(self, path, fip):
@@ -613,7 +614,7 @@ class Operations(object):
         raise FuseOSError(EROFS)
 
     def rmdir(self, path):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(EPERM)
 
     def setxattr(self, path, name, value, options, position=0):
         raise FuseOSError(ENOTSUP)
