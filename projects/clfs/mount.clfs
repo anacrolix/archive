@@ -120,7 +120,11 @@ class FuseClfs(
         return len(buf)
 
     def read(self, path, size, offset, fh=None):
-        return self.fs.node_data_read(self.fs.ino_from_path(path), offset, size)
+        assert not fh, fh
+        return self.fs._read(self.fs.ino_for_path(path), offset, size)
+
+    #def rename(self, old, new):
+        #return self.fs.os_rename(old, new)
 
     def truncate(self, path, size):
         self.fs.os_truncate(path, size)
@@ -135,7 +139,7 @@ class FuseClfs(
         self.fs.os_unlink(path)
 
 def main():
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.DEBUG)
     FUSE(
             FuseClfs(argv[1]), # fs(devpath)
             argv[2], # mountpoint
@@ -145,8 +149,10 @@ def main():
             fsname="clfs",
             #allow_other=True, # use this when running as root
             use_ino=True,
-            direct_io=True,
-            noauto_cache=True,
+            #direct_io=True,
+            #noauto_cache=True,
+            big_writes=True, # this might help with the high chain deref cost
+            #help=True,
         )
 
 if __name__ == '__main__':

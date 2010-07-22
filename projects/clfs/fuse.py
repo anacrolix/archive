@@ -273,6 +273,8 @@ class FUSE(object):
             args.append('-d')
         if kwargs.pop('nothreads', False):
             args.append('-s')
+        if kwargs.pop('help', False):
+            args.append('-h')
         kwargs.setdefault('fsname', operations.__class__.__name__)
         args.append('-o')
         args.append(','.join(key if val == True else '%s=%s' % (key, val)
@@ -290,7 +292,7 @@ class FUSE(object):
             sizeof(fuse_ops), None)
         # fuse has finished
         del self.operations     # Invoke the destructor
-        if err:
+        if err: # and not '-h' in args?
             raise RuntimeError(err)
 
     def _wrapper_(self, func, *args, **kwargs):

@@ -159,6 +159,12 @@ class Inode(ClfsStruct):
                     ("st_" + a, self[a] + self[a + "ns"] / (10 ** 9))
                     for a in (b + "time" for b in "amc")))
 
+    def posix_inode_created(self):
+        # see open(3), mknod(3), mkdir(3)
+        time_parts = time_as_posix_spec(time.time())
+        for time_char in "amc":
+            self[time_char + "time"], self[time_char + "timens"] = time_parts
+
     def posix_inode_changed(self):
         # see write(3)
         time_parts = time_as_posix_spec(time.time())
@@ -172,6 +178,10 @@ class Inode(ClfsStruct):
         # see read(3)
         time_parts = time_as_posix_spec(time.time())
         self["atime"], self["atimens"] = time_parts
+
+    def set_times(self, actime, modtime):
+        self["atime"], self["atimens"] = time_as_posix_spec(actime)
+        self["mtime"], self["mtimens"] = time_as_posix_spec(modtime)
 
 
 assert Inode.size == 128, Inode.size
@@ -362,7 +372,7 @@ class Clfs(object):
             clno = next
             size -= self.cluster_size
 
-    def node_data_truncate(self, ino, size):
+    def _truncate(self, ino, size):
         inode = self.inode_read(ino)
         if S_ISDIR(inode["mode"]):
             raise ClfsError(EISDIR)
@@ -376,13 +386,13 @@ class Clfs(object):
                     offset=inode["size"], #end of file
                     buffer="\0" * (size - inode["size"]), # all zeros
                     inode=inode)
-            del inode # node_data_write does updating for us
         elif size < inode["size"]:
             self.chain_shorten(ino, size + inode.size)
+            # since we used chain_shorten we need to manually update the inode
             inode["size"] = size
-            self.inode_write(ino, inode)
+            inode.posix_inode_changed()
+        self.inode_write(ino, inode)
         assert self.inode_read(ino)["size"] == size
-    truncate_file = node_data_truncate
 
     def os_chmod(self, path, mode):
         logger.debug("os_chmod(%r, %o)", path, mode)
@@ -409,13 +419,17 @@ class Clfs(object):
         #self.dirent_remove(dirino, offset)
 
     def os_truncate(self, path, size):
-        self.node_data_truncate(self.ino_from_path(path), size)
+        self._truncate(self.ino_from_path(path), size)
 
     def os_unlink(self, path):
         dirpath, name = os.path.split(path)
         dirino = self.ino_for_path(dirpath)
         self._unlink(dirino, name)
         del self._path_cache[path]
+
+    #def os_rename(self, old, new):
+        #olddir, oldname = os.path.split(old)
+        #newdir, newname = os.path.split(new)
 
     def _rmdir(self, dirino, name):
         offset, dirent = self._scandir(dirino, name)
@@ -562,15 +576,11 @@ class Clfs(object):
             clno = next_clno
             offset -= self.cluster_size
 
-    def node_data_write(self, ino, offset, buffer, inode=None):
-        if inode is None:
-            inode = self.inode_read(ino)
+    def node_data_write(self, ino, offset, buffer, inode):
         data_offset = inode.size
         self.chain_write(ino, offset + data_offset, buffer)
         inode["size"] = max(offset + len(buffer), inode["size"])
         inode.posix_inode_changed()
-        self.inode_write(ino, inode)
-    write_inode_data = node_data_write
 
     def _read(self, ino, offset, size):
         inode = self.inode_read(ino)
@@ -593,74 +603,63 @@ class Clfs(object):
 
     def node_touch(self, ino, times):
         inode = self.inode_read(ino)
-        inode["atime"], inode["atimens"] = time_as_posix_spec(times[0])
-        inode["mtime"], inode["mtimens"] = time_as_posix_spec(times[1])
+        inode.set_times(*times)
         self.inode_write(ino, inode)
+
+    def inode_new(self, mode, uid, gid, rdev=0):
+        inode = Inode(size=0, uid=uid, gid=gid, mode=mode, rdev=rdev)
+        inode.posix_inode_created()
+        if S_ISDIR(mode):
+            inode["nlink"] = 2
+        else:
+            inode["nlink"] = 1
+        return inode
+
+    def root_create(self, mode, uid, gid, rdev=0):
+        logger.debug("root_create(%o, %i, %i, %x)", mode, uid, gid, rdev)
+        # can the root be something other than a directory?
+        inode = self.inode_new(mode, uid, gid, rdev)
+        dirent = DirEntry(ino=self.cluster_alloc(), name="/")
+        assert dirent["ino"] == self.region_data_start
+        self.inode_write(dirent["ino"], inode)
+        self.seek_root_dirent()
+        self._f.write(dirent.pack())
 
     def node_create(self, path, mode, uid, gid, rdev=0):
         """Create an allocate a new inode, update relevant structures elsewhere"""
-
         logger.info("node_create(%r, %o, %i, %i, %x)", path, mode, uid, gid, rdev)
 
         node_dirname, node_basename = os.path.split(path)
         parent_dirname, parent_basename = os.path.split(node_dirname)
 
-        create_rootdir = bool(
-                (not node_basename) and
-                (node_dirname == parent_dirname == "/"))
-        if create_rootdir:
-            assert S_ISDIR(mode), oct(mode)
-
-        new_inode = Inode(size=0, uid=uid, gid=gid, rdev=rdev, mode=mode)
-        sec, nsec = time_as_posix_spec(time.time())
-        for field_name in ("atime", "mtime", "ctime"):
-            new_inode[field_name] = sec
-        for field_name in ("atimens", "mtimens", "ctimens"):
-            new_inode[field_name] = nsec
-        del sec, nsec
-        if S_ISDIR(mode):
-            new_inode["nlink"] = 2
+        # make sure the name is not present in the parent directory
+        parent_ino = self.ino_for_path(node_dirname)
+        try:
+            self._scandir(parent_ino, node_basename)
+        except OSError as e:
+            if e.errno != ENOENT:
+                raise
         else:
-            new_inode["nlink"] = 1
+            # scandir returned, so the name was found
+            raise ClfsError(EEXIST)
 
-        new_dirent = DirEntry(ino=self.cluster_alloc())
-        if create_rootdir:
-            new_dirent["name"] = "/"
-            # root dir is only created for a new partition, its inode would
-            # reside in the first cluster allocated in the data region
-            assert new_dirent["ino"] == self.region_data_start, \
-                new_dirent["ino"]
-        else:
-            # make sure the name is not present in the parent directory
-            parent_ino = self.ino_for_path(node_dirname)
-            try:
-                self._scandir(parent_ino, node_basename)
-            except OSError as e:
-                if e.errno != ENOENT:
-                    raise
-            else:
-                # scandir returned, so the name was found
-                raise ClfsError(EEXIST)
-            new_dirent["name"] = node_basename
+        new_inode = self.inode_new(mode, uid, gid, rdev)
+        new_dirent = DirEntry(ino=self.cluster_alloc(), name=node_basename)
 
         # write inode
         self.inode_write(new_dirent["ino"], new_inode)
 
         # write the new dirent at the end of the parent directory
-        if create_rootdir:
-            self.seek_root_dirent()
-            self._f.write(new_dirent.pack())
-        else:
-            parent_inode = self.inode_read(parent_ino)
-            if S_ISDIR(new_inode["mode"]):
-                # linux add link for subdirs, other platforms differ
-                parent_inode["nlink"] += 1
-            #set_trace()
-            self.node_data_write(
-                    ino=parent_ino,
-                    offset=parent_inode["size"], # at the end
-                    buffer=new_dirent.pack(),
-                    inode=parent_inode)
+        parent_inode = self.inode_read(parent_ino)
+        if S_ISDIR(new_inode["mode"]):
+            # linux add link for subdirs, other platforms differ
+            parent_inode["nlink"] += 1
+        self.node_data_write(
+                ino=parent_ino,
+                offset=parent_inode["size"], # at the end
+                buffer=new_dirent.pack(),
+                inode=parent_inode)
+        self.inode_write(parent_ino, parent_inode)
 
 def generate_bootrecord(device_size):
     # some basic geometry
@@ -720,4 +719,4 @@ def create_filesystem(path):
 
     fs = Clfs(path)
     fs.atab_clear()
-    fs.node_create(path="/", mode=S_IFDIR|0777, uid=0, gid=0)
+    fs.root_create(mode=S_IFDIR|0777, uid=0, gid=0)
