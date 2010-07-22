@@ -1,1 +1,13 @@
 * Implement posix atime/ctime marking on changes
+* Add optimized readdir() implementation, that removes chain_read cost.
+* Add offsets to readdir returns
+* Ditch the intermediate list generation (maybe make a generator wrapper that logs?)
+* Move inode_write for posix data write up to a _write call
+* Rename node_data_* to data_*?
+* Rename cluster_*_next to clno_*?
+* Automatically add allow_other if we're root when mounting?
+* Add seek/write/read locking
+* Test mount on a real block device
+* Add threading support
+* Add a python logging logconf file, and use clfs.blah logger types more
+* Submit patches for any changes to fusepy.
