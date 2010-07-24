@@ -3,23 +3,17 @@ from __future__ import division
 from errno import *
 from stat import *
 from collections import namedtuple
-from os import strerror
+from os import fpathconf, strerror, SEEK_SET, fstat
+from os.path import split as path_split
 import logging
 logger = logging.getLogger("clfs")
 del logging
 from pdb import set_trace
-import os
-import pdb
 import pprint
 import struct
 import time
 
-CLFS_NAMEMAX = 124
-
-#TYPE_DIRECTORY = 1
-#TYPE_REGULAR_FILE = 2
-
-ROOT_DIRENT_RAW_OFFSET = 256
+CLFS_NAMEMAX = 255
 
 clno_t = struct.Struct("I")
 
@@ -133,14 +127,14 @@ class DirEntry(ClfsStruct):
             ("name", "{0}s".format(CLFS_NAMEMAX)),
             ("ino", "I"),)
 
-assert DirEntry.size == 128, DirEntry.size
+#assert DirEntry.size == 256, DirEntry.size
 
 
 class Inode(ClfsStruct):
 
     _fields_ = (
             ("mode", "I"),
-            (None, "4x"),
+#            (None, "4x"),
             ("size", "Q"),
             ("nlink", "i"),
             ("uid", "I"),
@@ -152,7 +146,8 @@ class Inode(ClfsStruct):
             ("mtimens", "I"),
             ("ctime", "I"),
             ("ctimens", "I"),
-            (None, "68x"),)
+            #(None, "202x"),
+        )
 
     def get_st_times(self):
         return dict((
@@ -165,26 +160,29 @@ class Inode(ClfsStruct):
         for time_char in "amc":
             self[time_char + "time"], self[time_char + "timens"] = time_parts
 
+    def set_time_fields(self, newtime=None, access=False, modify=False, change=False):
+        if newtime is None:
+            newtime = time.time()
+        time_parts = time_as_posix_spec(newtime)
+        for prefix, update in (("a", access), ("m", modify), ("c", change)):
+            if update:
+                self[prefix + "time"], self[prefix + "timens"] = time_parts
+
     def posix_inode_changed(self):
         # see write(3)
-        time_parts = time_as_posix_spec(time.time())
-        for time_char in "mc":
-            self[time_char + "time"] = time_parts[0]
-            self[time_char + "timens"] = time_parts[1]
+        self.set_time_fields(modify=True, change=True)
         if (S_ISREG(self["mode"])):
             self["mode"] &= ~S_ISGID & ~S_ISUID
 
     def posix_inode_accessed(self):
         # see read(3)
-        time_parts = time_as_posix_spec(time.time())
-        self["atime"], self["atimens"] = time_parts
+        self.set_time_fields(access=True)
 
-    def set_times(self, actime, modtime):
-        self["atime"], self["atimens"] = time_as_posix_spec(actime)
-        self["mtime"], self["mtimens"] = time_as_posix_spec(modtime)
+    def posix_inode_status_changed(self):
+        # see chmod(3)
+        self.set_time_fields(change=True)
 
-
-assert Inode.size == 128, Inode.size
+#assert Inode.size == 256, Inode.size
 
 
 class BootRecord(ClfsStruct):
@@ -196,11 +194,11 @@ class BootRecord(ClfsStruct):
             ("mstrclrs", "I"),
             ("atabclrs", "I"),
             ("dataclrs", "I"),
-            (None, "228x"),
+            #(None, "228x"),
         )
 
-assert BootRecord.size == 256
-assert BootRecord.size <= ROOT_DIRENT_RAW_OFFSET
+#assert BootRecord.size == 256
+#assert BootRecord.size <= ROOT_DIRENT_CLUSTER_OFFSET
 
 
 class ClfsError(OSError):
@@ -219,6 +217,8 @@ class Clfs(object):
 
         self._f = open(path, "r+b")
         self._path_cache = {}
+        self._path_max = fpathconf(self._f.fileno(), "PC_PATH_MAX")
+        logger.info("PATH_MAX is %i", self._path_max)
 
         br = BootRecord.from_fileobj(self._f)
         assert br["ident"].rstrip("\0") == "clfs", repr(br["ident"])
@@ -249,12 +249,9 @@ class Clfs(object):
 
     # --- device functions
 
-    def safe_seek(self, offset, whence=os.SEEK_SET):
+    def safe_seek(self, offset, whence=SEEK_SET):
         self._f.seek(offset)
         assert self._f.tell() < self.fs_total_byte_size
-
-    def seek_root_dirent(self):
-        self.cluster_seek(0, ROOT_DIRENT_RAW_OFFSET)
 
     def device_flush(self):
         #self._f.flush()
@@ -292,10 +289,10 @@ class Clfs(object):
         for atab_cluster in xrange(
                 self.region_atab_start,
                 self.region_atab_end):
-            buffer = self.f.read(self.cluster_size)
+            buffer = self.cluster_read(atab_cluster, 0, self.cluster_size)
             assert len(buffer) == self.cluster_size, len(buffer)
             for offset in xrange(0, self.cluster_size, clno_t.size):
-                yield clno_t.unpack(buffer, offset)[0]
+                yield clno_t.unpack_from(buffer, offset)[0]
 
     def cluster_alloc(self):
         clno = self._last_alloc_clno
@@ -339,11 +336,11 @@ class Clfs(object):
             self._f.write(clno_t.pack(CLUSTER_ATAB_PADDING))
         assert self._f.tell() == self.cluster_size * self.region_atab_end
 
-    def dirent_remove(self, ino, offset, inode):
+    def dir_remove(self, ino, offset, inode):
         """ino and inode are for the parent directory, offset is for the entry"""
-        assert offset < inode["size"], (offset, inode["size"])
-        self.node_data_write(ino, offset, DirEntry().pack())
-        inode.posix_inode_changed()
+        assert offset + DirEntry.size <= inode["size"]
+        self.node_data_write(ino, offset, DirEntry().pack(), inode)
+        #inode.posix_inode_changed()
 
     def ino_for_root(self):
         return self.region_data_start
@@ -398,8 +395,9 @@ class Clfs(object):
         logger.debug("os_chmod(%r, %o)", path, mode)
         ino = self.ino_from_path(path)
         inode = self.inode_read(ino)
-        assert S_IFMT(mode) == S_IFMT(inode["mode"]), mode
+        assert S_IFMT(mode) == S_IFMT(inode["mode"])
         inode["mode"] = mode
+        inode.posix_inode_status_changed()
         self.inode_write(ino, inode)
 
     def os_chown(self, path, uid, gid):
@@ -410,26 +408,54 @@ class Clfs(object):
         self.inode_write(ino, inode)
 
     def os_rmdir(self, path):
-        dirpath, name = os.path.split(path)
+        dirpath, name = path_split(path)
         dirino = self.ino_for_path(dirpath)
         self._rmdir(dirino, name)
         del self._path_cache[path]
-        #offset, dirent = self._scandir(dirino, name)
-        #self._rmdir(dirent["ino"])
-        #self.dirent_remove(dirino, offset)
 
     def os_truncate(self, path, size):
         self._truncate(self.ino_from_path(path), size)
 
     def os_unlink(self, path):
-        dirpath, name = os.path.split(path)
+        dirpath, name = path_split(path)
         dirino = self.ino_for_path(dirpath)
         self._unlink(dirino, name)
         del self._path_cache[path]
 
-    #def os_rename(self, old, new):
-        #olddir, oldname = os.path.split(old)
-        #newdir, newname = os.path.split(new)
+    def os_utimens(self, path, times):
+        self._utimens(self.ino_for_path(path), times)
+
+    def os_readlink(self, path):
+        ino = self.ino_for_path(path)
+        inode = self.inode_read(ino)
+        if not S_ISLNK(inode["mode"]):
+            raise ClfsError(EINVAL)
+        buf = self.node_data_read(ino, 0, inode["size"], inode)
+        self.inode_write(ino, inode)
+        return buf
+
+    def os_rename(self, old, new):
+        oldpdir, oldname = path_split(old)
+        oldpino = self.ino_for_path(oldpdir)
+        newpdir, newname = path_split(new)
+        newpino = self.ino_for_path(newpdir)
+        self._rename(oldpino, oldname, newpino, newname)
+
+    def os_symlink(self, target, source):
+        logger.debug("os_symlink(%r, %r)", target, source)
+        self.node_create(target, S_IFLNK|0777, 0, 0, 0)
+        ino = self.ino_for_path(target)
+        inode = self.inode_read(ino)
+        self.node_data_write(
+                self.ino_for_path(target),
+                0,
+                source,
+                inode)
+        self.inode_write(ino, inode)
+
+    def _rename(self, oldpino, oldname, newpino, newname):
+        oldoff, olddire = self._scandir(oldpino, oldname)
+        newoff, newdire = self._scandir(newpino, newname)
 
     def _rmdir(self, dirino, name):
         offset, dirent = self._scandir(dirino, name)
@@ -449,7 +475,7 @@ class Clfs(object):
         dirinode = self.inode_read(dirino)
         # we're removing a subdir
         dirinode["nlink"] -= 1
-        self.dirent_remove(dirino, offset, dirinode)
+        self.dir_remove(dirino, offset, dirinode)
         self.inode_write(dirino, dirinode)
 
     def _unlink(self, dirino, name):
@@ -459,7 +485,7 @@ class Clfs(object):
         if S_ISDIR(inode["mode"]):
             raise ClfsError(EISDIR)
         dirinode = self.inode_read(dirino)
-        self.dirent_remove(dirino, offset, dirinode)
+        self.dir_remove(dirino, offset, dirinode)
         self.inode_write(dirino, dirinode)
         # has now been deleted
         del dirent
@@ -474,6 +500,8 @@ class Clfs(object):
             self.chain_shorten(ino, 0)
 
     def _scandir(self, ino, name):
+        if len(name) > CLFS_NAMEMAX:
+            raise ClfsError(ENAMETOOLONG)
         for offset, dirent in self._readdir(ino):
             if dirent["name"].rstrip("\0") == name:
                 return offset, dirent
@@ -481,22 +509,14 @@ class Clfs(object):
             raise ClfsError(ENOENT)
 
     def _readdir(self, ino):
-        inode = self.inode_read(ino)
-        if not S_ISDIR(inode["mode"]):
-            raise ClfsError(ENOTDIR)
-        offset = 0
-        while offset < inode["size"]:
-            dirent = DirEntry.unpack(self.node_data_read(
-                    ino,
-                    offset,
-                    DirEntry.size,
-                    inode))
-            if dirent["name"][0] != "\0":
-                yield offset, dirent
-            offset += dirent.size
+        return self.dir_iter(ino, self.inode_read(ino))
 
     def ino_for_path(self, path):
         logger.debug("ino_for_path(%r)", path)
+
+        # null byte must be included against path max see limits.h(7posix)
+        if len(path) + 1 > self._path_max:
+            raise ClfsError(ENAMETOOLONG)
 
         if path == "/":
             ino = self.ino_for_root()
@@ -590,6 +610,11 @@ class Clfs(object):
             self.inode_write(ino, inode)
         return buf
 
+    def _write(self, ino, offset, buf):
+        inode = self.inode_read(ino)
+        self.node_data_write(ino, offset, buf, inode)
+        self.inode_write(ino, inode)
+
     def node_data_read(self, ino, offset, size, inode):
         data_offset = inode.size
         return self.chain_read(
@@ -601,9 +626,10 @@ class Clfs(object):
     def inode_write(self, ino, inode):
         self.chain_write(ino, 0, inode.pack())
 
-    def node_touch(self, ino, times):
+    def _utimens(self, ino, times):
         inode = self.inode_read(ino)
-        inode.set_times(*times)
+        inode.set_time_fields(times[0], access=True)
+        inode.set_time_fields(times[1], modify=True)
         self.inode_write(ino, inode)
 
     def inode_new(self, mode, uid, gid, rdev=0):
@@ -622,25 +648,19 @@ class Clfs(object):
         dirent = DirEntry(ino=self.cluster_alloc(), name="/")
         assert dirent["ino"] == self.region_data_start
         self.inode_write(dirent["ino"], inode)
-        self.seek_root_dirent()
-        self._f.write(dirent.pack())
+        self.cluster_write(self.region_master_start, BootRecord.size, dirent.pack())
 
     def node_create(self, path, mode, uid, gid, rdev=0):
         """Create an allocate a new inode, update relevant structures elsewhere"""
         logger.info("node_create(%r, %o, %i, %i, %x)", path, mode, uid, gid, rdev)
 
-        node_dirname, node_basename = os.path.split(path)
-        parent_dirname, parent_basename = os.path.split(node_dirname)
+        node_dirname, node_basename = path_split(path)
+        parent_dirname, parent_basename = path_split(node_dirname)
 
         # make sure the name is not present in the parent directory
         parent_ino = self.ino_for_path(node_dirname)
-        try:
-            self._scandir(parent_ino, node_basename)
-        except OSError as e:
-            if e.errno != ENOENT:
-                raise
-        else:
-            # scandir returned, so the name was found
+        parent_inode = self.inode_read(parent_ino)
+        if self.dir_exists(parent_ino, parent_inode, node_basename):
             raise ClfsError(EEXIST)
 
         new_inode = self.inode_new(mode, uid, gid, rdev)
@@ -649,17 +669,42 @@ class Clfs(object):
         # write inode
         self.inode_write(new_dirent["ino"], new_inode)
 
-        # write the new dirent at the end of the parent directory
-        parent_inode = self.inode_read(parent_ino)
-        if S_ISDIR(new_inode["mode"]):
-            # linux add link for subdirs, other platforms differ
-            parent_inode["nlink"] += 1
-        self.node_data_write(
-                ino=parent_ino,
-                offset=parent_inode["size"], # at the end
-                buffer=new_dirent.pack(),
-                inode=parent_inode)
+        self.dir_add(parent_ino, parent_inode, new_dirent, new_inode)
+        # update parent inode
         self.inode_write(parent_ino, parent_inode)
+
+    def dir_add(self, dino, dinode, dirent, inode):
+        if S_ISDIR(inode["mode"]):
+            # linux add link for subdirs, other platforms differ
+            dinode["nlink"] += 1
+        # write the new entry to the end of the directory data
+        self.node_data_write(
+                ino=dino,
+                offset=dinode["size"],
+                buffer=dirent.pack(),
+                inode=dinode)
+
+    def dir_exists(self, dino, dinode, name):
+        for offset, dirent in self.dir_iter(dino, dinode):
+            if dirent["name"].rstrip("\0") == name:
+                return True
+        else:
+            return False
+
+    def dir_iter(self, ino, inode):
+        if not S_ISDIR(inode["mode"]):
+            raise ClfsError(ENOTDIR)
+        offset = 0
+        while offset < inode["size"]:
+            dirent = DirEntry.unpack(self.node_data_read(
+                    ino,
+                    offset,
+                    DirEntry.size,
+                    inode))
+            if dirent["name"][0] != "\0":
+                yield offset, dirent
+            offset += dirent.size
+        assert offset == inode["size"]
 
 def generate_bootrecord(device_size):
     # some basic geometry
@@ -711,12 +756,14 @@ def generate_bootrecord(device_size):
 def create_filesystem(path):
     # create and write boot record
     f = open(path, "r+b")
-    br = generate_bootrecord(os.fstat(f.fileno()).st_size)
+    br = generate_bootrecord(fstat(f.fileno()).st_size)
     f.seek(0)
-    assert br.size <= ROOT_DIRENT_RAW_OFFSET
+    #assert br.size <= ROOT_DIRENT_CLUSTER_OFFSET
     f.write(br.pack())
     f.close()
 
     fs = Clfs(path)
     fs.atab_clear()
     fs.root_create(mode=S_IFDIR|0777, uid=0, gid=0)
+    root_next = fs.cluster_get_next(fs.ino_for_root())
+    assert root_next == CLUSTER_END_OF_CHAIN, root_next

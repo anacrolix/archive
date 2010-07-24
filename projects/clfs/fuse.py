@@ -134,15 +134,7 @@ else:
 
 
 class c_statvfs(Structure):
-    _fields_ = [
-        ('f_bsize', c_ulong),
-        ('f_frsize', c_ulong),
-        ('f_blocks', c_fsblkcnt_t),
-        ('f_bfree', c_fsblkcnt_t),
-        ('f_bavail', c_fsblkcnt_t),
-        ('f_files', c_fsfilcnt_t),
-        ('f_ffree', c_fsfilcnt_t),
-        ('f_favail', c_fsfilcnt_t)]
+    pass
 
 if _system == 'FreeBSD':
     c_fsblkcnt_t = c_uint64
@@ -160,6 +152,32 @@ if _system == 'FreeBSD':
             ('f_bsize', c_ulong),
             ('f_flag', c_ulong),
             ('f_frsize', c_ulong)]
+elif _system == 'Linux':
+    c_statvfs._fields_ = [
+            ('f_bsize', c_ulong),
+            ('f_frsize', c_ulong),
+            ('f_blocks', c_fsblkcnt_t),
+            ('f_bfree', c_fsblkcnt_t),
+            ('f_bavail', c_fsblkcnt_t),
+            ('f_files', c_fsfilcnt_t),
+            ('f_ffree', c_fsfilcnt_t),
+            ('f_favail', c_fsfilcnt_t),
+            ('f_fsid', c_ulong),
+            ('__f_unused', c_int),
+            ('f_flag', c_ulong),
+            ('f_namemax', c_ulong),
+        #('__f_spare', c_int * 6),
+        ]
+else:
+    c_statvfs._fields_ = [
+        ('f_bsize', c_ulong),
+        ('f_frsize', c_ulong),
+        ('f_blocks', c_fsblkcnt_t),
+        ('f_bfree', c_fsblkcnt_t),
+        ('f_bavail', c_fsblkcnt_t),
+        ('f_files', c_fsfilcnt_t),
+        ('f_ffree', c_fsfilcnt_t),
+        ('f_favail', c_fsfilcnt_t)]
 
 class fuse_file_info(Structure):
     _fields_ = [
@@ -378,6 +396,7 @@ class FUSE(object):
         stv = buf.contents
         attrs = self.operations('statfs', path)
         for key, val in attrs.items():
+            assert key in (a[0] for a in stv._fields_)
             setattr(stv, key, val)
         return 0
 
@@ -601,7 +620,7 @@ class Operations(object):
         return ['.', '..']
 
     def readlink(self, path):
-        raise FuseOSError(ENOEN)
+        raise FuseOSError(ENOENT)
 
     def release(self, path, fh):
         return 0

@@ -6,6 +6,8 @@ import os
 import clfs
 
 def main():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
     parser = optparse.OptionParser()
     opts, args = parser.parse_args()
     clfs.create_filesystem(args[0])

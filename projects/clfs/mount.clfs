@@ -2,7 +2,7 @@
 
 from errno import *
 from stat import *
-from os import strerror
+from os import getuid, strerror
 from sys import argv
 import logging
 import os.path
@@ -41,9 +41,13 @@ class FuseClfs(
     def __init__(self, device):
         self.fs = Clfs(device)
 
-    create = None
     access = None # default_permission is used
+    create = None # fallback to mknod() then open()
     open = None
+
+    #def open(self, path, flags):
+        #assert not flags, hex(flags)
+        #return 0
 
     def flush(self, path, fh):
         self.fs.device_flush()
@@ -71,8 +75,11 @@ class FuseClfs(
     def readdir(self, *args, **kwargs):
         return tuple(self._readdir(*args, **kwargs))
 
+    def readlink(self, path):
+        return self.fs.os_readlink(path)
+
     def utimens(self, path, times):
-        self.fs.node_touch(self.fs.ino_for_path(path), times)
+        self.fs.os_utimens(path, times)
 
     def getattr(self, path, fh=None):
         assert fh is None, fh
@@ -116,15 +123,16 @@ class FuseClfs(
         self.fs.node_create(path, mode, uid, gid, rdev)
 
     def write(self, path, buf, offset, fh=None):
-        self.fs.node_data_write(self.fs.ino_for_path(path), offset, buf)
+        assert not fh, fh
+        self.fs._write(self.fs.ino_for_path(path), offset, buf)
         return len(buf)
 
     def read(self, path, size, offset, fh=None):
         assert not fh, fh
         return self.fs._read(self.fs.ino_for_path(path), offset, size)
 
-    #def rename(self, old, new):
-        #return self.fs.os_rename(old, new)
+    def rename(self, old, new):
+        return self.fs.os_rename(old, new)
 
     def truncate(self, path, size):
         self.fs.os_truncate(path, size)
@@ -138,21 +146,28 @@ class FuseClfs(
     def unlink(self, path):
         self.fs.os_unlink(path)
 
+    def symlink(self, target, source):
+        self.fs.os_symlink(target, source)
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    FUSE(
-            FuseClfs(argv[1]), # fs(devpath)
-            argv[2], # mountpoint
+    fusepy_kwargs = dict(
             foreground=True, # debug hooks provided by fusepy
             nothreads=True, # no locking in the filesystem yet
             default_permissions=True, # let the kernel handle perm checks
             fsname="clfs",
-            #allow_other=True, # use this when running as root
             use_ino=True,
             #direct_io=True,
             #noauto_cache=True,
             big_writes=True, # this might help with the high chain deref cost
             #help=True,
+        )
+    if getuid() == 0:
+        fusepy_kwargs["allow_other"] = True
+    FUSE(
+            FuseClfs(argv[1]), # fs(devpath)
+            argv[2], # mountpoint
+            **fusepy_kwargs
         )
 
 if __name__ == '__main__':
