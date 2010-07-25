@@ -402,9 +402,16 @@ class Clfs(object):
 
     def os_chown(self, path, uid, gid):
         ino = self.ino_from_path(path)
+        if uid == -1 and gid == -1:
+            return
         inode = self.inode_read(ino)
-        inode["uid"] = uid
-        inode["gid"] = gid
+        if uid != -1:
+            inode["uid"] = uid
+        if gid != -1:
+            inode["gid"] = gid
+        if inode["mode"] & (S_IXUSR|S_IXGRP|S_IXOTH):
+            inode["mode"] &= ~(S_ISUID|S_ISGID)
+        inode.set_time_fields(change=True)
         self.inode_write(ino, inode)
 
     def os_rmdir(self, path):
@@ -457,26 +464,37 @@ class Clfs(object):
         oldoff, olddire = self._scandir(oldpino, oldname)
         newoff, newdire = self._scandir(newpino, newname)
 
-    def _rmdir(self, dirino, name):
-        offset, dirent = self._scandir(dirino, name)
-        inode = self.inode_read(dirent["ino"])
+    def _rmdir(self, pino, name):
+        offset, dirent = self._scandir(pino, name)
+        ino = dirent["ino"]
+        inode = self.inode_read(ino)
         if not S_ISDIR(inode["mode"]):
             raise ClfsError(ENOTDIR)
-        if inode["nlink"] > 2:
-            raise ClfsError(ENOTEMPTY)
         if inode["nlink"] < 2:
             logger.error(
                     "Directory inode %i has invalid link count %i",
-                    dirent["ino"], inode["nlink"])
+                    ino, inode["nlink"])
+        if inode["nlink"] > 2:
+            raise ClfsError(ENOTEMPTY)
+        else: # check there aren't files
+            try:
+                self.dir_iter(ino, inode).next()
+            except StopIteration:
+                pass
+            else:
+                raise ClfsError(ENOTEMPTY)
         # free all the clusters of the directory
-        self.chain_shorten(dirent["ino"], 0)
+        self.chain_shorten(ino, 0)
         # this is now invalidated and useless
         del inode
-        dirinode = self.inode_read(dirino)
+        # clobber the old inode to detect dangling links
+        self.inode_write(ino, Inode())
+        # update the parent directory
+        pinode = self.inode_read(pino)
         # we're removing a subdir
-        dirinode["nlink"] -= 1
-        self.dir_remove(dirino, offset, dirinode)
-        self.inode_write(dirino, dirinode)
+        pinode["nlink"] -= 1
+        self.dir_remove(pino, offset, pinode)
+        self.inode_write(pino, pinode)
 
     def _unlink(self, dirino, name):
         offset, dirent = self._scandir(dirino, name)
