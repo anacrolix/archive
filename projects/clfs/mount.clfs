@@ -98,7 +98,7 @@ class FuseClfs(
     def mkdir(self, path, mode):
         logger.info("mkdir(%r, %o)", path, mode)
         uid, gid = fuse_get_context()[:2]
-        self.fs.node_create(path, mode | S_IFDIR, uid, gid)
+        self.fs.os_mkdir(path, mode, uid, gid)
 
     def rmdir(self, path):
         return self.fs.os_rmdir(path)
@@ -120,7 +120,8 @@ class FuseClfs(
     def mknod(self, path, mode, rdev):
         logger.debug("mknod(%r, %o, %x)", path, mode, rdev)
         uid, gid = fuse_get_context()[:2]
-        self.fs.node_create(path, mode, uid, gid, rdev)
+        self.fs.os_mknod(path, mode, uid, gid, rdev)
+        #self.fs.node_create(path, mode, uid, gid, rdev)
 
     def write(self, path, buf, offset, fh=None):
         assert not fh, fh

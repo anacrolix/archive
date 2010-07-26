@@ -462,7 +462,25 @@ class Clfs(object):
 
     def _rename(self, oldpino, oldname, newpino, newname):
         oldoff, olddire = self._scandir(oldpino, oldname)
-        newoff, newdire = self._scandir(newpino, newname)
+        ino = olddire["ino"]
+        inode = self.inode_read(ino)
+        try:
+            newoff, newdire = self._scandir(newpino, newname)
+        except ClfsError as exc:
+            if exc.errno != ENOENT:
+                raise
+        else:
+            if S_ISDIR(inode["mode"]):
+                self._rmdir(newpino, newname)
+            else:
+                self._unlink(newpino, newname)
+        oldpinode = self.inode_read(oldpino)
+        self.dir_remove(oldpino, oldoff, oldpinode)
+        self.inode_write(oldpino, oldpinode)
+        newpinode = self.inode_read(newpino)
+        newdire = DirEntry(name=newname, ino=ino)
+        self.dir_add(newpino, newpinode, newdire, inode)
+        self.inode_write(newpino, newpinode)
 
     def _rmdir(self, pino, name):
         offset, dirent = self._scandir(pino, name)
@@ -470,31 +488,36 @@ class Clfs(object):
         inode = self.inode_read(ino)
         if not S_ISDIR(inode["mode"]):
             raise ClfsError(ENOTDIR)
-        if inode["nlink"] < 2:
-            logger.error(
-                    "Directory inode %i has invalid link count %i",
-                    ino, inode["nlink"])
-        if inode["nlink"] > 2:
-            raise ClfsError(ENOTEMPTY)
-        else: # check there aren't files
-            try:
-                self.dir_iter(ino, inode).next()
-            except StopIteration:
-                pass
-            else:
-                raise ClfsError(ENOTEMPTY)
-        # free all the clusters of the directory
-        self.chain_shorten(ino, 0)
-        # this is now invalidated and useless
-        del inode
-        # clobber the old inode to detect dangling links
-        self.inode_write(ino, Inode())
-        # update the parent directory
         pinode = self.inode_read(pino)
-        # we're removing a subdir
-        pinode["nlink"] -= 1
-        self.dir_remove(pino, offset, pinode)
+        self.node_unlink(pino, pinode, offset, ino, inode)
         self.inode_write(pino, pinode)
+
+    # inode is invalid after this function
+    def node_unlink(self, pino, pinode, diroff, ino, inode):
+        if S_ISDIR(inode["mode"]):
+            if inode["nlink"] < 2:
+                logger.error(
+                        "Directory inode %i has invalid link count %i",
+                        ino, inode["nlink"])
+            if inode["nlink"] > 2:
+                raise ClfsError(ENOTEMPTY)
+            else: # check there aren't files
+                try:
+                    self.dir_iter(ino, inode).next()
+                except StopIteration:
+                    pass
+                else:
+                    raise ClfsError(ENOTEMPTY)
+            pinode["nlink"] -= 1
+        else:
+            inode["nlink"] -= 1
+            if inode["nlink"] < 0:
+                logger.error("Inode %i has invalid link count %i",
+                        ino, inode["nlink"])
+        self.dir_remove(pino, diroff, pinode)
+        if S_ISDIR(inode["mode"]) or inode["nlink"] <= 0:
+            self.inode_write(ino, Inode())
+            self.chain_shorten(ino, 0)
 
     def _unlink(self, dirino, name):
         offset, dirent = self._scandir(dirino, name)
@@ -503,19 +526,8 @@ class Clfs(object):
         if S_ISDIR(inode["mode"]):
             raise ClfsError(EISDIR)
         dirinode = self.inode_read(dirino)
-        self.dir_remove(dirino, offset, dirinode)
+        self.node_unlink(dirino, dirinode, offset, ino, inode)
         self.inode_write(dirino, dirinode)
-        # has now been deleted
-        del dirent
-        inode["nlink"] -= 1
-        if inode["nlink"] < 0:
-            logger.error("Inode %i has invalid link count %i",
-                    ino, inode["nlink"])
-        if inode["nlink"] <= 0:
-            # write an invalid inode in case something still points there
-            self.inode_write(ino, Inode())
-            # free all chains of the inode, including the inode itself
-            self.chain_shorten(ino, 0)
 
     def _scandir(self, ino, name):
         if len(name) > CLFS_NAMEMAX:
@@ -668,21 +680,28 @@ class Clfs(object):
         self.inode_write(dirent["ino"], inode)
         self.cluster_write(self.region_master_start, BootRecord.size, dirent.pack())
 
-    def node_create(self, path, mode, uid, gid, rdev=0):
+    def os_mkdir(self, path, mode, uid, gid):
+        ppath, name = path_split(path)
+        pino = self.ino_for_path(ppath)
+        self.node_create(pino, name, S_IFDIR|mode, uid, gid)
+
+    def os_mknod(self, path, mode, uid, gid, rdev):
+        ppath, name = path_split(path)
+        pino = self.ino_for_path(ppath)
+        self.node_create(pino, name, mode, uid, gid, rdev)
+
+    def node_create(self, parent_ino, name, mode, uid, gid, rdev=0):
         """Create an allocate a new inode, update relevant structures elsewhere"""
-        logger.info("node_create(%r, %o, %i, %i, %x)", path, mode, uid, gid, rdev)
+        logger.debug(
+                "node_create(%i, %r, %o, %i, %i, %x)",
+                parent_ino, name, mode, uid, gid, rdev)
 
-        node_dirname, node_basename = path_split(path)
-        parent_dirname, parent_basename = path_split(node_dirname)
-
-        # make sure the name is not present in the parent directory
-        parent_ino = self.ino_for_path(node_dirname)
         parent_inode = self.inode_read(parent_ino)
-        if self.dir_exists(parent_ino, parent_inode, node_basename):
+        if self.dir_exists(parent_ino, parent_inode, name):
             raise ClfsError(EEXIST)
 
         new_inode = self.inode_new(mode, uid, gid, rdev)
-        new_dirent = DirEntry(ino=self.cluster_alloc(), name=node_basename)
+        new_dirent = DirEntry(ino=self.cluster_alloc(), name=name)
 
         # write inode
         self.inode_write(new_dirent["ino"], new_inode)
@@ -692,6 +711,7 @@ class Clfs(object):
         self.inode_write(parent_ino, parent_inode)
 
     def dir_add(self, dino, dinode, dirent, inode):
+        assert S_ISDIR(dinode["mode"])
         if S_ISDIR(inode["mode"]):
             # linux add link for subdirs, other platforms differ
             dinode["nlink"] += 1
