@@ -85,7 +85,7 @@ static void cpfs_log(log_t level, char const *fmt, ...)
     fputc('\n', stderr);
 }
 
-#define log_debug(fmt, ...) cpfs_log(DEBUG, fmt, ##__VA_ARGS__)
+#define log_debug(fmt, ...) cpfs_log(DEBUG, fmt, __VA_ARGS__)
 
 #if 0
 __attribute__((format, printf, 1, 2))
@@ -229,7 +229,7 @@ static blkno_t block_alloc(
 
 static bool bitmap_reset(cpfs_live_t *cpfs)
 {
-    log_debug("Resetting bitmap");
+    log_debug("%s", "Resetting bitmap");
     char block_buffer[cpfs->geo.block_size];
     memset(block_buffer, 0, sizeof(block_buffer));
     for (   blkno_t bitmap_block_index = 0;
