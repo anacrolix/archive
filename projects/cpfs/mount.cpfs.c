@@ -1,3 +1,4 @@
+#include "config.h"
 #include "cpfs.h"
 #include <fuse.h>
 #include <fuse_opt.h>

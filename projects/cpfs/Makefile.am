@@ -1,4 +1,4 @@
-AM_CFLAGS = -std=gnu99 -Wall -D_GNU_SOURCE
+AM_CFLAGS = -std=gnu99 -D_GNU_SOURCE
 bin_PROGRAMS = mount.cpfs mkfs.cpfs
 mount_cpfs_SOURCES = mount.cpfs.c cpfs.c
 mount_cpfs_CPPFLAGS = $(FUSE_CFLAGS) -DFUSE_USE_VERSION=28
