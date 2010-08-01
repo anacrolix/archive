@@ -1,6 +1,10 @@
+#include "cpfs.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #include <assert.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -38,8 +42,16 @@ typedef struct {
     cpfs_time_t atime;
     cpfs_time_t mtime;
     cpfs_time_t ctime;
-
 } inode_t;
+
+#define CPFS_NAME_MAX 504
+
+typedef struct {
+    cpfs_ino_t ino;
+    uint16_t type;
+    uint16_t _pad0; // namelen?
+    char name[CPFS_NAME_MAX];
+} Dirent;
 
 typedef struct {
     cpfs_blksize_t block_size;
@@ -56,10 +68,10 @@ typedef struct {
     blkno_t data_end;
 } geo_t;
 
-typedef struct {
+struct CpfsPrivate {
     geo_t geo;
     FILE *dev;
-} cpfs_live_t;
+};
 
 typedef enum {
     NONE,
@@ -95,13 +107,18 @@ static void log_syserr(fmt, ...)
 }
 #endif
 
-cpfs_live_t *cpfs_load(char const *path)
+Cpfs *cpfs_load(char const *path)
 {
-    cpfs_live_t *cpfs = malloc(sizeof(*cpfs));
+    Cpfs *cpfs = malloc(sizeof(*cpfs));
+    if (!cpfs)
+        goto out;
     memset(cpfs, 0, sizeof(*cpfs));
     cpfs->dev = fopen(path, "r+b");
+    if (!cpfs->dev)
+        goto out_free;
     br_t br;
-    fread(&br, sizeof(br), 1, cpfs->dev);
+    if (1 != fread(&br, sizeof(br), 1, cpfs->dev))
+        goto out_free;
     if (0 != strncmp("cpfs1", br.fsident, sizeof(br.fsident)))
         return NULL;
     geo_t *geo = &cpfs->geo;
@@ -120,6 +137,11 @@ cpfs_live_t *cpfs_load(char const *path)
     geo->data_start = geo->bitmap_end;
     geo->data_length = blocks_left;
     geo->data_end = geo->data_start + geo->data_length;
+    goto out;
+out_free:
+    free(cpfs);
+    cpfs = NULL;
+out:
     return cpfs;
 }
 
@@ -157,7 +179,7 @@ static bool bitmap_free(blkno_t blkno)
 #endif
 
 static bool block_read(
-        cpfs_live_t *cpfs,
+        Cpfs *cpfs,
         blkno_t blkno,
         char *buf,
         size_t count,
@@ -175,7 +197,7 @@ static bool block_read(
 }
 
 static bool block_write(
-        cpfs_live_t *cpfs,
+        Cpfs *cpfs,
         blkno_t blkno,
         void const *buf,
         size_t count,
@@ -205,7 +227,7 @@ static size_t first_unset_bit(char unsigned const *buf, size_t bit_count, size_t
 }
 
 static blkno_t block_alloc(
-        cpfs_live_t *cpfs)
+        Cpfs *cpfs)
 {
     //blkno_t blkno = cpfs->geo.data_start;
     for (   blkno_t bmblki = 0;
@@ -227,7 +249,7 @@ static blkno_t block_alloc(
     return -1;
 }
 
-static bool bitmap_reset(cpfs_live_t *cpfs)
+static bool bitmap_reset(Cpfs *cpfs)
 {
     log_debug("%s", "Resetting bitmap");
     char block_buffer[cpfs->geo.block_size];
@@ -263,12 +285,12 @@ static bool bitmap_reset(cpfs_live_t *cpfs)
     return true;
 }
 
-static bool inode_put(cpfs_live_t *cpfs, cpfs_ino_t ino, inode_t const *inode)
+static bool inode_put(Cpfs *cpfs, cpfs_ino_t ino, inode_t const *inode)
 {
     return block_write(cpfs, ino, inode, sizeof(*inode), 0);
 }
 
-static cpfs_ino_t root_ino(cpfs_live_t *cpfs)
+static cpfs_ino_t root_ino(Cpfs *cpfs)
 {
     return cpfs->geo.data_start;
 }
@@ -278,12 +300,13 @@ static bool util_curtime(cpfs_time_t *cpfstim)
     struct timespec tp;
     if (0 != clock_gettime(CLOCK_REALTIME, &tp))
         return false;
+    memset(cpfstim, 0, sizeof(*cpfstim));
     cpfstim->sec = tp.tv_sec;
     cpfstim->ns = tp.tv_nsec;
     return true;
 }
 
-bool root_reset(cpfs_live_t *cpfs)
+bool root_reset(Cpfs *cpfs)
 {
     if (block_alloc(cpfs) != root_ino(cpfs))
     {
@@ -309,7 +332,7 @@ bool root_reset(cpfs_live_t *cpfs)
     return true;
 }
 
-bool cpfs_unload(cpfs_live_t *cpfs)
+bool cpfs_unload(Cpfs *cpfs)
 {
     bool ret = true;
     if (0 != fclose(cpfs->dev))
@@ -323,7 +346,7 @@ bool cpfs_mkfs(char const *path)
     bool ret = false;
     if (!br_reset(path))
         goto out;
-    cpfs_live_t *cpfs = cpfs_load(path);
+    Cpfs *cpfs = cpfs_load(path);
     if (!cpfs)
         goto out;
     if (!bitmap_reset(cpfs))
@@ -336,4 +359,14 @@ out_loaded:
         ret = false;
 out:
     return ret;
+}
+
+int cpfs_statvfs(Cpfs *cpfs, struct statvfs *stfs)
+{
+    stfs->f_bsize = cpfs->geo.block_size;
+    stfs->f_namemax = CPFS_NAME_MAX;
+    stfs->f_blocks = cpfs->geo.total_length;
+    // todo: calculate based on bitmap
+    stfs->f_bfree = stfs->f_bavail = cpfs->geo.data_length - 1;
+    return 0;
 }
