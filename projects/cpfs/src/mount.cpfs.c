@@ -1,5 +1,6 @@
 #include "config.h"
 #include "cpfs.h"
+#define FUSE_USE_VERSION 28
 #include <fuse.h>
 #include <fuse_opt.h>
 #include <assert.h>
