@@ -549,7 +549,7 @@ class Operations(object):
            return a numerical file handle.
            When raw_fi is True the file handle should be set directly by create
            and return 0."""
-        raise DefaultOperationError(EROFS, '')
+        raise FuseOSError(EROFS, '')
 
     def destroy(self, path):
         """Called on filesystem destruction. Path is always /"""
