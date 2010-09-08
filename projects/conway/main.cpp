@@ -1,6 +1,7 @@
 #include "eruutil/debug.h"
 #include <boost/thread.hpp>
 #include <SDL/SDL.h>
+#include <limits.h>
 #include <time.h>
 
 unsigned
