@@ -14,4 +14,4 @@ project "Benchmark"
     files {"src/*.c*", "src/*.h" --[[, "src/*.c", "src/*.cc"]]}
     includedirs "../../../gtest-trunk/include"
     libdirs "../../../gtest-trunk/msvc/gtest-md/Debug"
-    links { "gtestd" --[[, "gtest_main-mdd"]]}
+    links { "gtest", "gtest_main"--[[, "gtest_main-mdd"]]}
