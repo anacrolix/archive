@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+make -B tdelete_data_access CFLAGS='-g -std=gnu99 -Wall'
+valgrind --leak-check=full --track-fds=yes ./tdelete_data_access /home/matt/cpfs/cpfs.s
+*/
+
 static inline int tree_strcmp(void const *left, void const *right)
 {
     return strcmp(left, right);
