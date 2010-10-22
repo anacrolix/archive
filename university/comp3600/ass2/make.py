@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from subprocess import *
-check_call(["/usr/bin/gcc", "-o", "minst", "minst.c", "-lm", "-g", "-O4", "-DNDEBUG",
+check_call(["/usr/bin/gcc", "-o", "minst", "minst.c", "-lm", "-g", "-O4", "-DNDEBUG", "-march=native",
         "-Wall",
         "-std=gnu99",
         "-Wextra",

@@ -1,3 +1,6 @@
+// Matt Joiner 2010
+// Requires C99 and GCC-compatibility
+
 #include <assert.h>
 #include <errno.h>
 #include <float.h>
@@ -34,10 +37,14 @@ static void log_debug(char const *fmt, ...)
     verify(0 <= vfprintf(stderr, fmt, ap));
     va_end(ap);
 }
+//#define log_debug(...)
 
 static double random_weight()
 {
-    double rv = (double)(rand()+1)/((uintmax_t)RAND_MAX+2);
+    double rv =
+            //(double)(rand()+1)/((uintmax_t)RAND_MAX+2)
+            (rand()+0.5)/(RAND_MAX+1.0)
+        ;
     assert(0.0 < rv && rv < 1.0);
     return rv;
 }
