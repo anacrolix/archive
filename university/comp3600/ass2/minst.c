@@ -273,3 +273,24 @@ int main(int argc, char **argv)
         exit(1);
     }
 }
+
+/*
+Answers for Q2:
+
+ *  if x fits inside y, and y fits inside z
+    then
+        for i in 1 to d
+            x_i < y_(pi_1(i)) and y_i < z_(pi_2(i))
+            then x_i < z_(pi_2(pi_1(i)))
+    fi
+
+ *  box_fit_other(x, y)
+        if len(x) > len(y)
+            return false
+        min_heapify(x)
+        min_heapify(y)
+        while (len(x))
+            if min_extract(x) >= min_extract(y)
+                return false
+        return true
+*/
