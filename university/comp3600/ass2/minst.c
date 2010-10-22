@@ -13,11 +13,27 @@
 #include <strings.h>
 #include <time.h>
 
+static enum {
+    HUMAN,
+    TASK,
+} runmode = TASK;
+
 #ifdef NDEBUG
 #   define verify(expr) ((void)(expr))
 #else
 #   define verify(expr) assert(expr)
 #endif
+
+__attribute__((format(gnu_printf, 1, 2)))
+static void log_debug(char const *fmt, ...)
+{
+    if (runmode != HUMAN)
+        return;
+    va_list ap;
+    va_start(ap, fmt);
+    verify(0 <= vfprintf(stderr, fmt, ap));
+    va_end(ap);
+}
 
 static double random_weight()
 {
@@ -25,20 +41,6 @@ static double random_weight()
     assert(0.0 < rv && rv < 1.0);
     return rv;
 }
-
-#define LOG_DEBUG
-#ifdef LOG_DEBUG
-    __attribute__((format(gnu_printf, 1, 2)))
-    static void log_debug(char const *fmt, ...)
-    {
-        va_list ap;
-        va_start(ap, fmt);
-        verify(0 <= vfprintf(stderr, fmt, ap));
-        va_end(ap);
-    }
-#else
-#   define log_debug(fmt, ...)
-#endif
 
 static size_t heap_parent(size_t i)
 {
@@ -63,11 +65,21 @@ static size_t heap_parent(size_t i)
 double minst_n(unsigned const n)
 {
     double w[n][n];
-    for (size_t i = 0; i < n; ++i)
     {
-        w[i][i] = 0;
-        for (size_t j = i + 1; j < n; ++j)
-            w[i][j] = w[j][i] = random_weight();
+        double rw_sum = 0.0;
+        size_t rw_count = 0;
+        for (size_t i = 0; i < n; ++i)
+        {
+            w[i][i] = 0;
+            for (size_t j = i + 1; j < n; ++j) {
+                double rw = random_weight();
+                w[i][j] = rw;
+                w[j][i] = rw;
+                rw_sum += rw;
+                rw_count += 1;
+            }
+        }
+        log_debug("Average weight = %f, count = %zu\n", rw_sum / rw_count, rw_count);
     }
     for (size_t i = 0; i < n; ++i)
     {
@@ -82,7 +94,7 @@ double minst_n(unsigned const n)
     for (size_t i = 0; i < n; ++i)
     {
         key[i] = DBL_MAX;
-        pi[i] = -1;
+        pi[i] = SSIZE_MAX;
         q[i] = i;
     }
     {
@@ -135,7 +147,7 @@ double minst_n(unsigned const n)
                 key[v] = w[u][v];
                 for (size_t j = i; j > 0;)
                 {
-                    size_t parent = (j + 1) / 2 - 1;
+                    size_t parent = heap_parent(j);
                     if (key[q[parent]] > key[q[j]]) {
                         size_t temp_zu = q[parent];
                         q[parent] = q[j];
@@ -150,7 +162,7 @@ double minst_n(unsigned const n)
     double total = 0;
     for (size_t i = 0; i < n; ++i)
     {
-        if (pi[i] != -1) {
+        if (pi[i] != SSIZE_MAX) {
             log_debug("(%zu, %zu)=%04i, ", i, pi[i], (int)round(10000 * w[i][pi[i]]));
             total += w[i][pi[i]];
         }
@@ -159,21 +171,33 @@ double minst_n(unsigned const n)
     return total;
 }
 
+static void print_usage()
+{
+    fprintf(stderr,
+"\nUsage: minst [OPTIONS] [SEED=time()]\n"
+"\n"
+"Determine the average weights for minimum spanning tree of complete graphs with randomly weighted edges, seeded with SEED."
+"\n"
+"\n"
+"OPTIONS\n"
+"  -h, --human [GRAPHSIZE=5]\n"
+"\tPrint debug statements for given graph of size GRAPHSIZE.\n"
+"  -r, --repeat REPEATS=100\n"
+"\tPerform REPEATS repeats instead of the default.\n"
+"\n"
+        );
+}
+
 int main(int argc, char **argv)
 {
-    log_debug("RAND_MAX=%u\n", RAND_MAX);
-    log_debug("DBL_MAX=%e\n", DBL_MAX);
-
     unsigned int seed = time(NULL);
+    unsigned human_n = 5;
     unsigned repeats = 100;
-    enum {
-        HUMAN,
-        TASK,
-    } runmode = TASK;
     while (true)
     {
-        int c = getopt_long(argc, argv, "hr:", (struct option []){
-                {"human", no_argument, NULL, 'h'},
+        char *endptr;
+        int c = getopt_long(argc, argv, "h::r:", (struct option []){
+                {"human", optional_argument, NULL, 'h'},
                 {"repeat", required_argument, NULL, 'r'},
                 {NULL, 0, NULL, 0}},
             NULL);
@@ -184,40 +208,50 @@ int main(int argc, char **argv)
         default:
         case -1:
             fprintf(stderr, "Error parsing program arguments\n");
+            print_usage();
             exit(2);
         case 'h':
             runmode = HUMAN;
-            break;
-        case 'r':
-            {
-                char *endptr;
-                repeats = strtol(optarg, &endptr, 10);
+            if (optarg) {
+                human_n = strtol(optarg, &endptr, 10);
                 if (*endptr != '\0') {
-                    fprintf(stderr, "Error parsing repeats: %s", strerror(errno));
+                    fprintf(stderr, "Error parsing graph size\n");
+                    print_usage();
                     exit(2);
                 }
+            }
+            break;
+        case 'r':
+            repeats = strtol(optarg, &endptr, 10);
+            if (*endptr != '\0') {
+                fprintf(stderr, "Error parsing repeats\n");
+                print_usage();
+                exit(2);
             }
             break;
         }
     }
     if (optind < argc - 1) {
         fprintf(stderr, "Too many arguments given\n");
+        print_usage();
         exit(2);
-    }
-    else if (optind == argc - 1) {
+    } else if (optind == argc - 1) {
         char *endptr;
         seed = strtol(argv[argc - 1], &endptr, 10);
         if (*endptr != '\0') {
-            fprintf(stderr, "Error parsing seed: %s", strerror(errno));
+            fprintf(stderr, "Error parsing seed\n");
+            print_usage();
             exit(2);
         }
-    }
+    } else
+        assert(optind == argc);
+
 
     srand(seed);
     switch (runmode)
     {
     case HUMAN:
-        log_debug("minst weight=%f\n", minst_n(10));
+        log_debug("minst weight=%f\n", minst_n(human_n));
         break;
     case TASK:
         for (unsigned n = 20; n <= 100; n += 20)
