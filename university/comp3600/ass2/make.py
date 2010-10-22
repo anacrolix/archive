@@ -3,7 +3,7 @@
 from subprocess import *
 check_call(["/usr/bin/gcc", "-o", "minst", "minst.c", "-lm", "-g",
         "-Wall",
-        "-std=c99",
+        "-std=gnu99",
         "-Wextra",
         "-Wfloat-equal",
         "-fdiagnostics-show-option",

@@ -1,11 +1,16 @@
 #include <assert.h>
+#include <errno.h>
 #include <float.h>
+#include <getopt.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <time.h>
 
 #ifdef NDEBUG
@@ -21,14 +26,39 @@ static double random_weight()
     return rv;
 }
 
-__attribute__((format(gnu_printf, 1, 2)))
-static void log_debug(char const *fmt, ...)
+#define LOG_DEBUG
+#ifdef LOG_DEBUG
+    __attribute__((format(gnu_printf, 1, 2)))
+    static void log_debug(char const *fmt, ...)
+    {
+        va_list ap;
+        va_start(ap, fmt);
+        verify(0 <= vfprintf(stderr, fmt, ap));
+        va_end(ap);
+    }
+#else
+#   define log_debug(fmt, ...)
+#endif
+
+static size_t heap_parent(size_t i)
 {
-    va_list ap;
-    va_start(ap, fmt);
-    verify(0 <= vfprintf(stderr, fmt, ap));
-    va_end(ap);
+    size_t rv = (i + 1) / 2;
+    assert(rv > 0);
+    return rv - 1;
 }
+
+#ifndef NDEBUG
+    static bool heap_valid(size_t len, size_t const heap[len], double const key[len])
+    {
+        for (size_t i = 1; i < len; ++i)
+        {
+            size_t parent = heap_parent(i);
+            if (key[heap[parent]] > key[heap[i]])
+                return false;
+        }
+        return true;
+    }
+#endif
 
 double minst_n(unsigned const n)
 {
@@ -64,8 +94,7 @@ double minst_n(unsigned const n)
     }
     while (q_len != 0)
     {
-        for (size_t i = 1; i < q_len; ++i)
-            assert(key[q[i]] >= key[q[0]]);
+        assert(heap_valid(q_len, q, key));
         size_t const u = q[0];
         log_debug("Extracted u=%zu\n", u);
         /* EXTRACT-MIN(Q) */
@@ -130,13 +159,76 @@ double minst_n(unsigned const n)
     return total;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     log_debug("RAND_MAX=%u\n", RAND_MAX);
     log_debug("DBL_MAX=%e\n", DBL_MAX);
-    //srand(1)
-    srand(time(NULL));
-    log_debug("minst weight=%f\n", minst_n(5));
-    //for (unsigned n = 20; n <= 100; n += 20)
-    //    minst_n(n);
+
+    unsigned int seed = time(NULL);
+    unsigned repeats = 100;
+    enum {
+        HUMAN,
+        TASK,
+    } runmode = TASK;
+    while (true)
+    {
+        int c = getopt_long(argc, argv, "hr:", (struct option []){
+                {"human", no_argument, NULL, 'h'},
+                {"repeat", required_argument, NULL, 'r'},
+                {NULL, 0, NULL, 0}},
+            NULL);
+        if (c == -1)
+            break;
+        switch (c)
+        {
+        default:
+        case -1:
+            fprintf(stderr, "Error parsing program arguments\n");
+            exit(2);
+        case 'h':
+            runmode = HUMAN;
+            break;
+        case 'r':
+            {
+                char *endptr;
+                repeats = strtol(optarg, &endptr, 10);
+                if (*endptr != '\0') {
+                    fprintf(stderr, "Error parsing repeats: %s", strerror(errno));
+                    exit(2);
+                }
+            }
+            break;
+        }
+    }
+    if (optind < argc - 1) {
+        fprintf(stderr, "Too many arguments given\n");
+        exit(2);
+    }
+    else if (optind == argc - 1) {
+        char *endptr;
+        seed = strtol(argv[argc - 1], &endptr, 10);
+        if (*endptr != '\0') {
+            fprintf(stderr, "Error parsing seed: %s", strerror(errno));
+            exit(2);
+        }
+    }
+
+    srand(seed);
+    switch (runmode)
+    {
+    case HUMAN:
+        log_debug("minst weight=%f\n", minst_n(10));
+        break;
+    case TASK:
+        for (unsigned n = 20; n <= 100; n += 20)
+        {
+            double sum = 0.0;
+            for (unsigned rpt = 0; rpt < repeats; ++rpt)
+                sum += minst_n(n);
+            printf("av(minst(%u), %u)=%f\n", n, repeats, sum / repeats);
+        }
+        break;
+    default:
+        exit(1);
+    }
 }
