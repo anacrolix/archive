@@ -4,12 +4,13 @@ import optparse
 import os
 
 import clfs
-            
+
 def main():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
     parser = optparse.OptionParser()
     opts, args = parser.parse_args()
-    print opts, args
-    clfs.format_clusterfs(device_path=args[0])
+    clfs.create_filesystem(args[0])
 
 if __name__ == "__main__":
     main()

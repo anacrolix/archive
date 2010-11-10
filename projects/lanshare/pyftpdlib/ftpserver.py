@@ -115,6 +115,7 @@ Serving FTP on 127.0.0.1:21
 [anonymous]@127.0.0.1:2503 Disconnected.
 """
 
+
 import asyncore
 import asynchat
 import socket
@@ -130,7 +131,6 @@ import random
 import stat
 import heapq
 import optparse
-import pdb
 from tarfile import filemode as _filemode
 
 try:
@@ -415,10 +415,9 @@ class DummyAuthorizer:
         """
         if self.has_user(username):
             raise AuthorizerError('User "%s" already exists' %username)
-        if homedir is not None:
-            if not os.path.isdir(homedir):
-                raise AuthorizerError('No such directory: "%s"' %homedir)
-            homedir = os.path.realpath(homedir)
+        if not os.path.isdir(homedir):
+            raise AuthorizerError('No such directory: "%s"' %homedir)
+        homedir = os.path.realpath(homedir)
         self._check_permissions(username, perm)
         dic = {'pwd': str(password),
                'home': homedir,
@@ -505,6 +504,7 @@ class DummyAuthorizer:
         if path is None:
             return perm in self.user_table[username]['perm']
 
+        # don't normalize path unless we actually need to
         if len(self.user_table[username]['operms']) > 0:
             path = os.path.normcase(path)
         for dir in self.user_table[username]['operms'].keys():
@@ -1201,6 +1201,7 @@ class AbstractedFS(object):
      - (str) rnfr: source file to be renamed.
     """
 
+    # this just helped define what was used and catch invalid assignments
     __slots__ = "__homedir", "cwd", "rnfr", "cmd_channel"
 
     def __init__(self):
@@ -1215,6 +1216,8 @@ class AbstractedFS(object):
         print "Deprecated use of root"
         return self.__homedir
 
+    # want to be able to hook home dir setting, for those FS that don't want
+    # the concept of home dirs
     def set_home_dir(self, homedir):
         self.__homedir = homedir
 
@@ -1319,6 +1322,7 @@ class AbstractedFS(object):
             return True
         return False
 
+    # in case non-string paths are in use, this can be overridden
     def joinpath(self, head, tail):
         return os.path.join(head, tail)
 
@@ -1944,6 +1948,7 @@ class FTPHandler(asynchat.async_chat):
                         #pdb.set_trace()
                         arg = self.fs.ftp2fs(arg or self.fs.cwd)
                 except InvalidPath as exc:
+                    # this message is specific to FS using home directories
                     #line = self.fs.fs2ftp(arg)
                     #err = '"%s" points to a path which is outside ' \
                     #      "the user's root directory" %line
@@ -2841,7 +2846,6 @@ class FTPHandler(asynchat.async_chat):
 
     def ftp_CWD(self, path):
         """Change the current working directory."""
-        #pdb.set_trace()
         line = self.fs.fs2ftp(path)
         try:
             self.run_as_current_user(self.fs.chdir, path)

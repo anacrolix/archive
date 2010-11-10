@@ -1,0 +1,4 @@
+* fuse.py is sourced by
+    'svn export http://fusepy.googlecode.com/svn/trunk/fuse.py'
+* Try 'http://www.tuxera.com/community/posix-test-suite/' for testing:
+    run 'prove -r path/to/contents' from a directory in the fs.

@@ -1,0 +1,175 @@
+#!/usr/bin/env python
+
+from errno import *
+from stat import *
+from os import getuid, strerror
+from sys import argv
+import logging
+import os.path
+
+from fuse import FUSE, Operations, LoggingMixIn, fuse_get_context
+from clfs import Clfs, ClfsError
+import clfs
+
+
+logger = logging.getLogger("fuseclfs")
+
+
+class FuseClfs(
+            #LoggingMixIn,
+            Operations,
+        ):
+
+    def __call__(self, op, path, *args):
+        # this code is based on fuse.LoggingMixIn.__call__
+        # we're technically still inside the fuse.Operations machinery
+        logger = logging.getLogger("fusepy")
+        logger.info("->%s%s", op, repr((path,) + args)[:0x100])
+        retrepr = "Unhandled Exception"
+        try:
+            ret = getattr(self, op)(path, *args)
+            retrepr = repr(ret)
+            return ret
+        # this catches ClfsError as it's derived from OSError
+        except OSError as e:
+            retrepr = errorcode[e.errno]
+            raise
+        finally:
+            #print '<-', op, repr(ret)
+            logger.info("%s->%s", op, retrepr[:0x100])
+
+    def __init__(self, device):
+        self.fs = Clfs(device)
+
+    access = None # default_permission is used
+    create = None # fallback to mknod() then open()
+    open = None
+
+    #def open(self, path, flags):
+        #assert not flags, hex(flags)
+        #return 0
+
+    def flush(self, path, fh):
+        self.fs.device_flush()
+        return 0
+
+    def fsync(self, path, datasync, fh):
+        self.fs.device_flush()
+        return 0
+
+    def fsyncdir(self, path, datasync, fh):
+        self.fs.device_flush()
+        return 0
+
+    def _readdir(self, path, offset, handle=None):
+        ino = self.fs.ino_for_path(path)
+        yield (".", dict(st_ino=ino), 0)#, -2)
+        yield ("..")
+        for offset, dirent in self.fs._readdir(self.fs.ino_for_path(path)):
+            yield (
+                    dirent["name"].rstrip("\0"),
+                    dict(st_ino=dirent["ino"]),
+                    0,#offset,
+                )
+
+    def readdir(self, *args, **kwargs):
+        return tuple(self._readdir(*args, **kwargs))
+
+    def readlink(self, path):
+        return self.fs.os_readlink(path)
+
+    def utimens(self, path, times):
+        self.fs.os_utimens(path, times)
+
+    def getattr(self, path, fh=None):
+        assert fh is None, fh
+        ino = self.fs.ino_for_path(path)
+        inode = self.fs.inode_read(ino)
+        return dict(
+                st_mode=inode["mode"],
+                st_nlink=inode["nlink"],
+                st_size=inode["size"],
+                st_uid=inode["uid"],
+                st_gid=inode["gid"],
+                st_rdev=inode["rdev"],
+                st_ino=ino,
+                **inode.get_st_times())
+
+    def mkdir(self, path, mode):
+        logger.info("mkdir(%r, %o)", path, mode)
+        uid, gid = fuse_get_context()[:2]
+        self.fs.os_mkdir(path, mode, uid, gid)
+
+    def rmdir(self, path):
+        return self.fs.os_rmdir(path)
+
+    def statfs(self, path="/"):
+        assert path == "/", path
+        blocks = free = 0
+        for cn in self.fs.atab_iter():
+            blocks += 1
+            if cn == clfs.CLUSTER_FREE:
+                free += 1
+        return dict(
+                f_bsize=self.fs.cluster_size,
+                f_namemax=clfs.CLFS_NAMEMAX,
+                f_blocks=blocks,
+                f_bfree=free,
+                f_bavail=free)
+
+    def mknod(self, path, mode, rdev):
+        logger.debug("mknod(%r, %o, %x)", path, mode, rdev)
+        uid, gid = fuse_get_context()[:2]
+        self.fs.os_mknod(path, mode, uid, gid, rdev)
+        #self.fs.node_create(path, mode, uid, gid, rdev)
+
+    def write(self, path, buf, offset, fh=None):
+        assert not fh, fh
+        self.fs._write(self.fs.ino_for_path(path), offset, buf)
+        return len(buf)
+
+    def read(self, path, size, offset, fh=None):
+        assert not fh, fh
+        return self.fs._read(self.fs.ino_for_path(path), offset, size)
+
+    def rename(self, old, new):
+        return self.fs.os_rename(old, new)
+
+    def truncate(self, path, size):
+        self.fs.os_truncate(path, size)
+
+    def chown(self, path, uid, gid):
+        self.fs.os_chown(path, uid, gid)
+
+    def chmod(self, path, mode):
+        self.fs.os_chmod(path, mode)
+
+    def unlink(self, path):
+        self.fs.os_unlink(path)
+
+    def symlink(self, target, source):
+        self.fs.os_symlink(target, source)
+
+def main():
+    logging.basicConfig(level=logging.DEBUG)
+    fusepy_kwargs = dict(
+            foreground=True, # debug hooks provided by fusepy
+            nothreads=True, # no locking in the filesystem yet
+            default_permissions=True, # let the kernel handle perm checks
+            fsname="clfs",
+            use_ino=True,
+            #direct_io=True,
+            #noauto_cache=True,
+            big_writes=True, # this might help with the high chain deref cost
+            #help=True,
+        )
+    if getuid() == 0:
+        fusepy_kwargs["allow_other"] = True
+    FUSE(
+            FuseClfs(argv[1]), # fs(devpath)
+            argv[2], # mountpoint
+            **fusepy_kwargs
+        )
+
+if __name__ == '__main__':
+    main()
