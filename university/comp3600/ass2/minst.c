@@ -272,6 +272,7 @@ int main(int argc, char **argv)
     default:
         exit(1);
     }
+    return 0;
 }
 
 /*
