@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -std=c99 -Wall -g
+CFLAGS = -std=c99 -Wall -g -O2
 
-EXES = buftest revbuf jackrev
+EXES = buftest revbuf jackrev fib
 
 all: clean ${EXES}
 

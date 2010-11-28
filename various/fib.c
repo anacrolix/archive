@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
         if (i) {
             putchar(' ');
         }
-        printf("%llu", blah[i]);
+        printf("%lu", blah[i]);
     }
     puts("]");
 	return EXIT_SUCCESS;
