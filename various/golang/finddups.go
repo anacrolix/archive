@@ -1,11 +1,14 @@
 package main
 
-import "crypto/md5"
-import "flag"
-import "fmt"
-import "path"
-import "os"
-import "runtime"
+import (
+	"crypto/md5"
+	"flag"
+	"fmt"
+	"path"
+	"os"
+	"runtime"
+	"runtime/pprof"
+)
 
 func abspath(p string) string {
 	base, _ := os.Getwd()
@@ -41,14 +44,16 @@ func walkargs(args []string, paths chan<- string) {
 	var manager Manager
 	walker := Walker{paths: paths, visited: make(map[string]bool)}
 	for _, arg := range args {
-		manager.Go(func(root string) func() { return func() {
-			fmt.Println(root)
-			path.Walk(root, walker, errors)
-		}}(arg))
+		manager.Go(func(root string) func() {
+			return func() {
+				fmt.Println(root)
+				path.Walk(root, walker, errors)
+			}
+		}(arg))
 	}
 	go func() {
 		for {
-			err := <- errors
+			err := <-errors
 			if closed(errors) {
 				return
 			}
@@ -61,7 +66,7 @@ func walkargs(args []string, paths chan<- string) {
 type Dupes map[string][]string
 
 func hashfile(name string, dupes Dupes) {
-	fmt.Println("Hashing file:", name)
+	//fmt.Println("Hashing file:", name)
 	file, err := os.Open(name, os.O_RDONLY, 0)
 	if file == nil {
 		fmt.Println(err)
@@ -69,7 +74,7 @@ func hashfile(name string, dupes Dupes) {
 	}
 	defer file.Close()
 	hash := md5.New()
-	var buf [0x1000]byte
+	var buf [0x20000]byte
 	for {
 		n, err := file.Read(buf[:])
 		//fmt.Println(name, n, err)
@@ -83,11 +88,11 @@ func hashfile(name string, dupes Dupes) {
 	}
 	sum := string(hash.Sum())
 	dupes[sum] = append(dupes[sum], name)
-	fmt.Printf("%x: %v\n", sum, name)
+	fmt.Printf("%x  %v\n", sum, name)
 }
 
 func main() {
-	fmt.Println("GOMAXPROCS:", runtime.GOMAXPROCS(8))
+	fmt.Println("GOMAXPROCS:", runtime.GOMAXPROCS(4))
 	flag.Parse()
 	paths := make(chan string)
 	go walkargs(flag.Args(), paths)
@@ -98,7 +103,14 @@ func main() {
 		if closed(paths) {
 			break
 		}
-		hashmgr.Go(func() { hashfile(name, dupes) })
+		hashmgr.Go(func(name string) func() {
+			return func() {
+				hashfile(name, dupes)
+			}
+		}(name))
 	}
 	hashmgr.Wait()
+	prof, err := os.Open("finddups.pprof", os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+	fmt.Println(err)
+	pprof.WriteHeapProfile(prof)
 }

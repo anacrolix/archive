@@ -1,7 +1,6 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=finddups
-GOFILES=finddups.go \
-    dispatch.go
+TARG = finddups
+GOFILES = finddups.go gopool.go
 
 include $(GOROOT)/src/Make.cmd

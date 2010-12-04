@@ -1,4 +1,4 @@
-package dispatch
+package main
 
 import "sync"
 
@@ -25,7 +25,7 @@ func (m *Manager) Go(fn func()) {
 				m.wakeup = nil
 			}
 			m.lock.Unlock()
-		}
+		}()
 	}()
 }
 
