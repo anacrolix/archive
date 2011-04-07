@@ -1,0 +1,11 @@
+http://code.google.com/p/anacrolix/source/browse/projects/nethogs2/
+proctab parses /proc for inode->process info, and endpoint info to inode mappings
+pktanal strips packet headers and returns the useful info found in each layer (messy), eg IP stuff from layer3, and ports from layer4
+nethogs2 glues the bits together with an ncurses interface. it also eats packets from libpcap. not of particular interest to casual
+viewers, with the exception of how i deal with libpcap, and make it DoStuffFastAndGood in DeviceCapture.
+
+upvotes appreciated:
+http://stackoverflow.com/questions/3306138/how-i-can-get-ports-assosiated-to-aplication-that-oppened-them/3308198#3308198
+http://stackoverflow.com/questions/4056850/how-to-do-like-netstat-p-but-faster/4057150#4057150
+http://stackoverflow.com/questions/1980355/linux-api-to-determine-sockets-owned-by-a-process
+http://stackoverflow.com/questions/3319521/how-can-i-match-each-proc-net-tcp-entry-to-each-opened-socket
