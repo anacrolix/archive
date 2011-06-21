@@ -39,6 +39,7 @@ static int openX(openX_proto func, char const *pathname, int flags, va_list ap)
 int open(char const *pathname, int flags, ...)
 {
     fprintf(stderr, "open()\n");
+    fflush(stderr);
     va_list ap;
     va_start(ap, flags);
     int ret = openX(next_open, pathname, flags, ap);
@@ -46,12 +47,13 @@ int open(char const *pathname, int flags, ...)
     return ret;
 }
 
-int open64(char const *pathname, int flags, ...)
-{
-    fprintf(stderr, "open64()\n");
-    va_list ap;
-    va_start(ap, flags);
-    int ret = openX(next_open64, pathname, flags, ap);
-    va_end(ap);
-    return ret;
-}
+//~ int open64(char const *pathname, int flags, ...)
+//~ {
+    //~ fprintf(stderr, "open64()\n");
+    //~ fflush(stderr);
+    //~ va_list ap;
+    //~ va_start(ap, flags);
+    //~ int ret = openX(next_open64, pathname, flags, ap);
+    //~ va_end(ap);
+    //~ return ret;
+//~ }

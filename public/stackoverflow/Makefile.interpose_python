@@ -1,2 +1,2 @@
 libinterpose_python.so: interpose_python.c
-	gcc -o libinterpose_python.so -shared interpose_python.c -fPIC -Wall
+	gcc -o libinterpose_python.so -shared interpose_python.c -fPIC -Wall -ldl
