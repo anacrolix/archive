@@ -3,6 +3,7 @@
 # wikipedia programming language scraper
 
 import html.parser
+import json
 import logging
 import urllib.request
 
@@ -22,6 +23,7 @@ class Parser(html.parser.HTMLParser):
         self.influenced_by = {}
         self.influenced = {}
         self.appeared_in = None
+        self.summary_caption = None
 
     def handle_data(self, data):
         if self.__state == 0:
@@ -42,7 +44,6 @@ class Parser(html.parser.HTMLParser):
             except ValueError:
                 pass
         elif self.__state == 4:
-            assert not hasattr(self, 'summary_caption')
             self.summary_caption = data
             self.__state = 0
 
@@ -70,33 +71,34 @@ def scrape(path):
     response = urllib.request.urlopen(request, timeout=10)
     parser = Parser()
     parser.feed(response.read().decode())
-    return parser.summary_caption, {key: value for key, value in parser.__dict__.items()
-        if key in ['appeared_in', 'influenced_by', 'influenced']}
+    return {
+        key: value for key, value in parser.__dict__.items() if key in [
+            'influenced', 'influenced_by', 'appeared_in']}
 
 def scrape_world(pending):
     from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
     from itertools import chain
     logger = logging.getLogger('cf_ordering')
     done_paths = set()
-    with ThreadPoolExecutor(10) as executor:
-        futures = set()
-        while futures or pending:
-            for lang, path in pending.items():
-                futures.add(executor.submit(lambda l, p: (l, scrape(p)), lang, path))
-                logger.debug('submitted %s', lang)
-                done_paths.add(path)
-            pending.clear()
-            done, futures = wait(futures, return_when=FIRST_COMPLETED)
-            for future in done:
-                lang, data = future.result()
-                logger.debug('got result %s', lang)
-                print((lang, data))
-                for lang, path in chain.from_iterable([
-                            #~ data['influenced'].items(),
-                            data['influenced_by'].items()
-                        ]):
-                    if path not in done_paths:
-                        pending[lang] = path
+    executor = ThreadPoolExecutor(10)
+    futures = set()
+    while futures or pending:
+        for lang, path in pending.items():
+            futures.add(executor.submit(lambda l, p: (l, scrape(p)), lang, path))
+            logger.debug('submitted %s', lang)
+            done_paths.add(path)
+        pending.clear()
+        done, futures = wait(futures, return_when=FIRST_COMPLETED)
+        for future in done:
+            lang, data = future.result()
+            logger.debug('got result %s', lang)
+            yield lang, data
+            for lang, path in chain.from_iterable([
+                        data['influenced'].items(),
+                        data['influenced_by'].items()
+                    ]):
+                if path not in done_paths:
+                    pending[lang] = path
 
 def main():
     import pprint, sys
@@ -105,7 +107,8 @@ def main():
             pprint.pprint(scrape(path))
     else:
         logging.root.setLevel(logging.NOTSET)
-        scrape_world({'Python': '/wiki/Python_(programming_language)'})
+        for obj in scrape_world({'Python': '/wiki/Python_(programming_language)'}):
+            print(json.dumps(obj))
 
 if __name__ == '__main__':
     main()
