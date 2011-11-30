@@ -47,13 +47,13 @@ int open(char const *pathname, int flags, ...)
     return ret;
 }
 
-//~ int open64(char const *pathname, int flags, ...)
-//~ {
-    //~ fprintf(stderr, "open64()\n");
-    //~ fflush(stderr);
-    //~ va_list ap;
-    //~ va_start(ap, flags);
-    //~ int ret = openX(next_open64, pathname, flags, ap);
-    //~ va_end(ap);
-    //~ return ret;
-//~ }
+int open64(char const *pathname, int flags, ...)
+{
+    fprintf(stderr, "open64()\n");
+    fflush(stderr);
+    va_list ap;
+    va_start(ap, flags);
+    int ret = openX(next_open64, pathname, flags, ap);
+    va_end(ap);
+    return ret;
+}
