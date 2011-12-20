@@ -11,7 +11,14 @@ const block_size = 1 << 14
 
 func newTorrent(metainfo bencode.Dict) *torrent {
     t := &torrent{Metainfo: metainfo}
-    t.NumberOfPieces = len(t.Metainfo["info"].(bencode.Dict)["pieces"].(string)) / 20
+    t.numberOfPieces = uint(len(t.Metainfo["info"].(bencode.Dict)["pieces"].(string)) / 20)
+    t.trackers = append(t.trackers, newTracker(metainfo["announce"].(string)))
+    announce_list := metainfo["announce-list"].(bencode.List)
+    for _, tier_list := range announce_list {
+        for _, url := range tier_list.(bencode.List) {
+            t.trackers = append(t.trackers, newTracker(url.(string)))
+        }
+    }
     return t
 }
 
@@ -24,6 +31,7 @@ type torrent struct {
     wanted [][]uint
     numberOfPieces uint
     blocksPerPiece uint
+    trackers []Tracker
 }
 
 func (t torrent) Run() {
@@ -40,6 +48,6 @@ func main() {
         log.Fatal("Invalid torrent file")
     }
     torrent := newTorrent(metainfo.(bencode.Dict))
-    println(torrent.NumberOfPieces)
+    println(torrent.numberOfPieces)
     torrent.Run()
 }
