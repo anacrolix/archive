@@ -1,0 +1,19 @@
+digraph {
+    aliens
+    conan_the_barbarian
+    bonnie_and_clyde->badlands
+    indiana_jones
+    star_wars->its_a_trap
+    planet_of_the_apes
+    terminator
+    tron
+    twin_peaks->fire_walk_with_me->lost_highway
+    mad_max->salute_of_the_jugger
+    ET->super_8
+    blair_witch->the_tunnel
+    1984
+    true_grit
+    matrix->computer_boy
+    world_of_warcraft->avatar
+    one_flew_over_the_cuckoo's_nest
+}
