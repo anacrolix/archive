@@ -2,6 +2,10 @@ package main
 
 import (
     "url"
+    "strconv"
+    "http"
+    "io/ioutil"
+    "os"
 )
 
 const (
@@ -12,7 +16,7 @@ const (
 )
 
 type Tracker interface {
-    Announce()
+    Announce(Torrent) ([]string, int, os.Error)
 }
 
 type udpTracker struct {
@@ -20,14 +24,42 @@ type udpTracker struct {
     path string
 }
 
-func (t udpTracker) Announce() {
+func (t udpTracker) Announce(Torrent) (peers []string, interval int, err os.Error) {
+    return
 }
 
 type httpTracker struct {
     url string
 }
 
-func (t httpTracker) Announce() {
+func (h *httpTracker) Announce(t Torrent) (peers []string, interval int, err os.Error) {
+    query := url.Values{
+        "info_hash": []string{string(t.InfoHash()[:])},
+        "peer_id": {string(t.PeerId())},
+        "port": {strconv.Itoa(t.Port())},
+        "uploaded": {strconv.Itoa(t.Uploaded())},
+        "downloaded": {strconv.Itoa(t.Downloaded())},
+        "left": {strconv.Itoa(t.Left())},
+        "compact": {"1"},
+        "no_peer_id": {"1"},
+    }
+    url, err := url.Parse(h.url)
+    if err != nil {
+        panic(err)
+    }
+    url.RawQuery = query.Encode()
+    rawurl := url.String()
+    var resp *http.Response
+    resp, err = http.Get(rawurl)
+    if err != nil {
+        return
+    }
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        panic(err)
+    }
+    peers = append(peers, string(body))
+    return
 }
 
 func newTracker(rawurl string) Tracker {
@@ -37,9 +69,9 @@ func newTracker(rawurl string) Tracker {
     }
     switch url.Scheme {
     case "http":
-        return httpTracker{}
+        return &httpTracker{url: rawurl}
     case "udp":
-        return udpTracker{}
+        return &udpTracker{}
     default:
         panic(rawurl)
     }
